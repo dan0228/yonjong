@@ -103,12 +103,14 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { useGameStore } from '@/stores/gameStore'; // gameStoreをインポート
+import { useAudioStore } from '@/stores/audioStore';
 
 import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
 const gameStore = useGameStore(); // gameStoreを定義
+const audioStore = useAudioStore();
 const router = useRouter();
 
 // --- レスポンシブデザインのためのスケーリング ---
@@ -213,6 +215,13 @@ const startFinalSequence = () => {
   }, 1000); // 1秒の遅延
 };
 
+// ★修正: プレイヤー人数が増えたら効果音を鳴らす
+watch(() => gameStore.players?.length, (newLength, oldLength) => {
+  if (oldLength !== undefined && newLength > oldLength) {
+    audioStore.playSound('Hyoshigi01-1.mp3');
+  }
+});
+
 // gameStore.isGameReady の変更を監視
 watch(() => gameStore.isGameReady, (newVal) => {
   if (newVal) {
@@ -243,6 +252,8 @@ onMounted(() => {
   generateFireParticleStyles();
   // マッチング要求を開始
   gameStore.requestMatchmaking();
+  // ★修正: 入室時に効果音を再生
+  audioStore.playSound('Hyoshigi01-1.mp3');
 });
 
 onBeforeUnmount(() => {
@@ -413,7 +424,7 @@ onBeforeUnmount(() => {
 }
 .player-name {
   color: white;
-  font-size: 12px;
+  font-size: 10px;
   text-shadow: 1px 1px 2px black;
   background-color: rgba(0, 0, 0, 0.5);
   padding: 1px 8px;

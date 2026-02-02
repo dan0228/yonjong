@@ -168,7 +168,7 @@ const statBoardImageSrc = computed(() => {
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  border: 3px solid #a0522d;
+  border: 3px solid #411603;
   object-fit: cover;
   margin-bottom: 15px;
   margin-left: 20px;

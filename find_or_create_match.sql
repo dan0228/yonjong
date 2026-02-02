@@ -14,9 +14,13 @@ DECLARE
     v_players_data jsonb;
     v_current_game_data jsonb;
     v_new_game_id uuid;
+    v_user_cat_coins integer; -- ★猫コインを格納する変数を追加
 BEGIN
     -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
     PERFORM pg_advisory_xact_lock(1);
+
+    -- ★参加するプレイヤーの猫コインを取得
+    SELECT cat_coins INTO v_user_cat_coins FROM public.users WHERE id = p_user_id;
 
     -- ===第一段階:レーティングが近い参加可能なゲームを探す===
     SELECT gs.id, gs.player_1_id, gs.player_2_id,
@@ -73,6 +77,7 @@ BEGIN
             'username', p_username,
             'avatar_url', COALESCE(p_avatar_url, '/assets/images/info/hito_icon_1.png'),
             'rating', p_user_rating,
+            'cat_coins', v_user_cat_coins, -- ★猫コインを追加
             'score', 50000,
             'isAi', false
         );
@@ -103,7 +108,7 @@ BEGIN
             WHERE id = v_game_record.id;
         END IF;
 
-        -- ★★★ 修正点: UPDATE後にSELECTで最新のgame_dataを確実に取得する ★★★
+        -- UPDATE後にSELECTで最新のgame_dataを確実に取得する
         SELECT game_data INTO v_current_game_data FROM public.game_states WHERE id = v_game_record.id;
 
         -- 戻り値のデータを準備
@@ -132,6 +137,7 @@ BEGIN
                         'username', p_username,
                         'avatar_url', COALESCE(p_avatar_url, '/assets/images/info/hito_icon_1.png'),
                         'rating', p_user_rating,
+                        'cat_coins', v_user_cat_coins, -- ★猫コインを追加
                         'score', 50000,
                         'isAi', false
                     )
