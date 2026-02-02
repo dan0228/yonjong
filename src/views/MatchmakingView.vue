@@ -77,14 +77,6 @@
               @click="openPlayerInfoPopup(slot.player)"
             >
             <span class="player-name">{{ slot.player.username }}</span>
-            <!-- ★チャット吹き出しを追加 -->
-            <div
-              v-if="gameStore.chatBubbles[slot.player.id]"
-              :key="gameStore.chatBubbles[slot.player.id].key"
-              class="chat-bubble"
-            >
-              {{ getChatMessageById(gameStore.chatBubbles[slot.player.id].messageId) }}
-            </div>
           </template>
           <!-- 待機中の場合 -->
           <template v-else>
@@ -101,7 +93,37 @@
           @close="closePlayerInfoPopup" 
         />
 
-        <!-- ★チャット入力エリアを追加 -->
+        <!-- ★修正: 吹き出しを絶対座標で配置 -->
+        <div
+          v-if="playerInSlot1 && gameStore.chatBubbles[playerInSlot1.id]"
+          :key="gameStore.chatBubbles[playerInSlot1.id].key"
+          class="chat-bubble bubble-slot-1"
+        >
+          {{ getChatMessageById(gameStore.chatBubbles[playerInSlot1.id].messageId) }}
+        </div>
+        <div
+          v-if="playerInSlot2 && gameStore.chatBubbles[playerInSlot2.id]"
+          :key="gameStore.chatBubbles[playerInSlot2.id].key"
+          class="chat-bubble bubble-slot-2"
+        >
+          {{ getChatMessageById(gameStore.chatBubbles[playerInSlot2.id].messageId) }}
+        </div>
+        <div
+          v-if="playerInSlot3 && gameStore.chatBubbles[playerInSlot3.id]"
+          :key="gameStore.chatBubbles[playerInSlot3.id].key"
+          class="chat-bubble bubble-slot-3"
+        >
+          {{ getChatMessageById(gameStore.chatBubbles[playerInSlot3.id].messageId) }}
+        </div>
+        <div
+          v-if="playerInSlot4 && gameStore.chatBubbles[playerInSlot4.id]"
+          :key="gameStore.chatBubbles[playerInSlot4.id].key"
+          class="chat-bubble bubble-slot-4"
+        >
+          {{ getChatMessageById(gameStore.chatBubbles[playerInSlot4.id].messageId) }}
+        </div>
+
+        <!-- チャット入力エリア -->
         <div class="chat-plank-container">
           <div
             v-for="chat in chatMessages"
@@ -122,18 +144,18 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
-import { useGameStore } from '@/stores/gameStore'; // gameStoreをインポート
+import { useGameStore } from '@/stores/gameStore';
 import { useAudioStore } from '@/stores/audioStore';
 
 import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 
 const { t, locale } = useI18n();
 const userStore = useUserStore();
-const gameStore = useGameStore(); // gameStoreを定義
+const gameStore = useGameStore();
 const audioStore = useAudioStore();
 const router = useRouter();
 
-// --- ★チャット機能関連の定義を追加 ---
+// --- チャット機能関連の定義 ---
 const chatMessages = computed(() => [
   { id: 1, text: t('chat.1') }, { id: 2, text: t('chat.2') }, { id: 3, text: t('chat.3') },
   { id: 4, text: t('chat.4') }, { id: 5, text: t('chat.5') }, { id: 6, text: t('chat.6') },
@@ -149,7 +171,6 @@ const getChatMessageById = (id) => {
   const message = chatMessages.value.find(m => m.id === id);
   return message ? message.text : '';
 };
-// --- チャット機能ここまで ---
 
 // --- レスポンシブデザインのためのスケーリング ---
 const scaleFactor = ref(1);
@@ -211,6 +232,12 @@ const displaySlots = computed(() => {
   }
   return slots;
 });
+
+// ★修正: 各スロットのプレイヤー情報を個別に取得するcomputedプロパティ
+const playerInSlot1 = computed(() => displaySlots.value[0]?.player);
+const playerInSlot2 = computed(() => displaySlots.value[1]?.player);
+const playerInSlot3 = computed(() => displaySlots.value[2]?.player);
+const playerInSlot4 = computed(() => displaySlots.value[3]?.player);
 
 
 // statusKey のロジックを調整
@@ -659,9 +686,9 @@ onBeforeUnmount(() => {
 
 .chat-bubble {
   position: absolute;
-  top: -45px; /* アバターの上に来るように調整 */
-  left: 50%;
-  transform: translateX(-50%);
+  /* left: 50%; を削除 */
+  /* margin-left: -60px; を削除 */
+  transform: translateX(-50%); /* 中央揃えのためにtransformは残す */
   background-color: #fdfaf2; /* 生成り色 */
   border: 2px solid #5a3a22; /* 焦げ茶色の枠線 */
   border-radius: 10px;
@@ -676,6 +703,12 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   animation: popup-bubble 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), fade-out-bubble 0.5s ease-out 3s forwards;
 }
+
+/* ★修正: 各スロットごとの吹き出し位置を絶対座標で指定 */
+.bubble-slot-1 { top: 360px; left: 45px; }
+.bubble-slot-2 { top: 395px; left: 130px; }
+.bubble-slot-3 { top: 395px; left: 240px; }
+.bubble-slot-4 { top: 360px; left: 320px; }
 
 .chat-bubble::after {
   content: '';

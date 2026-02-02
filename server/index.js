@@ -1939,10 +1939,23 @@ io.on('connection', (socket) => {
     await updateAndBroadcastGameState(gameId, gameState);
   });
 
-  // ★チャットメッセージの送受信処理を追加
-  socket.on('sendChatMessage', ({ gameId, playerId, messageId }) => {
-    // 受け取ったメッセージを同じゲームIDのルームにいる全員に転送する
-    io.to(gameId).emit('newChatMessage', { playerId, messageId });
+  // ★修正: 信頼できる送信者情報を元にチャットを転送する
+  socket.on('sendChatMessage', ({ gameId, messageId }) => {
+    let senderId = null;
+    // userSocketMapを逆引きして、ソケットIDからユーザーIDを見つける
+    for (const [userId, socketId] of userSocketMap.entries()) {
+      if (socketId === socket.id) {
+        senderId = userId;
+        break;
+      }
+    }
+
+    if (senderId) {
+      // 見つけたユーザーIDを使って、ルームの全員にメッセージを転送
+      io.to(gameId).emit('newChatMessage', { playerId: senderId, messageId });
+    } else {
+      console.error(`Could not find user for socket ${socket.id} to send chat message.`);
+    }
   });
 
 });
