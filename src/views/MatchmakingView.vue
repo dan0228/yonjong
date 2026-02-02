@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
 }
 .player-slot {
   position: absolute;
-  z-index: 10;
+  z-index: 100; /* 他の要素より確実に手前に表示 */
   margin-left: -20px;
   margin-top: -30px;
   display: flex;
@@ -409,6 +409,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
   object-fit: cover;
   cursor: pointer;
+  pointer-events: auto; /* クリックイベントを明示的に有効化 */
 }
 .player-name {
   color: white;
@@ -479,6 +480,7 @@ onBeforeUnmount(() => {
   left: 52%;
   width: 1px;
   height: 1px;
+  pointer-events: none;
 }
 .smoke-particle {
   position: absolute;
@@ -514,6 +516,7 @@ onBeforeUnmount(() => {
   width: 100px;
   height: 100px;
   transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 .fire-particle {
   position: absolute;
