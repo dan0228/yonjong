@@ -1349,9 +1349,13 @@ io.on('connection', (socket) => {
       });
     }
 
-    console.log(`User ${userId} joined game ${gameId}. Socket ID: ${socket.id}`);
-    // 参加したクライアントに現在のゲーム状態を送信
-    io.to(gameId).emit('game-state-update', gameStates[gameId]);
+    // ★★★ 修正: マッチング待機中は競合を避けるため、全体への状態更新を行わない ★★★
+    // マッチング中のプレイヤーリスト更新は 'requestMatchmaking' ハンドラ内の 'matchmaking-update' が担当する。
+    // ここで全体更新をかけてしまうと、DBから読み込んだ古い情報で、新しい情報を上書きしてしまう競合が発生する。
+    if (gameStates[gameId] && gameStates[gameId].gamePhase !== 'waitingToStart') {
+      // ゲームが開始された後であれば、再接続したプレイヤーのために現在のゲーム状態を送信する
+      io.to(gameId).emit('game-state-update', gameStates[gameId]);
+    }
   });
 
   // クライアントがマッチメイキングを要求する

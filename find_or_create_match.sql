@@ -12,14 +12,13 @@ DECLARE
     v_player_count integer;
     v_new_avg_rating integer;
     v_players_data jsonb;
-    v_all_player_ids uuid[];
     v_current_game_data jsonb;
     v_new_game_id uuid;
 BEGIN
     -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
     PERFORM pg_advisory_xact_lock(1);
 
-    -- ===第一段階:参加可能なゲームを探す (レート検索を一時的に無効化) ===
+    -- ===第一段階:レーティングが近い参加可能なゲームを探す===
     SELECT gs.id, gs.player_1_id, gs.player_2_id,
            gs.player_3_id, gs.player_4_id,
            gs.avg_rating, gs.game_data
@@ -28,13 +27,35 @@ BEGIN
     WHERE
         gs.status = 'waiting'
         AND gs.player_4_id IS NULL -- 4人未満の部屋を探す
-        -- AND gs.avg_rating BETWEEN (p_user_rating - 200) AND (p_user_rating + 200) -- ★★★ デバッグのため一時的に無効化 ★★★
-        AND p_user_id NOT IN (gs.player_1_id, gs.player_2_id, gs.player_3_id, gs.player_4_id) -- 自分が参加していない部屋
-    ORDER BY gs.created_at ASC -- 古い部屋から順にソート
+        AND gs.avg_rating BETWEEN (p_user_rating - 200) AND (p_user_rating + 200)
+        AND (gs.player_1_id IS NULL OR gs.player_1_id <> p_user_id)
+        AND (gs.player_2_id IS NULL OR gs.player_2_id <> p_user_id)
+        AND (gs.player_3_id IS NULL OR gs.player_3_id <> p_user_id)
+        AND (gs.player_4_id IS NULL OR gs.player_4_id <> p_user_id)
+    ORDER BY abs(gs.avg_rating - p_user_rating) -- レーティング差が小さい順にソート
     LIMIT 1
     FOR UPDATE;
 
-    -- ゲームが見つかった場合
+    -- ===第二段階:レーティングマッチで見つからなかった場合、空いているゲームを探す ===
+    IF NOT FOUND THEN
+        SELECT gs.id, gs.player_1_id, gs.player_2_id,
+               gs.player_3_id, gs.player_4_id,
+               gs.avg_rating, gs.game_data
+        INTO v_game_record
+        FROM public.game_states gs
+        WHERE
+            gs.status = 'waiting'
+            AND gs.player_4_id IS NULL -- 4人未満の部屋を探す
+            AND (gs.player_1_id IS NULL OR gs.player_1_id <> p_user_id)
+            AND (gs.player_2_id IS NULL OR gs.player_2_id <> p_user_id)
+            AND (gs.player_3_id IS NULL OR gs.player_3_id <> p_user_id)
+            AND (gs.player_4_id IS NULL OR gs.player_4_id <> p_user_id)
+        ORDER BY gs.created_at ASC -- 古い部屋から順にソート
+        LIMIT 1
+        FOR UPDATE;
+    END IF;
+
+    -- ゲームが見つかった場合 (第一段階 or 第二段階)
     IF FOUND THEN
         -- プレイヤー数を計算
         v_player_count := (CASE WHEN v_game_record.player_1_id IS NOT NULL THEN 1 ELSE 0 END) +
@@ -63,18 +84,14 @@ BEGIN
                 player_2_id = p_user_id,
                 avg_rating = v_new_avg_rating,
                 game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
-            WHERE id = v_game_record.id
-            RETURNING game_data INTO v_current_game_data;
-            v_all_player_ids := ARRAY[v_game_record.player_1_id, p_user_id];
+            WHERE id = v_game_record.id;
         ELSIF v_game_record.player_3_id IS NULL THEN
             UPDATE public.game_states
             SET
                 player_3_id = p_user_id,
                 avg_rating = v_new_avg_rating,
                 game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
-            WHERE id = v_game_record.id
-            RETURNING game_data INTO v_current_game_data;
-            v_all_player_ids := ARRAY[v_game_record.player_1_id, v_game_record.player_2_id, p_user_id];
+            WHERE id = v_game_record.id;
         ELSIF v_game_record.player_4_id IS NULL THEN
             -- 4人目なので、ステータスも'ready'に更新
             UPDATE public.game_states
@@ -82,11 +99,12 @@ BEGIN
                 player_4_id = p_user_id,
                 avg_rating = v_new_avg_rating,
                 status = 'ready',
-                game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
-            WHERE id = v_game_record.id
-            RETURNING game_data INTO v_current_game_data;
-            v_all_player_ids := ARRAY[v_game_record.player_1_id, v_game_record.player_2_id, v_game_record.player_3_id, p_user_id];
+                game_data = jsonb_set(jsonb_set(game_data, '{players}', game_data->'players' || v_players_data), '{isGameReady}', 'true'::jsonb)
+            WHERE id = v_game_record.id;
         END IF;
+
+        -- ★★★ 修正点: UPDATE後にSELECTで最新のgame_dataを確実に取得する ★★★
+        SELECT game_data INTO v_current_game_data FROM public.game_states WHERE id = v_game_record.id;
 
         -- 戻り値のデータを準備
         game_id := v_game_record.id;
@@ -130,7 +148,6 @@ BEGIN
         RETURNING id, game_data INTO game_id, v_current_game_data;
 
         is_full := false;
-        v_all_player_ids := ARRAY[p_user_id];
     END IF;
 
     -- 最終的なプレイヤーリストを game_dataから取得して返す

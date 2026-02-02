@@ -332,6 +332,11 @@ export const useGameStore = defineStore('game', {
           this.isGameOnline = true;
           this.localPlayerId = userStore.profile.id; // 自分のIDを設定
           this.players = players; // サーバーから受け取ったプレイヤーリストで更新
+
+          // ★修正: マッチング待機中も更新情報を受け取れるように、すぐにゲームチャンネルに参加する
+          if (socket && socket.connected) {
+            socket.emit('joinGame', { gameId, userId: this.localPlayerId });
+          }
         });
 
         socket.on('game-found', ({ gameId, players }) => {
@@ -377,8 +382,6 @@ export const useGameStore = defineStore('game', {
 
       // サーバーから送られてくる状態をそのまま適用
       this.$patch(newState);
-
-      this.isGameReady = true; // ゲームの準備が完了
     },
 
     signalReadyForNextRound(remotePlayerId = null) {
