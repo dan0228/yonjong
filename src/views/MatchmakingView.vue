@@ -461,14 +461,22 @@ onBeforeUnmount(() => {
   pointer-events: auto; /* クリックイベントを明示的に有効化 */
 }
 .player-name {
-  color: white;
-  font-size: 10px;
-  text-shadow: 1px 1px 2px black;
-  background-color: rgba(0, 0, 0, 0.5);
-  padding: 1px 8px;
-  border-radius: 8px;
+  font-size: 9px;
+  text-shadow: none;
   white-space: nowrap;
   z-index: 1;
+  /* ★背景画像をomikuji_button.pngに変更 */
+  background-image: url('/assets/images/button/omikuji_button.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  width: 105px; /* 画像の見た目に合わせてサイズを調整 */
+  height: 25px; /* 画像の見た目に合わせてサイズを調整 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #5a3a22; /* テキスト色を濃い茶色に変更 */
+  font-weight: bold;
+  padding-bottom: 2px; /* 文字の縦位置を微調整 */
 }
 .waiting-indicator {
   width: 100%;
