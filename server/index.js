@@ -754,7 +754,6 @@ async function handleRyuukyoku(gameId) {
       gameState.resultMessage = `親（${dealerPlayer.name}）がテンパイでトップのため終局`;
       gameState.shouldEndGameAfterRound = true;
       gameState.nextDealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
-      gameState.shouldAdvanceRound = true;
       gameState.honba = 0;
     } else if (isDealerTenpai) {
       gameState.resultMessage = `親（${dealerPlayer.name}）がテンパイのため連荘`;
@@ -1200,22 +1199,19 @@ io.on('connection', (socket) => {
             if (playerIndex !== -1) {
                 console.log(`Player ${disconnectedUserId} disconnected from active game ${gameId}`);
                 
-                // game_data 内の players 配列からも切断したプレイヤーを削除
-                game.players = game.players.filter(p => p.id !== disconnectedUserId);
-
-                // Supabaseのgame_statesテーブルのplayer_X_idカラムを更新するための準備
                 const updateData = { updated_at: new Date() };
-                let playerColumnToNull = null;
-                // どの player_X_id を null にすべきか、元の game.players のインデックスに基づいて判断
-                // ただし、game.players は既にフィルターされているため、元のインデックスを直接使うのは難しい
-                // ここでは、game_data.players の現在の状態から player_X_id を再構築する
-                updateData.player_1_id = game.players[0]?.id || null;
-                updateData.player_2_id = game.players[1]?.id || null;
-                updateData.player_3_id = game.players[2]?.id || null;
-                updateData.player_4_id = game.players[3]?.id || null;
 
-                // 残りのプレイヤー数に応じてstatusを更新
-                if (game.players.length === 0) {
+                // ★★★ 修正: 堅牢な切断処理ロジック ★★★
+                const remainingPlayers = game.players.filter(p => p.id !== disconnectedUserId);
+                game.players = remainingPlayers;
+                updateData.game_data = game;
+
+                updateData.player_1_id = remainingPlayers[0]?.id || null;
+                updateData.player_2_id = remainingPlayers[1]?.id || null;
+                updateData.player_3_id = remainingPlayers[2]?.id || null;
+                updateData.player_4_id = remainingPlayers[3]?.id || null;
+
+                if (remainingPlayers.length === 0) {
                     updateData.status = 'cancelled';
                     console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
                 } else {
@@ -1227,9 +1223,6 @@ io.on('connection', (socket) => {
                     }
                 }
 
-                // game_dataも更新
-                updateData.game_data = game;
-
                 const { error } = await supabase
                     .from('game_states')
                     .update(updateData)
@@ -1238,7 +1231,7 @@ io.on('connection', (socket) => {
                 if (error) {
                     console.error(`Error updating game state for game ${gameId}:`, error);
                 } else {
-                    if (game.players.length === 0) {
+                    if (remainingPlayers.length === 0) {
                         // メモリからもゲーム状態を削除
                         delete gameStates[gameId];
                         console.log(`Game ${gameId} removed from memory.`);
@@ -1322,8 +1315,12 @@ io.on('connection', (socket) => {
     }
     socket.join(gameId); // Socket.ioルームに参加
 
-    if (!gameStates[gameId]) {
-      // ゲームが存在しない場合、Supabaseからロードを試みる
+    // ★★★ 修正: マッチング待機中も必ずDBから最新の状態を読み込む ★★★
+    let currentState = gameStates[gameId];
+    // メモリにない、またはマッチング待機中のゲームであればDBからロード
+    const shouldLoadFromDB = !currentState || currentState.gamePhase === 'waitingToStart';
+
+    if (shouldLoadFromDB) {
       const { data, error } = await supabase
         .from('game_states')
         .select('*')
@@ -1332,36 +1329,19 @@ io.on('connection', (socket) => {
 
       if (error || !data) {
         console.error(`Error fetching game state for ${gameId}:`, error?.message);
-        // クライアントにエラーを通知
         socket.emit('gameError', { message: 'ゲームのロードに失敗しました。' });
         return;
       }
-
-      // Supabaseからロードしたゲーム状態を初期化
+      // メモリ上の状態を更新
       gameStates[gameId] = data.game_data;
-      gameStates[gameId].onlineGameId = gameId; // gameIdを状態に含める
-      gameStates[gameId].players.forEach(p => {
-        if (p.id === userId) {
-          p.socketId = socket.id; // プレイヤーのsocketIdを更新
-        }
-      });
-      console.log(`Game ${gameId} loaded from Supabase.`);
-    } else {
-      // 既にメモリにゲーム状態がある場合、プレイヤーのsocketIdを更新
-      gameStates[gameId].players.forEach(p => {
-        if (p.id === userId) {
-          p.socketId = socket.id;
-        }
-      });
+      currentState = data.game_data;
+      console.log(`Game ${gameId} loaded/re-loaded from Supabase.`);
     }
 
-    // ★★★ 修正: マッチング待機中は競合を避けるため、全体への状態更新を行わない ★★★
-    // マッチング中のプレイヤーリスト更新は 'requestMatchmaking' ハンドラ内の 'matchmaking-update' が担当する。
-    // ここで全体更新をかけてしまうと、DBから読み込んだ古い情報で、新しい情報を上書きしてしまう競合が発生する。
-    if (gameStates[gameId] && gameStates[gameId].gamePhase !== 'waitingToStart') {
-      // ゲームが開始された後であれば、再接続したプレイヤーのために現在のゲーム状態を送信する
-      io.to(gameId).emit('game-state-update', gameStates[gameId]);
-    }
+    // ★★★ 修正: 競合を避けるため、'game-state-update' は常にブロードキャストする ★★★
+    // これにより、joinGameが呼ばれるたびに全プレイヤーのゲーム状態が最新に同期される
+    console.log(`Broadcasting state for game ${gameId} to all players in room.`);
+    io.to(gameId).emit('game-state-update', currentState);
   });
 
   // クライアントがマッチメイキングを要求する
@@ -1775,7 +1755,8 @@ io.on('connection', (socket) => {
       gameState.pendingKanDoraReveal = true; // 打牌後に新しいドラが表示される
       _handlePostRinshanDraw(gameId, playerId);
       gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
-    } else {
+    }
+    else {
       console.warn("Cannot draw Rinshan tile, wall is empty.");
       await handleRyuukyoku(gameId);
       return;
