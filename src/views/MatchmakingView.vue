@@ -612,12 +612,13 @@ onBeforeUnmount(() => {
   bottom: 0;
   left: 0;
   width: 100%;
-  padding: 5px 1px;
+  padding: 10px 10px;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 4px;
+  row-gap: 8px;
+  column-gap: 10px;
   z-index: 100;
 }
 
@@ -631,7 +632,7 @@ onBeforeUnmount(() => {
   align-items: center;
   cursor: pointer;
   transition: transform 0.1s ease-out;
-  padding: 5px;
+  padding: 1px;
   box-sizing: border-box;
 }
 
@@ -641,7 +642,8 @@ onBeforeUnmount(() => {
 
 .chat-text {
   font-family: 'Yuji Syuku', serif;
-  font-size: 9px; /* 文字サイズを縮小 */
+  font-size: 8px; /* 文字サイズを縮小 */
+  font-weight: bold;
   color: #4a2c1a;
   text-align: center;
   text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.5);
