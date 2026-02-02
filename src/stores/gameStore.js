@@ -266,8 +266,40 @@ export const useGameStore = defineStore('game', {
     isAppReady: false, // アプリケーションの初期読み込みが完了したかどうか
     hasGameStarted: false, // ゲームが開始されたかどうかを示すフラグ
     isMatchmakingRequested: false, // マッチメイキングリクエストが送信されたかどうか
+    chatBubbles: {}, // ★チャット吹き出しの状態を管理
   }),
   actions: {
+    // ★チャットメッセージを送信するアクション
+    sendChatMessage(messageId) {
+      if (this.isGameOnline && socket && socket.connected) {
+        socket.emit('sendChatMessage', {
+          gameId: this.onlineGameId,
+          playerId: this.localPlayerId,
+          messageId: messageId,
+        });
+      }
+    },
+    // ★受信したチャットメッセージを表示するアクション
+    displayChatMessage({ playerId, messageId }) {
+      const audioStore = useAudioStore();
+      audioStore.playSound('dahai.mp3');
+
+      // 既存のタイマーがあればクリアして、連続投稿時に表示を上書きする
+      if (this.chatBubbles[playerId]?.timeoutId) {
+        clearTimeout(this.chatBubbles[playerId].timeoutId);
+      }
+
+      const timeoutId = setTimeout(() => {
+        this.chatBubbles[playerId] = null;
+      }, 3000); // 3秒後に吹き出しを消す
+
+      this.chatBubbles[playerId] = {
+        messageId: messageId,
+        timeoutId: timeoutId,
+        key: Date.now(), // 同じメッセージが連続で送られても再描画させるためのキー
+      };
+    },
+
     setAppReady(status) {
       this.isAppReady = status;
     },
@@ -312,6 +344,11 @@ export const useGameStore = defineStore('game', {
         socket.on('game-state-update', (newState) => {
           console.log('Received game state update:', newState);
           this.handleRemoteStateUpdate(newState);
+        });
+
+        // ★チャットメッセージ受信時のリスナーを追加
+        socket.on('newChatMessage', ({ playerId, messageId }) => {
+          this.displayChatMessage({ playerId, messageId });
         });
 
         socket.on('gameError', (error) => {

@@ -77,6 +77,14 @@
               @click="openPlayerInfoPopup(slot.player)"
             >
             <span class="player-name">{{ slot.player.username }}</span>
+            <!-- ★チャット吹き出しを追加 -->
+            <div
+              v-if="gameStore.chatBubbles[slot.player.id]"
+              :key="gameStore.chatBubbles[slot.player.id].key"
+              class="chat-bubble"
+            >
+              {{ getChatMessageById(gameStore.chatBubbles[slot.player.id].messageId) }}
+            </div>
           </template>
           <!-- 待機中の場合 -->
           <template v-else>
@@ -92,6 +100,18 @@
           :player="selectedPlayer" 
           @close="closePlayerInfoPopup" 
         />
+
+        <!-- ★チャット入力エリアを追加 -->
+        <div class="chat-plank-container">
+          <div
+            v-for="chat in chatMessages"
+            :key="chat.id"
+            class="chat-plank"
+            @click="sendChat(chat.id)"
+          >
+            <span class="chat-text">{{ chat.text }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -112,6 +132,24 @@ const userStore = useUserStore();
 const gameStore = useGameStore(); // gameStoreを定義
 const audioStore = useAudioStore();
 const router = useRouter();
+
+// --- ★チャット機能関連の定義を追加 ---
+const chatMessages = computed(() => [
+  { id: 1, text: t('chat.1') }, { id: 2, text: t('chat.2') }, { id: 3, text: t('chat.3') },
+  { id: 4, text: t('chat.4') }, { id: 5, text: t('chat.5') }, { id: 6, text: t('chat.6') },
+  { id: 7, text: t('chat.7') }, { id: 8, text: t('chat.8') }, { id: 9, text: t('chat.9') },
+  { id: 10, text: t('chat.10') }, { id: 11, text: t('chat.11') }, { id: 12, text: t('chat.12') }
+]);
+
+const sendChat = (messageId) => {
+  gameStore.sendChatMessage(messageId);
+};
+
+const getChatMessageById = (id) => {
+  const message = chatMessages.value.find(m => m.id === id);
+  return message ? message.text : '';
+};
+// --- チャット機能ここまで ---
 
 // --- レスポンシブデザインのためのスケーリング ---
 const scaleFactor = ref(1);
@@ -564,6 +602,100 @@ onBeforeUnmount(() => {
   }
   100% {
     transform: translateY(-25px) translateX(15px);
+    opacity: 0;
+  }
+}
+
+/* ★★★ チャット機能のスタイルを追加 ★★★ */
+.chat-plank-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 5px 1px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  z-index: 100;
+}
+
+.chat-plank {
+  background-image: url('/assets/images/button/board_ori.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.1s ease-out;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+.chat-plank:active {
+  transform: scale(0.95);
+}
+
+.chat-text {
+  font-family: 'Yuji Syuku', serif;
+  font-size: 9px; /* 文字サイズを縮小 */
+  color: #4a2c1a;
+  text-align: center;
+  text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.chat-bubble {
+  position: absolute;
+  top: -45px; /* アバターの上に来るように調整 */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #fdfaf2; /* 生成り色 */
+  border: 2px solid #5a3a22; /* 焦げ茶色の枠線 */
+  border-radius: 10px;
+  padding: 5px 10px;
+  font-family: 'Yuji Syuku', serif;
+  font-size: 12px;
+  color: #4a2c1a;
+  max-width: 120px;
+  text-align: center;
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  z-index: 200;
+  white-space: nowrap;
+  animation: popup-bubble 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), fade-out-bubble 0.5s ease-out 3s forwards;
+}
+
+.chat-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 10px solid #5a3a22; /* 枠線と同じ色 */
+}
+
+@keyframes popup-bubble {
+  from {
+    transform: translateX(-50%) scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-out-bubble {
+  from {
+    opacity: 1;
+  }
+  to {
     opacity: 0;
   }
 }

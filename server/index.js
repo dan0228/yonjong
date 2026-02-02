@@ -1939,6 +1939,12 @@ io.on('connection', (socket) => {
     await updateAndBroadcastGameState(gameId, gameState);
   });
 
+  // ★チャットメッセージの送受信処理を追加
+  socket.on('sendChatMessage', ({ gameId, playerId, messageId }) => {
+    // 受け取ったメッセージを同じゲームIDのルームにいる全員に転送する
+    io.to(gameId).emit('newChatMessage', { playerId, messageId });
+  });
+
 });
 
 const PORT = process.env.PORT || 3000;

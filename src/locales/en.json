@@ -629,5 +629,19 @@
   "emailUpdateConfirmation": {
     "title": "YONJONG! Email Update Complete",
     "message": "Your email address has been successfully updated! You can now close this page."
+  },
+  "chat": {
+    "1": "Nice to meet you...!",
+    "2": "Go easy on me...",
+    "3": "I'm Ready!",
+    "4": "Wait a moment",
+    "5": "My thanks",
+    "6": "Nice!",
+    "7": "Let's do this!",
+    "8": "Oh no...",
+    "9": "I'm hungry",
+    "10": "Meow",
+    "11": "Hiss!",
+    "12": "Zzz..."
   }
 }
