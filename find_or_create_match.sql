@@ -16,6 +16,9 @@ DECLARE
     v_current_game_data jsonb;
     v_new_game_id uuid;
 BEGIN
+    -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
+    PERFORM pg_advisory_xact_lock(1);
+
     -- ===第一段階:レーティングが近い参加可能なゲームを探す===
     SELECT gs.id, gs.player_1_id, gs.player_2_id,
            gs.player_3_id, gs.player_4_id,
@@ -24,18 +27,9 @@ BEGIN
     FROM public.game_states gs
     WHERE
         gs.status = 'waiting'
-        AND (
-            (gs.player_1_id IS NOT NULL AND gs.player_2_id IS NULL) OR -- 1人部屋
-            (gs.player_2_id IS NOT NULL AND gs.player_3_id IS NULL) OR -- 2人部屋
-            (gs.player_3_id IS NOT NULL AND gs.player_4_id IS NULL)    -- 3人部屋
-        )
+        AND gs.player_4_id IS NULL -- 4人未満の部屋を探す
         AND gs.avg_rating BETWEEN (p_user_rating - 200) AND (p_user_rating + 200)
-        AND NOT (
-            gs.player_1_id = p_user_id OR
-            gs.player_2_id = p_user_id OR
-            gs.player_3_id = p_user_id OR
-            gs.player_4_id = p_user_id
-        )
+        AND p_user_id NOT IN (gs.player_1_id, gs.player_2_id, gs.player_3_id, gs.player_4_id) -- 自分が参加していない部屋
     ORDER BY abs(gs.avg_rating - p_user_rating) -- レーティング差が小さい順にソート
     LIMIT 1
     FOR UPDATE;
@@ -49,17 +43,8 @@ BEGIN
         FROM public.game_states gs
         WHERE
             gs.status = 'waiting'
-            AND (
-                (gs.player_1_id IS NOT NULL AND gs.player_2_id IS NULL) OR
-                (gs.player_2_id IS NOT NULL AND gs.player_3_id IS NULL) OR
-                (gs.player_3_id IS NOT NULL AND gs.player_4_id IS NULL)
-            )
-            AND NOT (
-                gs.player_1_id = p_user_id OR
-                gs.player_2_id = p_user_id OR
-                gs.player_3_id = p_user_id OR
-                gs.player_4_id = p_user_id
-            )
+            AND gs.player_4_id IS NULL -- 4人未満の部屋を探す
+            AND p_user_id NOT IN (gs.player_1_id, gs.player_2_id, gs.player_3_id, gs.player_4_id) -- 自分が参加していない部屋
         ORDER BY gs.created_at ASC -- 古い部屋から順にソート
         LIMIT 1
         FOR UPDATE;
@@ -93,7 +78,7 @@ BEGIN
             SET
                 player_2_id = p_user_id,
                 avg_rating = v_new_avg_rating,
-                game_data = jsonb_set(v_game_record.game_data, '{players}', v_game_record.game_data->'players' || v_players_data)
+                game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
             WHERE id = v_game_record.id
             RETURNING game_data INTO v_current_game_data;
             v_all_player_ids := ARRAY[v_game_record.player_1_id, p_user_id];
@@ -102,7 +87,7 @@ BEGIN
             SET
                 player_3_id = p_user_id,
                 avg_rating = v_new_avg_rating,
-                game_data = jsonb_set(v_game_record.game_data, '{players}', v_game_record.game_data->'players' || v_players_data)
+                game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
             WHERE id = v_game_record.id
             RETURNING game_data INTO v_current_game_data;
             v_all_player_ids := ARRAY[v_game_record.player_1_id, v_game_record.player_2_id, p_user_id];
@@ -113,7 +98,7 @@ BEGIN
                 player_4_id = p_user_id,
                 avg_rating = v_new_avg_rating,
                 status = 'ready',
-                game_data = jsonb_set(v_game_record.game_data, '{players}', v_game_record.game_data->'players' || v_players_data)
+                game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
             WHERE id = v_game_record.id
             RETURNING game_data INTO v_current_game_data;
             v_all_player_ids := ARRAY[v_game_record.player_1_id, v_game_record.player_2_id, v_game_record.player_3_id, p_user_id];
