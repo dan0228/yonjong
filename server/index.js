@@ -1268,26 +1268,32 @@ io.on('connection', (socket) => {
 
             for (const dbGame of matchmakingGames) {
                 // game_data 内の players 配列からも切断したプレイヤーを削除
-                let updatedGameDataPlayers = dbGame.game_data.players.filter(p => p.id !== disconnectedUserId);
-                dbGame.game_data.players = updatedGameDataPlayers; // メモリ上のdbGameオブジェクトを更新
+                const updatedGameDataPlayers = dbGame.game_data.players.filter(p => p.id !== disconnectedUserId);
+                dbGame.game_data.players = updatedGameDataPlayers;
 
-                const updateData = { updated_at: new Date() };
-                // どの player_X_id を null にすべきか、元の dbGame の player_X_id に基づいて判断
-                updateData.player_1_id = updatedGameDataPlayers[0]?.id || null;
-                updateData.player_2_id = updatedGameDataPlayers[1]?.id || null;
-                updateData.player_3_id = updatedGameDataPlayers[2]?.id || null;
-                updateData.player_4_id = updatedGameDataPlayers[3]?.id || null;
+                const updateData = { updated_at: new Date(), game_data: dbGame.game_data };
+
+                // ★★★ 修正: 堅牢な切断処理ロジック ★★★
+                const remainingPlayerIds = [];
+                if (dbGame.player_1_id && dbGame.player_1_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_1_id);
+                if (dbGame.player_2_id && dbGame.player_2_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_2_id);
+                if (dbGame.player_3_id && dbGame.player_3_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_3_id);
+                if (dbGame.player_4_id && dbGame.player_4_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_4_id);
+
+                // 新しいプレイヤーリストに基づいてplayer_idを再割り当て（圧縮）
+                updateData.player_1_id = remainingPlayerIds[0] || null;
+                updateData.player_2_id = remainingPlayerIds[1] || null;
+                updateData.player_3_id = remainingPlayerIds[2] || null;
+                updateData.player_4_id = remainingPlayerIds[3] || null;
 
                 // 残りのプレイヤー数に応じてstatusを更新
-                if (updatedGameDataPlayers.length === 0) {
+                if (remainingPlayerIds.length === 0) {
                     updateData.status = 'cancelled';
                     console.log(`Matchmaking game ${dbGame.id} has no players left. Setting status to 'cancelled'.`);
                 } else {
                     updateData.status = 'waiting';
                     console.log(`Matchmaking game ${dbGame.id} still has players. Setting status to 'waiting'.`);
                 }
-
-                updateData.game_data = dbGame.game_data; // 更新された game_data をセット
 
                 const { error: updateError } = await supabase
                     .from('game_states')
@@ -1299,7 +1305,7 @@ io.on('connection', (socket) => {
                 } else {
                     console.log(`Matchmaking game ${dbGame.id} updated in Supabase.`);
                     // 他のプレイヤーに状態更新をブロードキャスト (もしいる場合)
-                    if (updatedGameDataPlayers.length > 0) {
+                    if (remainingPlayerIds.length > 0) {
                         io.to(dbGame.id).emit('game-state-update', dbGame.game_data);
                     }
                 }
