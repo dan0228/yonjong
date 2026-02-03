@@ -1197,11 +1197,11 @@ io.on('connection', (socket) => {
             const playerIndex = game.players.findIndex(p => p.id === disconnectedUserId);
 
             if (playerIndex !== -1) {
-                console.log(`Player ${disconnectedUserId} disconnected from active game ${gameId}`);
-                
+                const initialPlayerCount = game.players.length; // 切断前のプレイヤー数を記録
+                console.log(`Player ${disconnectedUserId} disconnected from active game ${gameId}. Initial count: ${initialPlayerCount}`);
+
                 const updateData = { updated_at: new Date() };
 
-                // ★★★ 修正: 堅牢な切断処理ロジック ★★★
                 const remainingPlayers = game.players.filter(p => p.id !== disconnectedUserId);
                 game.players = remainingPlayers;
                 updateData.game_data = game;
@@ -1215,12 +1215,21 @@ io.on('connection', (socket) => {
                     updateData.status = 'cancelled';
                     console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
                 } else {
-                    // ゲームが進行中であれば status は in_progress のまま
-                    // waiting 状態のゲームから抜けた場合は waiting に戻す
-                    if (game.gamePhase === GAME_PHASES.WAITING_TO_START) {
+                    // ゲーム開始前（カウントダウン中）に4人から3人以下になった場合
+                    if (game.gamePhase === GAME_PHASES.WAITING_TO_START && initialPlayerCount === 4 && remainingPlayers.length < 4) {
+                        updateData.status = 'waiting'; // DBのステータスを 'waiting' に戻す
+                        // game オブジェクトの状態もリセット
+                        game.isGameReady = false;
+                        game.hasGameStarted = false;
+                        game.dealerIndex = null;
+                        game.currentTurnPlayerId = null;
+                        console.log(`Game ${gameId} is returning to matchmaking state due to disconnection.`);
+                    } else if (game.gamePhase === GAME_PHASES.WAITING_TO_START) {
+                        // 4人揃う前のマッチング中に誰かが抜けた場合
                         updateData.status = 'waiting';
-                        console.log(`Game ${gameId} still has players. Setting status to 'waiting'.`);
+                        console.log(`Game ${gameId} still has players in matchmaking. Setting status to 'waiting'.`);
                     }
+                    // ゲーム進行中に抜けた場合は、status は 'in_progress' のまま
                 }
 
                 const { error } = await supabase
