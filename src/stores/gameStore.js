@@ -267,6 +267,7 @@ export const useGameStore = defineStore('game', {
     hasGameStarted: false, // ゲームが開始されたかどうかを示すフラグ
     isMatchmakingRequested: false, // マッチメイキングリクエストが送信されたかどうか
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
+    lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
   }),
   actions: {
     // ★チャットメッセージを送信するアクション
@@ -283,6 +284,9 @@ export const useGameStore = defineStore('game', {
     displayChatMessage({ playerId, messageId }) {
       const audioStore = useAudioStore();
       audioStore.playSound('dahai.mp3');
+
+      // 最後にチャットしたプレイヤーIDを更新
+      this.lastChattedPlayerId = playerId;
 
       // 既存のタイマーがあればクリアして、連続投稿時に表示を上書きする
       if (this.chatBubbles[playerId]?.timeoutId) {

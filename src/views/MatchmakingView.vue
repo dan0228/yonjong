@@ -101,6 +101,7 @@
           v-if="playerInSlot1 && gameStore.chatBubbles[playerInSlot1.id]"
           :key="gameStore.chatBubbles[playerInSlot1.id].key"
           class="chat-bubble bubble-slot-1"
+          :style="{ zIndex: getBubbleZIndex(playerInSlot1.id) }"
         >
           {{ getChatMessageById(gameStore.chatBubbles[playerInSlot1.id].messageId) }}
         </div>
@@ -108,6 +109,7 @@
           v-if="playerInSlot2 && gameStore.chatBubbles[playerInSlot2.id]"
           :key="gameStore.chatBubbles[playerInSlot2.id].key"
           class="chat-bubble bubble-slot-2"
+          :style="{ zIndex: getBubbleZIndex(playerInSlot2.id) }"
         >
           {{ getChatMessageById(gameStore.chatBubbles[playerInSlot2.id].messageId) }}
         </div>
@@ -115,6 +117,7 @@
           v-if="playerInSlot3 && gameStore.chatBubbles[playerInSlot3.id]"
           :key="gameStore.chatBubbles[playerInSlot3.id].key"
           class="chat-bubble bubble-slot-3"
+          :style="{ zIndex: getBubbleZIndex(playerInSlot3.id) }"
         >
           {{ getChatMessageById(gameStore.chatBubbles[playerInSlot3.id].messageId) }}
         </div>
@@ -122,6 +125,7 @@
           v-if="playerInSlot4 && gameStore.chatBubbles[playerInSlot4.id]"
           :key="gameStore.chatBubbles[playerInSlot4.id].key"
           class="chat-bubble bubble-slot-4"
+          :style="{ zIndex: getBubbleZIndex(playerInSlot4.id) }"
         >
           {{ getChatMessageById(gameStore.chatBubbles[playerInSlot4.id].messageId) }}
         </div>
@@ -175,6 +179,11 @@ const sendChat = (messageId) => {
 const getChatMessageById = (id) => {
   const message = chatMessages.value.find(m => m.id === id);
   return message ? message.text : '';
+};
+
+// ★z-indexを動的に計算するメソッド
+const getBubbleZIndex = (playerId) => {
+  return gameStore.lastChattedPlayerId === playerId ? 201 : 200;
 };
 
 // --- レスポンシブデザインのためのスケーリング ---
@@ -282,7 +291,7 @@ const startFinalSequence = () => {
         router.push('/game');
       }
     }, 1000);
-  }, 10000000); // 1秒の遅延
+  }, 1000000); // 1秒の遅延
 };
 
 // ★修正: プレイヤー人数が増えたら効果音を鳴らす
@@ -416,7 +425,7 @@ onBeforeUnmount(() => {
 }
 .status-box {
   position: absolute;
-  top: 170px;
+  top: 190px;
   left: 50%;
   transform: translateX(-50%);
   padding: 10px 40px;
@@ -652,13 +661,14 @@ onBeforeUnmount(() => {
   bottom: 10px; /* 0から10pxに変更 */
   left: 0;
   width: 100%;
-  padding: 10px 10px;
+  height: 90px;
+  padding: 10px 0px;
   box-sizing: border-box;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(3, 1fr);
   row-gap: 8px;
-  column-gap: 10px;
+  column-gap: 9px;
   z-index: 100;
 }
 
@@ -682,7 +692,7 @@ onBeforeUnmount(() => {
 
 .chat-text {
   font-family: 'Yuji Syuku', serif;
-  font-size: 8px; /* 文字サイズを縮小 */
+  font-size: 9px; /* 文字サイズを縮小 */
   font-weight: bold;
   color: #4a2c1a;
   text-align: center;
@@ -704,7 +714,7 @@ onBeforeUnmount(() => {
   max-width: 120px;
   text-align: center;
   box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-  z-index: 200;
+  /* z-index: 200; */ /* 固定z-indexを削除 */
   white-space: nowrap;
   animation: popup-bubble 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), fade-out-bubble 0.5s ease-out 3s forwards;
 }
