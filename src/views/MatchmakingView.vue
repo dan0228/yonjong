@@ -1,5 +1,8 @@
 <template>
-  <div class="matchmaking-container">
+  <div
+    class="matchmaking-container"
+    :style="{ height: viewportHeight }"
+  >
     <!-- スケーリングされるコンテンツのラッパー -->
     <div
       class="scaler"
@@ -146,6 +149,7 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/userStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudioStore } from '@/stores/audioStore';
+import { useViewportHeight } from '@/composables/useViewportHeight';
 
 import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 
@@ -154,6 +158,7 @@ const userStore = useUserStore();
 const gameStore = useGameStore();
 const audioStore = useAudioStore();
 const router = useRouter();
+const { viewportHeight } = useViewportHeight();
 
 // --- チャット機能関連の定義 ---
 const chatMessages = computed(() => [
@@ -179,9 +184,9 @@ const scalerStyle = computed(() => ({
 }));
 
 const updateScaleFactor = () => {
-  const viewportHeight = window.innerHeight;
+  const viewportHeightValue = parseInt(viewportHeight.value, 10);
   const viewportWidth = window.innerWidth;
-  const scaleHeight = viewportHeight / 640;
+  const scaleHeight = viewportHeightValue / 640;
   const scaleWidth = viewportWidth / 360;
   scaleFactor.value = Math.min(scaleHeight, scaleWidth);
 };
@@ -277,7 +282,7 @@ const startFinalSequence = () => {
         router.push('/game');
       }
     }, 1000);
-  }, 1000); // 1秒の遅延
+  }, 10000000); // 1秒の遅延
 };
 
 // ★修正: プレイヤー人数が増えたら効果音を鳴らす
@@ -333,7 +338,7 @@ onBeforeUnmount(() => {
 /* (Previous styles remain the same) */
 .matchmaking-container {
   width: 100vw;
-  height: 100vh;
+  /* height: 100vh; */ /* 削除 */
   background-image: url('/assets/images/back/matching.png');
   background-size: cover;
   background-position: center;
@@ -343,7 +348,7 @@ onBeforeUnmount(() => {
 }
 .scaler {
   position: absolute;
-  top: 50%;
+  top: 47%; /* 50%から47%に変更 */
   left: 50%;
   width: 360px;
   height: 640px;
@@ -358,7 +363,7 @@ onBeforeUnmount(() => {
 }
 .user-stats {
   position: absolute;
-  top: 10px;
+  top: 20px; /* 10pxから20pxに変更 */
   left: 10px;
   z-index: 20;
 }
@@ -386,7 +391,7 @@ onBeforeUnmount(() => {
 }
 .top-controls {
   position: absolute;
-  top: 10px;
+  top: 20px; /* 10pxから20pxに変更 */
   right: 10px;
   z-index: 20;
 }
@@ -488,7 +493,7 @@ onBeforeUnmount(() => {
   pointer-events: auto; /* クリックイベントを明示的に有効化 */
 }
 .player-name {
-  font-size: 9px;
+  font-size: 8.5px;
   text-shadow: none;
   white-space: nowrap;
   z-index: 1;
@@ -496,7 +501,7 @@ onBeforeUnmount(() => {
   background-image: url('/assets/images/button/omikuji_button.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
-  width: 105px; /* 画像の見た目に合わせてサイズを調整 */
+  width: 102px; /* 画像の見た目に合わせてサイズを調整 */
   height: 25px; /* 画像の見た目に合わせてサイズを調整 */
   display: flex;
   justify-content: center;
@@ -536,25 +541,25 @@ onBeforeUnmount(() => {
 
 .slot-1 {
   top: 415px;
-  left: 45px;
+  left: 42px;
   width: 55px;
   height: 55px;
 }
 .slot-2 {
   top: 450px;
-  left: 130px;
+  left: 120px;
   width: 60px;
   height: 60px;
 }
 .slot-3 {
   top: 450px;
-  left: 240px;
+  left: 220px;
   width: 60px;
   height: 60px;
 }
 .slot-4 {
-  top: 415px;
-  left: 320px;
+  top: 420px;
+  left: 303px;
   width: 55px;
   height: 55px;
 }
@@ -644,7 +649,7 @@ onBeforeUnmount(() => {
 /* ★★★ チャット機能のスタイルを追加 ★★★ */
 .chat-plank-container {
   position: absolute;
-  bottom: 0;
+  bottom: 10px; /* 0から10pxに変更 */
   left: 0;
   width: 100%;
   padding: 10px 10px;
@@ -706,9 +711,9 @@ onBeforeUnmount(() => {
 
 /* ★修正: 各スロットごとの吹き出し位置を絶対座標で指定 */
 .bubble-slot-1 { top: 340px; left: 65px; }
-.bubble-slot-2 { top: 365px; left: 145px; }
-.bubble-slot-3 { top: 360px; left: 240px; }
-.bubble-slot-4 { top: 340px; left: 320px; }
+.bubble-slot-2 { top: 365px; left: 135px; }
+.bubble-slot-3 { top: 360px; left: 230px; }
+.bubble-slot-4 { top: 340px; left: 295px; }
 
 .chat-bubble::after {
   content: '';

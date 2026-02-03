@@ -119,7 +119,7 @@ const wakeUp = () => {
   bottom: 58%; /* 調整可能 */
   right: 17%; /* 調整可能 */
   color: #F5F5DC; /* 薄いベージュ色 */
-  font-size: 2.8em; /* 大きめのフォントサイズ */
+  font-size: 2.6em; /* 大きめのフォントサイズ */
   font-family: "Yomogi", cursive;
   text-shadow: 
     0 0 5px rgba(255, 255, 255, 0.5), /* Soft glow */
