@@ -493,7 +493,7 @@ onBeforeUnmount(() => {
 }
 .player-avatar {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1 / 1; /* アスペクト比を1:1に固定 */
   border-radius: 50%;
   border: 1px solid rgb(41, 2, 2);
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
