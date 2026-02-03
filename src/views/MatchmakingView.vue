@@ -549,25 +549,25 @@ onBeforeUnmount(() => {
 }
 
 .slot-1 {
-  top: 415px;
+  top: 435px;
   left: 42px;
   width: 55px;
   height: 55px;
 }
 .slot-2 {
-  top: 450px;
+  top: 470px;
   left: 120px;
   width: 60px;
   height: 60px;
 }
 .slot-3 {
-  top: 450px;
+  top: 470px;
   left: 220px;
   width: 60px;
   height: 60px;
 }
 .slot-4 {
-  top: 420px;
+  top: 440px;
   left: 303px;
   width: 55px;
   height: 55px;
@@ -705,7 +705,6 @@ onBeforeUnmount(() => {
   /* margin-left: -60px; を削除 */
   transform: translateX(-50%); /* 中央揃えのためにtransformは残す */
   background-color: #fdfaf2; /* 生成り色 */
-  border: 2px solid #5a3a22; /* 焦げ茶色の枠線 */
   border-radius: 10px;
   padding: 5px 10px;
   font-family: 'Yuji Syuku', serif;
@@ -713,29 +712,27 @@ onBeforeUnmount(() => {
   color: #4a2c1a;
   max-width: 120px;
   text-align: center;
-  box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-  /* z-index: 200; */ /* 固定z-indexを削除 */
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
   white-space: nowrap;
   animation: popup-bubble 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), fade-out-bubble 0.5s ease-out 3s forwards;
 }
 
 /* ★修正: 各スロットごとの吹き出し位置を絶対座標で指定 */
-.bubble-slot-1 { top: 340px; left: 65px; }
-.bubble-slot-2 { top: 365px; left: 135px; }
-.bubble-slot-3 { top: 360px; left: 230px; }
-.bubble-slot-4 { top: 340px; left: 295px; }
+.bubble-slot-1 { top: 360px; left: 65px; }
+.bubble-slot-2 { top: 385px; left: 135px; }
+.bubble-slot-3 { top: 380px; left: 230px; }
+.bubble-slot-4 { top: 360px; left: 295px; }
 
 .chat-bubble::after {
   content: '';
   position: absolute;
-  bottom: -10px;
+  bottom: -8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-top: 10px solid #5a3a22; /* 枠線と同じ色 */
+  width: 20px;
+  height: 10px;
+  background: #fdfaf2;
+  clip-path: polygon(50% 100%, 0 0, 100% 0);
 }
 
 @keyframes popup-bubble {
