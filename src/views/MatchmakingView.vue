@@ -705,10 +705,10 @@ onBeforeUnmount(() => {
 }
 
 /* ★修正: 各スロットごとの吹き出し位置を絶対座標で指定 */
-.bubble-slot-1 { top: 360px; left: 45px; }
-.bubble-slot-2 { top: 395px; left: 130px; }
-.bubble-slot-3 { top: 395px; left: 240px; }
-.bubble-slot-4 { top: 360px; left: 320px; }
+.bubble-slot-1 { top: 340px; left: 65px; }
+.bubble-slot-2 { top: 365px; left: 145px; }
+.bubble-slot-3 { top: 360px; left: 240px; }
+.bubble-slot-4 { top: 340px; left: 320px; }
 
 .chat-bubble::after {
   content: '';
