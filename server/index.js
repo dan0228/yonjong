@@ -1440,10 +1440,23 @@ io.on('connection', (socket) => {
     if (userId) {
         userSocketMap.set(userId, socket.id);
     }
-    if (!gameStates[gameId]) {
-      console.error(`Game ${gameId} not found for initialization.`);
-      socket.emit('gameError', { message: 'ゲームが見つかりません。' });
-      return;
+
+    // gameStates[gameId] がメモリ上にない場合、DBからロードを試みる
+    if (!gameStates[gameId] || Object.keys(gameStates[gameId]).length === 0) { // 空オブジェクトの場合もロード
+        console.log(`[Server] Game ${gameId} not found in memory or is empty. Attempting to load from DB.`);
+        const { data, error } = await supabase
+            .from('game_states')
+            .select('*')
+            .eq('id', gameId)
+            .single();
+
+        if (error || !data) {
+            console.error(`Error fetching game state for ${gameId} from DB during initializeGame:`, error?.message);
+            socket.emit('gameError', { message: 'ゲームのロードに失敗しました。' });
+            return;
+        }
+        gameStates[gameId] = data.game_data;
+        console.log(`[Server] Game ${gameId} loaded from DB.`);
     }
 
     // 既に初期化済みであれば何もしない
