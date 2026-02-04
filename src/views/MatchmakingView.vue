@@ -224,7 +224,7 @@ const goToTitle = () => {
 // 4つの表示スロットを管理するためのcomputed property
 const displaySlots = computed(() => {
   const slots = [];
-  const players = gameStore.players || [];
+  const players = gameStore.matchmakingPlayers || [];
   const totalSlots = 4;
 
   for (let i = 0; i < totalSlots; i++) {
@@ -295,7 +295,7 @@ const startFinalSequence = () => {
 };
 
 // ★修正: プレイヤー人数が増えたら効果音を鳴らす
-watch(() => gameStore.players?.length, (newLength, oldLength) => {
+watch(() => gameStore.matchmakingPlayers?.length, (newLength, oldLength) => {
   if (oldLength !== undefined && newLength > oldLength) {
     audioStore.playSound('Hyoshigi01-1.mp3');
   }

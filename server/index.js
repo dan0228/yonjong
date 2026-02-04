@@ -58,6 +58,80 @@ const gameStates = {};
 // ユーザーIDとソケットIDをマッピングするMap
 const userSocketMap = new Map();
 
+// デフォルトのゲーム状態を生成する関数 (サーバーサイド版)
+function createDefaultGameState() {
+  return {
+    players: [],
+    wall: [],
+    deadWall: [],
+    dealerIndex: null,
+    doraIndicators: [],
+    uraDoraIndicators: [],
+    currentTurnPlayerId: null,
+    gamePhase: 'waitingToStart',
+    lastDiscardedTile: null,
+    drawnTile: null,
+    showResultPopup: false,
+    resultMessage: '',
+    showFinalResultPopup: false,
+    finalResultDetails: { rankedPlayers: [], consecutiveWins: 0 },
+    currentRound: { wind: 'east', number: 1 },
+    honba: 0,
+    riichiSticks: 0,
+    turnCount: 0,
+    playerTurnCount: {},
+    isIppatsuChance: {},
+    isChankanChance: false,
+    chankanTile: null,
+    rinshanKaihouChance: false,
+    lastActionPlayerId: null,
+    playerActionEligibility: {},
+    actionResponseQueue: [],
+    waitingForPlayerResponses: [],
+    playerResponses: {},
+    isFuriTen: {},
+    activeActionPlayerId: null,
+    isDoujunFuriTen: {},
+    riichiDiscardOptions: [],
+    isDeclaringRiichi: {},
+    agariResultDetails: {
+      roundWind: null,
+      roundNumber: null,
+      honba: 0,
+      doraIndicators: [],
+      uraDoraIndicators: [],
+      winningHand: [],
+      agariTile: null,
+      yakuList: [],
+      totalFans: 0,
+      fu: 0,
+      score: 0,
+      scoreName: null,
+      pointChanges: {},
+    },
+    anyPlayerMeldInFirstRound: false,
+    gameMode: 'online',
+    ruleMode: 'stock',
+    shouldAdvanceRound: false,
+    nextDealerIndex: null,
+    shouldEndGameAfterRound: false,
+    pendingKanDoraReveal: false,
+    animationState: { type: null, playerId: null },
+    riichiDiscardedTileId: {},
+    showDealerDeterminationPopup: false,
+    dealerDeterminationResult: { players: [] },
+    isRiichiBgmActive: false,
+    highlightedDiscardTileId: null,
+    isTenpaiDisplay: {},
+    playersReadyForNextRound: [],
+    isGameReady: false,
+    hasGameStarted: false,
+    chatBubbles: {},
+    lastChattedPlayerId: null,
+  };
+}
+
+
 // ルートハンドラ
 app.get('/', (req, res) => {
   res.send('Mahjong Game Server is running!');
@@ -1456,8 +1530,6 @@ io.on('connection', (socket) => {
             return;
         }
         gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
-        // ★★★ ここまで ★★★
-
         console.log(`[Server] Game ${gameId} loaded from DB.`);
     }
 

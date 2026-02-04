@@ -267,6 +267,7 @@ export function createDefaultGameState() {
     isAppReady: false, // アプリケーションの初期読み込みが完了したかどうか
     hasGameStarted: false, // ゲームが開始されたかどうかを示すフラグ
     isMatchmakingRequested: false, // マッチメイキングリクエストが送信されたかどうか
+    matchmakingPlayers: [], // ★マッチング待機画面専用のプレイヤーリスト
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
     lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
   };
@@ -377,7 +378,7 @@ export const useGameStore = defineStore('game', {
           this.onlineGameId = gameId;
           this.isGameOnline = true;
           this.localPlayerId = userStore.profile.id; // 自分のIDを設定
-          this.players = players; // サーバーから受け取ったプレイヤーリストで更新
+          this.matchmakingPlayers = players; // ★修正: matchmakingPlayers を更新
 
           // ★修正: マッチング待機中も更新情報を受け取れるように、すぐにゲームチャンネルに参加する
           if (socket && socket.connected) {
@@ -387,7 +388,7 @@ export const useGameStore = defineStore('game', {
 
         socket.on('game-found', ({ gameId, players }) => {
           console.log(`ゲームが見つかりました: ゲームID ${gameId}, プレイヤー:`, players);
-          this.players = players; // 最終的なプレイヤーリストで更新
+          this.matchmakingPlayers = players; // ★修正: matchmakingPlayers を更新
           this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
           this.isMatchmakingRequested = false; // ゲームが見つかったらリクエストフラグをリセット
           this.initializeOnlineGame(); // ★★★ ゲーム初期化をリクエスト
