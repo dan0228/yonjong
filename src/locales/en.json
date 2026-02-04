@@ -553,8 +553,9 @@
       "networkError": "Network error occurred while fetching X avatar. Please check internet connection or try again later."
     },
     "rightsNote": "* The avatar you register must be an image you own the rights to.",
-    "xAccountNote": "* You can easily register your icon by entering your X account."
-  },
+      "xAccountNote": "* You can easily register your icon by entering your X account.",
+      "uploadNote": "* Tap the avatar image to set your favorite image."
+    },
   "settingsPopup": {
     "title": "Settings",
     "saveButton": "Save",

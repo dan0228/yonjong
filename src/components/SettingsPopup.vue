@@ -164,6 +164,7 @@
           </div>
 
           <div class="avatar-notes">
+            <p>{{ $t('avatarSection.uploadNote') }}</p>
             <p>{{ $t('avatarSection.xAccountNote') }}</p>
             <p>{{ $t('avatarSection.rightsNote') }}</p>
           </div>
