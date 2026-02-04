@@ -1455,7 +1455,9 @@ io.on('connection', (socket) => {
             socket.emit('gameError', { message: 'ゲームのロードに失敗しました。' });
             return;
         }
-        gameStates[gameId] = { ...createDefaultGameState(), ...data.game_data };
+        gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
+        // ★★★ ここまで ★★★
+
         console.log(`[Server] Game ${gameId} loaded from DB.`);
     }
 
