@@ -1611,6 +1611,12 @@ io.on('connection', (socket) => {
 
       gameStates[gameId].players = initialPlayers; // プレイヤー情報を更新
 
+      // ★★★ BUG FIX: dealerIndexが初期化されていないため、ここで設定する
+      if (gameStates[gameId].dealerIndex === null) {
+        gameStates[gameId].dealerIndex = Math.floor(Math.random() * initialPlayers.length);
+        console.log(`[initializeGame] Dealer index set to: ${gameStates[gameId].dealerIndex}`);
+      }
+
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       await _initializeGameCore(gameId); // コア初期化ロジックを呼び出す
       console.log(`[initializeGame] _initializeGameCore completed for game ${gameId}. Final gamePhase: ${gameStates[gameId].gamePhase}`);
