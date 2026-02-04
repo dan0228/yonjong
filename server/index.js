@@ -900,24 +900,31 @@ async function handleGameEnd(gameId) {
 
 // ゲームのコア初期化ロジックを処理するヘルパー関数
 async function _initializeGameCore(gameId) {
-  const gameState = gameStates[gameId];
-  if (!gameState) return;
+  // ★★★ 修正: gameStates[gameId] が undefined のまま渡される可能性に備え、ここで確実に初期化する
+  if (!gameStates[gameId]) {
+      console.error(`_initializeGameCore: gameStates[${gameId}] が undefined です。予期せぬ状態のため、デフォルト値で初期化します。`);
+      gameStates[gameId] = createDefaultGameState();
+  }
+  const gameState = gameStates[gameId]; // ここで gameState は確実にオブジェクトになる
 
-  // ★★★ 修正: ループの前に、プレイヤーごとの状態オブジェクトが必ず存在するように初期化する
-  gameState.playerTurnCount = {};
-  gameState.isIppatsuChance = {};
-  gameState.isFuriTen = {};
-  gameState.isDoujunFuriTen = {};
-  gameState.isDeclaringRiichi = {};
-  gameState.riichiDiscardedTileId = {};
-  gameState.playerActionEligibility = {};
-  gameState.isTenpaiDisplay = {};
-  gameState.canDeclareRon = {};
-  gameState.canDeclarePon = {};
-  gameState.canDeclareMinkan = {};
-  gameState.canDeclareAnkan = {};
-  gameState.canDeclareKakan = {};
-  gameState.playerResponses = {};
+  // 以前のガードは不要になるため削除
+  // if (!gameState) return;
+
+  // ... my previous initialization block for player-specific objects ...
+  gameState.playerTurnCount = gameState.playerTurnCount || {};
+  gameState.isIppatsuChance = gameState.isIppatsuChance || {};
+  gameState.isFuriTen = gameState.isFuriTen || {};
+  gameState.isDoujunFuriTen = gameState.isDoujunFuriTen || {};
+  gameState.isDeclaringRiichi = gameState.isDeclaringRiichi || {};
+  gameState.riichiDiscardedTileId = gameState.riichiDiscardedTileId || {};
+  gameState.playerActionEligibility = gameState.playerActionEligibility || {};
+  gameState.isTenpaiDisplay = gameState.isTenpaiDisplay || {};
+  gameState.canDeclareRon = gameState.canDeclareRon || {};
+  gameState.canDeclarePon = gameState.canDeclarePon || {};
+  gameState.canDeclareMinkan = gameState.canDeclareMinkan || {};
+  gameState.canDeclareAnkan = gameState.canDeclareAnkan || {};
+  gameState.canDeclareKakan = gameState.canDeclareKakan || {};
+  gameState.playerResponses = gameState.playerResponses || {};
 
   gameState.playersReadyForNextRound = []; // ★局の初期化時に、必ず準備完了リストをリセット
 
