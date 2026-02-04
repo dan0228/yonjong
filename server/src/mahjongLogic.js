@@ -181,15 +181,21 @@ export function sortHand(hand) {
  * @returns {Array<Object>} 各プレイヤーに `seatWind` プロパティが追加された新しいプレイヤー配列。
  */
 export function assignPlayerWinds(players, dealerIndex, playerCount = 4) {
-  // 元のプレイヤー配列を変更しないようにコピーを作成
-  const updatedPlayers = players.map(player => ({ ...player }));
+  const winds = ['east', 'south', 'west', 'north']; // 内部で使用する風の配列
 
-  for (let i = 0; i < playerCount; i++) {
-    // 親から数えてi番目のプレイヤーの実際のインデックスを計算
-    const playerActualIndex = (dealerIndex + i) % playerCount;
-    updatedPlayers[playerActualIndex].seatWind = WIND_ORDER[i];
-  }
-  return updatedPlayers;
+  return players.map((player, index) => {
+    if (!player) {
+      console.error(`assignPlayerWinds: プレイヤー配列にnull/undefinedの要素が見つかりました。インデックス: ${index}。`);
+      // クラッシュを防ぐため、最小限のダミーオブジェクトを返す。これはより深い問題を示唆しています。
+      return { id: `corrupted_player_${index}`, name: 'Corrupted', avatar_url: '', score: 0, isDealer: false, seatWind: 'unknown' };
+    }
+    const windIndex = (index - dealerIndex + playerCount) % playerCount;
+    return {
+      ...player,
+      isDealer: index === dealerIndex, // ここで親の状態を設定
+      seatWind: winds[windIndex]
+    };
+  });
 }
 
 /**

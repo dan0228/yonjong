@@ -953,16 +953,23 @@ async function _initializeGameCore(gameId) {
   const playerCount = gameState.players.length;
   const currentDealerIndex = gameState.dealerIndex;
 
-  gameState.players.forEach((player, index) => {
-    player.isDealer = (index === currentDealerIndex);
-  });
+  // assignPlayerWinds関数でisDealerも設定されるため、このforEachループは不要
+  // gameState.players.forEach((player, index) => {
+  //   player.isDealer = (index === currentDealerIndex);
+  // });
 
   const playersWithWinds = mahjongLogic.assignPlayerWinds(
     gameState.players,
     currentDealerIndex,
     playerCount
   );
-  gameState.players = playersWithWinds;
+  // assignPlayerWindsでnullが返される可能性を考慮し、フィルタリング
+  gameState.players = playersWithWinds.filter(p => p !== null);
+  if (gameState.players.length !== playerCount) {
+      console.error(`_initializeGameCore: assignPlayerWinds後のプレイヤー配列の長さが一致しません。期待値: ${playerCount}、実際: ${gameState.players.length}。これは破損したプレイヤーオブジェクトが返されたことを示します。`);
+      // 重大な問題を示唆するため、ここでエラーを投げるか、より丁寧なエラーハンドリングが必要です。
+      // 現時点では、破損した状態のまま処理を続行します。
+  }
 
   let fullWall = mahjongLogic.getAllTiles();
   fullWall = mahjongLogic.shuffleWall(fullWall);
