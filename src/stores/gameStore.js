@@ -385,6 +385,7 @@ export const useGameStore = defineStore('game', {
           this.players = players; // 最終的なプレイヤーリストで更新
           this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
           this.isMatchmakingRequested = false; // ゲームが見つかったらリクエストフラグをリセット
+          this.initializeOnlineGame(); // ★★★ ゲーム初期化をリクエスト
         });
       }
     },
@@ -453,10 +454,16 @@ export const useGameStore = defineStore('game', {
       // クライアント側での初期化ロジックは削除
       // サーバーにゲーム初期化を要求するイベントを発行
       if (socket && socket.connected) {
-        console.log(`[Client] Emitting initializeGame event for game ${this.onlineGameId} from user ${this.localPlayerId}`); // ★追加ログ
+        console.log(`[Client] Emitting initializeGame event for game ${this.onlineGameId} from user ${this.localPlayerId}`);
         socket.emit('initializeGame', { gameId: this.onlineGameId, userId: this.localPlayerId });
       } else {
         console.error(`[Client] Cannot emit initializeGame event: Socket not connected. Socket: ${socket}, Connected: ${socket?.connected}`);
+        // ★追加ログ: なぜ接続されていないのか詳細を出す
+        if (!socket) {
+          console.error("[Client] Socket object is null or undefined.");
+        } else {
+          console.error(`[Client] Socket is not connected. Current connected state: ${socket.connected}`);
+        }
       }
     },
 

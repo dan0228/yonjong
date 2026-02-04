@@ -1431,6 +1431,10 @@ io.on('connection', (socket) => {
   // クライアントがゲームの初期化を要求する
   socket.on('initializeGame', async ({ gameId, userId }) => {
     console.log(`[Server] Received initializeGame event for game ${gameId} from user ${userId}`);
+    // ★★★ 修正: gameStates[gameId] が存在しない場合、後続の処理でエラーにならないように空のオブジェクトで初期化する。
+    if (!gameStates[gameId]) {
+      gameStates[gameId] = {};
+    }
     console.log(`[Server] Current gameStates[${gameId}]:`, gameStates[gameId]); // ★追加ログ
 
     if (userId) {
