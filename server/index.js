@@ -1458,6 +1458,19 @@ io.on('connection', (socket) => {
 
       const playerIds = [gameData.player_1_id, gameData.player_2_id, gameData.player_3_id, gameData.player_4_id].filter(Boolean);
 
+      // ★追加: プレイヤー数が4人未満の場合のチェック
+      if (playerIds.length < 4) {
+        console.error(`[initializeGame] Not enough players to start game ${gameId}. Required 4, found ${playerIds.length}.`);
+        // ゲームの状態を待機中に戻す処理
+        gameStates[gameId].gamePhase = GAME_PHASES.WAITING_TO_START;
+        gameStates[gameId].isGameReady = false;
+        gameStates[gameId].hasGameStarted = false;
+        await supabase.from('game_states').update({ status: 'waiting' }).eq('id', gameId);
+        io.to(gameId).emit('game-state-update', gameStates[gameId]);
+        socket.emit('gameError', { message: 'プレイヤーが不足しているため、ゲームを開始できません。' });
+        return;
+      }
+
       const { data: profiles, error: profileError } = await supabase
         .from('users')
         .select('id, username, avatar_url, cat_coins, rating')
@@ -1485,7 +1498,9 @@ io.on('connection', (socket) => {
 
       gameStates[gameId].players = initialPlayers; // プレイヤー情報を更新
 
+      console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       await _initializeGameCore(gameId); // コア初期化ロジックを呼び出す
+      console.log(`[initializeGame] _initializeGameCore completed for game ${gameId}. Final gamePhase: ${gameStates[gameId].gamePhase}`);
 
     } catch (error) {
       console.error(`Error initializing game ${gameId}:`, error);
