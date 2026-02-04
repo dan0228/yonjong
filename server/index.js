@@ -1437,7 +1437,8 @@ io.on('connection', (socket) => {
     }
 
     // 既に初期化済みであれば何もしない
-    if (gameStates[gameId].isGameReady) {
+    // isGameReady が true かつ gamePhase が PLAYER_TURN であれば初期化済みと判断
+    if (gameStates[gameId].isGameReady && gameStates[gameId].gamePhase === GAME_PHASES.PLAYER_TURN) {
       io.to(gameId).emit('game-state-update', gameStates[gameId]);
       return;
     }
