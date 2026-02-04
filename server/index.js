@@ -903,6 +903,22 @@ async function _initializeGameCore(gameId) {
   const gameState = gameStates[gameId];
   if (!gameState) return;
 
+  // ★★★ 修正: ループの前に、プレイヤーごとの状態オブジェクトが必ず存在するように初期化する
+  gameState.playerTurnCount = {};
+  gameState.isIppatsuChance = {};
+  gameState.isFuriTen = {};
+  gameState.isDoujunFuriTen = {};
+  gameState.isDeclaringRiichi = {};
+  gameState.riichiDiscardedTileId = {};
+  gameState.playerActionEligibility = {};
+  gameState.isTenpaiDisplay = {};
+  gameState.canDeclareRon = {};
+  gameState.canDeclarePon = {};
+  gameState.canDeclareMinkan = {};
+  gameState.canDeclareAnkan = {};
+  gameState.canDeclareKakan = {};
+  gameState.playerResponses = {};
+
   gameState.playersReadyForNextRound = []; // ★局の初期化時に、必ず準備完了リストをリセット
 
   gameState.turnCount = 0;
