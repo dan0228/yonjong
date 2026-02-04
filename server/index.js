@@ -900,80 +900,79 @@ async function handleGameEnd(gameId) {
 
 // ゲームのコア初期化ロジックを処理するヘルパー関数
 async function _initializeGameCore(gameId) {
-  // ★★★ 修正: gameStates[gameId] が undefined のまま渡される可能性に備え、ここで確実に初期化する
+  // gameStates[gameId] が undefined のまま渡される可能性に備え、ここで確実に初期化する
   if (!gameStates[gameId]) {
       console.error(`_initializeGameCore: gameStates[${gameId}] が undefined です。予期せぬ状態のため、デフォルト値で初期化します。`);
       gameStates[gameId] = createDefaultGameState();
   }
-  const gameState = gameStates[gameId]; // ここで gameState は確実にオブジェクトになる
+
+  // ★★★ 修正: gameStates[gameId] のディープコピーを作成し、ローカルで操作する
+  // JSON.parse(JSON.stringify()) はシンプルだが、Dateオブジェクトや関数などを失う点に注意。
+  // このゲームの状態では問題ないと判断。
+  let localGameState = JSON.parse(JSON.stringify(gameStates[gameId]));
 
   // 以前のガードは不要になるため削除
   // if (!gameState) return;
 
   // ... my previous initialization block for player-specific objects ...
-  gameState.playerTurnCount = gameState.playerTurnCount || {};
-  gameState.isIppatsuChance = gameState.isIppatsuChance || {};
-  gameState.isFuriTen = gameState.isFuriTen || {};
-  gameState.isDoujunFuriTen = gameState.isDoujunFuriTen || {};
-  gameState.isDeclaringRiichi = gameState.isDeclaringRiichi || {};
-  gameState.riichiDiscardedTileId = gameState.riichiDiscardedTileId || {};
-  gameState.playerActionEligibility = gameState.playerActionEligibility || {};
-  gameState.isTenpaiDisplay = gameState.isTenpaiDisplay || {};
-  gameState.canDeclareRon = gameState.canDeclareRon || {};
-  gameState.canDeclarePon = gameState.canDeclarePon || {};
-  gameState.canDeclareMinkan = gameState.canDeclareMinkan || {};
-  gameState.canDeclareAnkan = gameState.canDeclareAnkan || {};
-  gameState.canDeclareKakan = gameState.canDeclareKakan || {};
-  gameState.playerResponses = gameState.playerResponses || {};
+  localGameState.playerTurnCount = localGameState.playerTurnCount || {};
+  localGameState.isIppatsuChance = localGameState.isIppatsuChance || {};
+  localGameState.isFuriTen = localGameState.isFuriTen || {};
+  localGameState.isDoujunFuriTen = localGameState.isDoujunFuriTen || {};
+  localGameState.isDeclaringRiichi = localGameState.isDeclaringRiichi || {};
+  localGameState.riichiDiscardedTileId = localGameState.riichiDiscardedTileId || {};
+  localGameState.playerActionEligibility = localGameState.playerActionEligibility || {};
+  localGameState.isTenpaiDisplay = localGameState.isTenpaiDisplay || {};
+  localGameState.canDeclareRon = localGameState.canDeclareRon || {};
+  localGameState.canDeclarePon = localGameState.canDeclarePon || {};
+  localGameState.canDeclareMinkan = localGameState.canDeclareMinkan || {};
+  localGameState.canDeclareAnkan = localGameState.canDeclareAnkan || {};
+  localGameState.canDeclareKakan = localGameState.canDeclareKakan || {};
+  localGameState.playerResponses = localGameState.playerResponses || {};
 
-  gameState.playersReadyForNextRound = []; // ★局の初期化時に、必ず準備完了リストをリセット
+  localGameState.playersReadyForNextRound = []; // ★局の初期化時に、必ず準備完了リストをリセット
 
-  gameState.turnCount = 0;
-  gameState.players.forEach(player => {
-    gameState.playerTurnCount[player.id] = 0;
-    gameState.isIppatsuChance[player.id] = false;
-    gameState.canDeclareRon[player.id] = false;
-    gameState.canDeclarePon[player.id] = null;
-    gameState.canDeclareMinkan[player.id] = null;
-    gameState.canDeclareAnkan[player.id] = null;
-    gameState.canDeclareKakan[player.id] = null;
-    gameState.playerActionEligibility[player.id] = {};
-    gameState.playerResponses = {};
-    gameState.waitingForPlayerResponses = [];
-    gameState.riichiDiscardOptions = [];
-    gameState.actionResponseQueue = [];
-    gameState.isDoujunFuriTen[player.id] = false;
-    gameState.isFuriTen[player.id] = false;
-    gameState.isTenpaiDisplay[player.id] = false;
-    gameState.isDeclaringRiichi[player.id] = false;
-    gameState.activeActionPlayerId = null;
-    gameState.anyPlayerMeldInFirstRound = false;
-    gameState.pendingKanDoraReveal = false;
-    gameState.animationState = { type: null, playerId: null };
-    gameState.riichiDiscardedTileId[player.id] = null;
+  localGameState.turnCount = 0;
+  localGameState.players.forEach(player => {
+    localGameState.playerTurnCount[player.id] = 0;
+    localGameState.isIppatsuChance[player.id] = false;
+    localGameState.canDeclareRon[player.id] = false;
+    localGameState.canDeclarePon[player.id] = null;
+    localGameState.canDeclareMinkan[player.id] = null;
+    localGameState.canDeclareAnkan[player.id] = null;
+    localGameState.canDeclareKakan[player.id] = null;
+    localGameState.playerActionEligibility[player.id] = {};
+    localGameState.playerResponses = {};
+    localGameState.waitingForPlayerResponses = [];
+    localGameState.riichiDiscardOptions = [];
+    localGameState.actionResponseQueue = [];
+    localGameState.isDoujunFuriTen[player.id] = false;
+    localGameState.isFuriTen[player.id] = false;
+    localGameState.isTenpaiDisplay[player.id] = false;
+    localGameState.isDeclaringRiichi[player.id] = false;
+    localGameState.activeActionPlayerId = null;
+    localGameState.anyPlayerMeldInFirstRound = false;
+    localGameState.pendingKanDoraReveal = false;
+    localGameState.animationState = { type: null, playerId: null };
+    localGameState.riichiDiscardedTileId[player.id] = null;
   });
-  gameState.highlightedDiscardTileId = null;
-  gameState.rinshanKaihouChance = false;
-  gameState.lastActionPlayerId = null;
-  gameState.shouldEndGameAfterRound = false;
+  localGameState.highlightedDiscardTileId = null;
+  localGameState.rinshanKaihouChance = false;
+  localGameState.lastActionPlayerId = null;
+  localGameState.shouldEndGameAfterRound = false;
 
-  const playerCount = gameState.players.length;
-  const currentDealerIndex = gameState.dealerIndex;
-
-  // assignPlayerWinds関数でisDealerも設定されるため、このforEachループは不要
-  // gameState.players.forEach((player, index) => {
-  //   player.isDealer = (index === currentDealerIndex);
-  // });
+  const playerCount = localGameState.players.length;
+  const currentDealerIndex = localGameState.dealerIndex;
 
   const playersWithWinds = mahjongLogic.assignPlayerWinds(
-    gameState.players,
+    localGameState.players,
     currentDealerIndex,
     playerCount
   );
   // assignPlayerWindsでnullが返される可能性を考慮し、フィルタリング
-  gameState.players = playersWithWinds.filter(p => p !== null);
-  if (gameState.players.length !== playerCount) {
-      console.error(`_initializeGameCore: assignPlayerWinds後のプレイヤー配列の長さが一致しません。期待値: ${playerCount}、実際: ${gameState.players.length}。これは破損したプレイヤーオブジェクトが返されたことを示します。`);
+  localGameState.players = playersWithWinds.filter(p => p !== null);
+  if (localGameState.players.length !== playerCount) {
+      console.error(`_initializeGameCore: assignPlayerWinds後のプレイヤー配列の長さが一致しません。期待値: ${playerCount}、実際: ${localGameState.players.length}。これは破損したプレイヤーオブジェクトが返されたことを示します。`);
       // 重大な問題を示唆するため、ここでエラーを投げるか、より丁寧なエラーハンドリングが必要です。
       // 現時点では、破損した状態のまま処理を続行します。
   }
@@ -982,29 +981,29 @@ async function _initializeGameCore(gameId) {
   fullWall = mahjongLogic.shuffleWall(fullWall);
 
   const deadWallSize = 14;
-  gameState.deadWall = fullWall.slice(0, deadWallSize);
+  localGameState.deadWall = fullWall.slice(0, deadWallSize);
   const liveWallForDealing = fullWall.slice(deadWallSize);
 
   const initialHandSize = 4;
   const { hands: initialHands, wall: updatedLiveWall } = mahjongLogic.dealInitialHands(playerCount, liveWallForDealing, initialHandSize);
-  gameState.wall = updatedLiveWall;
+  localGameState.wall = updatedLiveWall;
 
-  gameState.players.forEach((player, index) => {
+  localGameState.players.forEach((player, index) => {
     player.hand = initialHands[index] || [];
     player.discards = [];
     player.melds = [];
     player.isRiichi = false;
     player.isDeclaringRiichi = false;
     player.isDoubleRiichi = false;
-    gameState.isDoujunFuriTen[player.id] = false;
+    localGameState.isDoujunFuriTen[player.id] = false;
   });
 
-  gameState.doraIndicators = [mahjongLogic.revealDora(gameState.deadWall)].filter(Boolean);
+  localGameState.doraIndicators = [mahjongLogic.revealDora(localGameState.deadWall)].filter(Boolean);
 
-  gameState.currentTurnPlayerId = gameState.players[gameState.dealerIndex]?.id;
-  gameState.gamePhase = GAME_PHASES.PLAYER_TURN;
+  localGameState.currentTurnPlayerId = localGameState.players[localGameState.dealerIndex]?.id;
+  localGameState.gamePhase = GAME_PHASES.PLAYER_TURN;
 
-  gameState.dealerDeterminationResult.players = gameState.players.map(p => ({
+  localGameState.dealerDeterminationResult.players = localGameState.players.map(p => ({
     id: p.id,
     name: p.name,
     avatar_url: p.avatar_url,
@@ -1014,10 +1013,12 @@ async function _initializeGameCore(gameId) {
     originalId: p.originalId,
   }));
 
-  gameState.showDealerDeterminationPopup = true;
-  gameState.isGameReady = true; // ゲームの準備が完了
+  localGameState.showDealerDeterminationPopup = true;
+  localGameState.isGameReady = true; // ゲームの準備が完了
 
-  await updateAndBroadcastGameState(gameId, gameState);
+  // ★★★ 修正: グローバルな gameStates オブジェクトを更新してからブロードキャストする
+  gameStates[gameId] = localGameState;
+  await updateAndBroadcastGameState(gameId, localGameState);
 }
 
 // 次のラウンドの準備を行うヘルパー関数
