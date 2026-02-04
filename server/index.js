@@ -1427,6 +1427,9 @@ io.on('connection', (socket) => {
 
   // クライアントがゲームの初期化を要求する
   socket.on('initializeGame', async ({ gameId, userId }) => {
+    console.log(`[Server] Received initializeGame event for game ${gameId} from user ${userId}`);
+    console.log(`[Server] Current gameStates[${gameId}]:`, gameStates[gameId]); // ★追加ログ
+
     if (userId) {
         userSocketMap.set(userId, socket.id);
     }
