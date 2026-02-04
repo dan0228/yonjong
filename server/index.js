@@ -1425,6 +1425,9 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ★追加ログ: initializeGame イベントハンドラが登録されるか確認
+  console.log(`[Server Debug] Registering initializeGame event handler for socket ${socket.id}`);
+
   // クライアントがゲームの初期化を要求する
   socket.on('initializeGame', async ({ gameId, userId }) => {
     console.log(`[Server] Received initializeGame event for game ${gameId} from user ${userId}`);

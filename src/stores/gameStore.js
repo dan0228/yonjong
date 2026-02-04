@@ -453,7 +453,10 @@ export const useGameStore = defineStore('game', {
       // クライアント側での初期化ロジックは削除
       // サーバーにゲーム初期化を要求するイベントを発行
       if (socket && socket.connected) {
+        console.log(`[Client] Emitting initializeGame event for game ${this.onlineGameId} from user ${this.localPlayerId}`); // ★追加ログ
         socket.emit('initializeGame', { gameId: this.onlineGameId, userId: this.localPlayerId });
+      } else {
+        console.error(`[Client] Cannot emit initializeGame event: Socket not connected. Socket: ${socket}, Connected: ${socket?.connected}`);
       }
     },
 
