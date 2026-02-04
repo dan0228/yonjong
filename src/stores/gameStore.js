@@ -171,8 +171,9 @@ function handleAiDiscardLogic(store, playerId) {
   store.discardTile(currentPlayer.id, tileToDiscard.id, isFromDrawnTile);
 }
 
-export const useGameStore = defineStore('game', {
-  state: () => ({
+// デフォルトのゲーム状態を生成する関数
+export function createDefaultGameState() {
+  return {
     players: [
       { id: 'player1', name: localStorage.getItem('mahjongUsername') || 'あなた', hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null, stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false, isAi: false }, // isAi: false を追加
     ],
@@ -268,7 +269,11 @@ export const useGameStore = defineStore('game', {
     isMatchmakingRequested: false, // マッチメイキングリクエストが送信されたかどうか
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
     lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
-  }),
+  };
+}
+
+export const useGameStore = defineStore('game', {
+  state: createDefaultGameState,
   actions: {
     // ★チャットメッセージを送信するアクション
     sendChatMessage(messageId) {
