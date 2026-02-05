@@ -181,7 +181,7 @@ export function sortHand(hand) {
  * @returns {Array<Object>} 各プレイヤーに `seatWind` プロパティが追加された新しいプレイヤー配列。
  */
 export function assignPlayerWinds(players, dealerIndex, playerCount = 4) {
-  const winds = ['east', 'south', 'west', 'north']; // 内部で使用する風の配列
+  const winds = ['東', '南', '西', '北']; // 内部で使用する風の配列
 
   return players.map((player, index) => {
     if (!player) {

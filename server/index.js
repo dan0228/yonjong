@@ -183,6 +183,8 @@ function createGameContextForPlayer(gameState, player, isTsumo, lastDiscardedTil
   return {
     players: gameState.players,
     currentPlayer: player,
+    playerWind: player.seatWind,
+    roundWind: gameState.currentRound.wind === 'east' ? '東' : '南',
     currentRound: gameState.currentRound,
     honba: gameState.honba,
     riichiSticks: gameState.riichiSticks,
@@ -1014,7 +1016,7 @@ async function _initializeGameCore(gameId) {
     originalId: p.originalId,
   }));
 
-  localGameState.showDealerDeterminationPopup = true;
+  // localGameState.showDealerDeterminationPopup = true;
   localGameState.isGameReady = true; // ゲームの準備が完了
   localGameState.hasGameStarted = true;
 
@@ -1047,6 +1049,7 @@ async function prepareNextRound(gameId) {
 
   gameState.showResultPopup = false;
   gameState.resultMessage = '';
+  gameState.showDealerDeterminationPopup = false;
   gameState.drawnTile = null;
   gameState.lastDiscardedTile = null;
   gameState.highlightedDiscardTileId = null;
@@ -1628,6 +1631,8 @@ io.on('connection', (socket) => {
         gameStates[gameId].dealerIndex = Math.floor(Math.random() * initialPlayers.length);
         console.log(`[initializeGame] Dealer index set to: ${gameStates[gameId].dealerIndex}`);
       }
+
+      gameStates[gameId].showDealerDeterminationPopup = true; // 親決めポップアップを表示
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       _initializeGameCore(gameId);
