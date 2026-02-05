@@ -2901,10 +2901,15 @@ export const useGameStore = defineStore('game', {
       }, 0);
     },
     startGameFlow() {
-      if (this.currentTurnPlayerId && this.gamePhase === GAME_PHASES.PLAYER_TURN) {
-        this.drawTile();
+      const dealer = this.players[this.dealerIndex];
+      if (!dealer) return;
+
+      // オフラインのAI対戦で、親がAIの場合のみ自動でツモを実行
+      if (this.gameMode === 'vsCPU' && dealer.isAi) {
+        setTimeout(() => this.drawTile(), 1000);
       }
-    }
+      // オンライン対戦や人間プレイヤーが親の場合は、サーバーからの指示を待つ
+    },
   },
   getters: {
     getPlayerById: (state) => (playerId) => {

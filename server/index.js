@@ -57,6 +57,7 @@ const gameStates = {};
 
 // ユーザーIDとソケットIDをマッピングするMap
 const userSocketMap = new Map();
+const gameInitializationLocks = {}; // ゲーム初期化ロック用のオブジェクト
 
 // デフォルトのゲーム状態を生成する関数 (サーバーサイド版)
 function createDefaultGameState() {
@@ -1015,6 +1016,7 @@ async function _initializeGameCore(gameId) {
 
   localGameState.showDealerDeterminationPopup = true;
   localGameState.isGameReady = true; // ゲームの準備が完了
+  localGameState.hasGameStarted = true;
 
   // ★★★ 修正: グローバルな gameStates オブジェクトを更新してからブロードキャストする
   gameStates[gameId] = localGameState;
@@ -1536,18 +1538,25 @@ io.on('connection', (socket) => {
   // クライアントがゲームの初期化を要求する
   socket.on('initializeGame', async ({ gameId, userId }) => {
     console.log(`[Server] Received initializeGame event for game ${gameId} from user ${userId}`);
-    // ★★★ 修正: gameStates[gameId] が存在しない場合、後続の処理でエラーにならないように空のオブジェクトで初期化する。
-    if (!gameStates[gameId]) {
-      gameStates[gameId] = {};
-    }
-    console.log(`[Server] Current gameStates[${gameId}]:`, gameStates[gameId]); // ★追加ログ
 
     if (userId) {
         userSocketMap.set(userId, socket.id);
     }
 
-    // gameStates[gameId] がメモリ上にない場合、DBからロードを試みる
-    if (!gameStates[gameId] || Object.keys(gameStates[gameId]).length === 0) { // 空オブジェクトの場合もロード
+    // 既に初期化済み、または初期化処理中であれば何もしない
+    if (gameStates[gameId]?.hasGameStarted || gameInitializationLocks[gameId]) {
+      console.log(`[Server] Game ${gameId} has already started or initialization is in progress. Skipping.`);
+      if (gameStates[gameId]) {
+        io.to(gameId).emit('game-state-update', gameStates[gameId]);
+      }
+      return;
+    }
+
+    try {
+      gameInitializationLocks[gameId] = true; // ロックを取得
+
+      // gameStates[gameId] がメモリ上にない場合、DBからロードを試みる
+      if (!gameStates[gameId] || Object.keys(gameStates[gameId]).length === 0) {
         console.log(`[Server] Game ${gameId} not found in memory or is empty. Attempting to load from DB.`);
         const { data, error } = await supabase
             .from('game_states')
@@ -1558,22 +1567,14 @@ io.on('connection', (socket) => {
         if (error || !data) {
             console.error(`Error fetching game state for ${gameId} from DB during initializeGame:`, error?.message);
             socket.emit('gameError', { message: 'ゲームのロードに失敗しました。' });
-            return;
+            return; // finallyでロックが解放される
         }
         gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
         console.log(`[Server] Game ${gameId} loaded from DB.`);
-    }
+      }
 
-    // 既に初期化済みであれば何もしない
-    // isGameReady が true かつ gamePhase が PLAYER_TURN であれば初期化済みと判断
-    if (gameStates[gameId].isGameReady && gameStates[gameId].gamePhase === GAME_PHASES.PLAYER_TURN) {
-      io.to(gameId).emit('game-state-update', gameStates[gameId]);
-      return;
-    }
+      console.log(`Initializing game ${gameId} by user ${userId}`);
 
-    console.log(`Initializing game ${gameId} by user ${userId}`);
-
-    try {
       const { data: gameData, error: fetchError } = await supabase
         .from('game_states')
         .select('player_1_id, player_2_id, player_3_id, player_4_id')
@@ -1586,17 +1587,15 @@ io.on('connection', (socket) => {
 
       const playerIds = [gameData.player_1_id, gameData.player_2_id, gameData.player_3_id, gameData.player_4_id].filter(Boolean);
 
-      // ★追加: プレイヤー数が4人未満の場合のチェック
       if (playerIds.length < 4) {
         console.error(`[initializeGame] Not enough players to start game ${gameId}. Required 4, found ${playerIds.length}.`);
-        // ゲームの状態を待機中に戻す処理
         gameStates[gameId].gamePhase = GAME_PHASES.WAITING_TO_START;
         gameStates[gameId].isGameReady = false;
         gameStates[gameId].hasGameStarted = false;
         await supabase.from('game_states').update({ status: 'waiting' }).eq('id', gameId);
         io.to(gameId).emit('game-state-update', gameStates[gameId]);
         socket.emit('gameError', { message: 'プレイヤーが不足しているため、ゲームを開始できません。' });
-        return;
+        return; // finallyでロックが解放される
       }
 
       const { data: profiles, error: profileError } = await supabase
@@ -1610,11 +1609,10 @@ io.on('connection', (socket) => {
 
       const initialPlayers = playerIds.map(id => {
             const profile = profiles.find(p => p.id === id);
-            // socketId はサーバーサイドで管理されるべき情報であり、クライアントにブロードキャストされる game_data に含めるべきではない
             return {
               id: id,
-              name: profile?.username || 'プレイヤー', // name プロパティはそのまま
-              username: profile?.username || 'プレイヤー', // username プロパティを追加
+              name: profile?.username || 'プレイヤー',
+              username: profile?.username || 'プレイヤー',
               avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
@@ -1624,21 +1622,32 @@ io.on('connection', (socket) => {
             };
           });
 
-      gameStates[gameId].players = initialPlayers; // プレイヤー情報を更新
+      gameStates[gameId].players = initialPlayers;
 
-      // ★★★ BUG FIX: dealerIndexが初期化されていないため、ここで設定する
       if (gameStates[gameId].dealerIndex === null) {
         gameStates[gameId].dealerIndex = Math.floor(Math.random() * initialPlayers.length);
         console.log(`[initializeGame] Dealer index set to: ${gameStates[gameId].dealerIndex}`);
       }
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
-      await _initializeGameCore(gameId); // コア初期化ロジックを呼び出す
+      await _initializeGameCore(gameId);
       console.log(`[initializeGame] _initializeGameCore completed for game ${gameId}. Final gamePhase: ${gameStates[gameId].gamePhase}`);
+
+      // ★追加: 初期化完了後、親プレイヤーにツモを促す
+      const dealerId = gameStates[gameId].players[gameStates[gameId].dealerIndex]?.id;
+      if (dealerId) {
+        console.log(`[Server] Dealer is ${dealerId}. Executing first draw.`);
+        await _executeDrawTile(gameId, dealerId);
+        await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+      } else {
+        throw new Error("親プレイヤーを決定できませんでした。");
+      }
 
     } catch (error) {
       console.error(`Error initializing game ${gameId}:`, error);
       socket.emit('gameError', { message: 'ゲームの初期化に失敗しました。' });
+    } finally {
+      delete gameInitializationLocks[gameId]; // ロックを解放
     }
   });
 
