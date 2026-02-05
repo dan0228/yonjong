@@ -1016,7 +1016,9 @@ async function _initializeGameCore(gameId) {
     originalId: p.originalId,
   }));
 
-  // localGameState.showDealerDeterminationPopup = true;
+  if (localGameState.currentRound.wind === 'east' && localGameState.currentRound.number === 1 && localGameState.honba === 0) {
+    localGameState.showDealerDeterminationPopup = true;
+  }
   localGameState.isGameReady = true; // ゲームの準備が完了
   localGameState.hasGameStarted = true;
 
@@ -1432,35 +1434,18 @@ io.on('connection', (socket) => {
     if (userId) {
         userSocketMap.set(userId, socket.id);
     }
-    socket.join(gameId); // Socket.ioルームに参加
+    socket.join(gameId);
+    console.log(`Player ${userId} (socket ${socket.id}) joined game ${gameId}`);
 
-    // ★★★ 修正: マッチング待機中も必ずDBから最新の状態を読み込む ★★★
-    let currentState = gameStates[gameId];
-    // メモリにない、またはマッチング待機中のゲームであればDBからロード
-    const shouldLoadFromDB = !currentState || currentState.gamePhase === 'waitingToStart';
-
-    if (shouldLoadFromDB) {
-      const { data, error } = await supabase
-        .from('game_states')
-        .select('*')
-        .eq('id', gameId)
-        .single();
-
-      if (error || !data) {
-        console.error(`Error fetching game state for ${gameId}:`, error?.message);
-        socket.emit('gameError', { message: 'ゲームのロードに失敗しました。' });
-        return;
-      }
-      // メモリ上の状態を更新
-      gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
-      currentState = gameStates[gameId];
-      console.log(`Game ${gameId} loaded/re-loaded from Supabase.`);
+    // メモリ上にゲーム状態が存在すれば、それを参加者本人に送信する
+    const currentState = gameStates[gameId];
+    if (currentState) {
+        socket.emit('game-state-update', currentState);
+        console.log(`Sent existing game state of ${gameId} to player ${userId}`);
+    } else {
+        // メモリにゲーム状態がなければ、initializeGameイベントによって作成されるのを待つ
+        console.log(`No game state in memory for ${gameId}. Waiting for initialization.`);
     }
-
-    // ★★★ 修正: 競合を避けるため、'game-state-update' は常にブロードキャストする ★★★
-    // これにより、joinGameが呼ばれるたびに全プレイヤーのゲーム状態が最新に同期される
-    console.log(`Broadcasting state for game ${gameId} to all players in room.`);
-    io.to(gameId).emit('game-state-update', currentState);
   });
 
   // クライアントがマッチメイキングを要求する
@@ -1632,7 +1617,7 @@ io.on('connection', (socket) => {
         console.log(`[initializeGame] Dealer index set to: ${gameStates[gameId].dealerIndex}`);
       }
 
-      gameStates[gameId].showDealerDeterminationPopup = true; // 親決めポップアップを表示
+      
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       _initializeGameCore(gameId);
