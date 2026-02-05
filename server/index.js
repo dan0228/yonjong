@@ -1447,8 +1447,8 @@ io.on('connection', (socket) => {
         return;
       }
       // メモリ上の状態を更新
-      gameStates[gameId] = data.game_data;
-      currentState = data.game_data;
+      gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
+      currentState = gameStates[gameId];
       console.log(`Game ${gameId} loaded/re-loaded from Supabase.`);
     }
 
