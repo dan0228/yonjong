@@ -1163,6 +1163,16 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   
   gameState.playerActionEligibility[playerId] = eligibility;
   updateFuriTenState(gameId, playerId);
+
+  // リーチ後の自動ツモ切り処理
+  if ((player.isRiichi || player.isDoubleRiichi) && !eligibility.canTsumoAgari && !eligibility.canAnkan) {
+    // 和了もカンもできない場合は、0.5秒後に自動でツモ切りする
+    setTimeout(async () => {
+      console.log(`[Server] Riichi player ${playerId} cannot win or kan. Auto-discarding.`);
+      await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
+      await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+    }, 500);
+  }
 }
 
 // 他のプレイヤーのアクションを確認するヘルパー関数
