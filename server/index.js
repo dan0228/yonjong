@@ -1629,6 +1629,11 @@ io.on('connection', (socket) => {
         console.log(`[Server] Dealer is ${dealerId}. Executing first draw.`);
         await _executeDrawTile(gameId, dealerId);
         await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+
+        // ポップアップは一度表示したらサーバー側の状態はfalseに戻す
+        if (gameStates[gameId]) {
+          gameStates[gameId].showDealerDeterminationPopup = false;
+        }
       } else {
         throw new Error("親プレイヤーを決定できませんでした。");
       }
