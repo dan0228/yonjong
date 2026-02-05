@@ -1020,7 +1020,7 @@ async function _initializeGameCore(gameId) {
 
   // ★★★ 修正: グローバルな gameStates オブジェクトを更新してからブロードキャストする
   gameStates[gameId] = localGameState;
-  await updateAndBroadcastGameState(gameId, localGameState);
+  // await updateAndBroadcastGameState(gameId, localGameState);
 }
 
 // 次のラウンドの準備を行うヘルパー関数
@@ -1630,7 +1630,7 @@ io.on('connection', (socket) => {
       }
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
-      await _initializeGameCore(gameId);
+      _initializeGameCore(gameId);
       console.log(`[initializeGame] _initializeGameCore completed for game ${gameId}. Final gamePhase: ${gameStates[gameId].gamePhase}`);
 
       // ★追加: 初期化完了後、親プレイヤーにツモを促す

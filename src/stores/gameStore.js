@@ -428,8 +428,16 @@ export const useGameStore = defineStore('game', {
     handleRemoteStateUpdate(newState) {
       if (!this.isGameOnline || !newState) return;
 
-      // サーバーから送られてくる状態をそのまま適用
+      // サーバーからの状態で上書きされたくないプロパティを保持
+      const localId = this.localPlayerId;
+
+      // サーバーから送られてくる状態を適用
       this.$patch(newState);
+
+      // 保持しておいたプロパティを再設定
+      if (localId) {
+        this.localPlayerId = localId;
+      }
     },
 
     signalReadyForNextRound(remotePlayerId = null) {
