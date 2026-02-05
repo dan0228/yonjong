@@ -1238,6 +1238,7 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
 
     // Step 2: 打牌後のエフェクトを処理する
     if (gameState.isDeclaringRiichi[playerId]) {
+      gameState.riichiDiscardedTileId[playerId] = tileIdToDiscard;
       _finalizeRiichi(gameId, playerId);
     }
     if (gameState.pendingKanDoraReveal) {
@@ -1726,7 +1727,7 @@ io.on('connection', (socket) => {
   });
 
   // クライアントが牌を捨てることを要求する
-  socket.on('discardTile', async ({ gameId, playerId, tileIdToDiscard, isFromDrawnTile }) => {
+  socket.on('discardTile', async ({ gameId, playerId, tileIdToDiscard, isFromDrawnTile, isStocking = false }) => {
     const gameState = gameStates[gameId];
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
     
@@ -1734,16 +1735,64 @@ io.on('connection', (socket) => {
     if (!player) return socket.emit('gameError', { message: 'プレイヤーが見つかりません。' });
 
     if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
-    if (gameState.gamePhase !== GAME_PHASES.AWAITING_DISCARD && gameState.gamePhase !== GAME_PHASES.AWAITING_RIICHI_DISCARD) {
-      return socket.emit('gameError', { message: '牌を捨てられるフェーズではありません。' });
-    }
+    
+    // isStockingフラグの有無で処理を分岐
+    if (isStocking) {
+      // ストック処理
+      if (gameState.gamePhase !== GAME_PHASES.AWAITING_DISCARD) {
+        return socket.emit('gameError', { message: '牌をストックできるフェーズではありません。' });
+      }
+      try {
+        if (player.stockedTile) throw new Error('既にストック牌があります。');
 
-    try {
-        await _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTile);
+        let tileToStock;
+        if (isFromDrawnTile) {
+          if (!gameState.drawnTile || gameState.drawnTile.id !== tileIdToDiscard) throw new Error('ストックしようとした牌がツモ牌と一致しません。');
+          tileToStock = gameState.drawnTile;
+          gameState.drawnTile = null;
+        } else {
+          const tileIndex = player.hand.findIndex(t => t.id === tileIdToDiscard);
+          if (tileIndex === -1) throw new Error('ストックしようとした牌が手牌に見つかりません。');
+          tileToStock = player.hand.splice(tileIndex, 1)[0];
+          if (gameState.drawnTile) {
+            player.hand.push(gameState.drawnTile);
+            player.hand = mahjongLogic.sortHand(player.hand);
+          }
+          gameState.drawnTile = null;
+        }
+
+        player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
+        gameState.stockAnimationPlayerId = playerId;
+        
+        await moveToNextPlayer(gameId);
+        await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        
         await updateAndBroadcastGameState(gameId, gameState);
-    } catch (error) {
-        console.error(`Error in discardTile for game ${gameId}:`, error);
+
+        setTimeout(async () => {
+            const currentGameState = gameStates[gameId];
+            if (currentGameState) {
+                currentGameState.stockAnimationPlayerId = null;
+                await updateAndBroadcastGameState(gameId, currentGameState);
+            }
+        }, 600);
+
+      } catch (error) {
+        console.error(`Error in stock action for game ${gameId}:`, error);
         socket.emit('gameError', { message: error.message });
+      }
+    } else {
+      // 通常の打牌処理
+      if (gameState.gamePhase !== GAME_PHASES.AWAITING_DISCARD && gameState.gamePhase !== GAME_PHASES.AWAITING_RIICHI_DISCARD) {
+        return socket.emit('gameError', { message: '牌を捨てられるフェーズではありません。' });
+      }
+      try {
+          await _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTile);
+          await updateAndBroadcastGameState(gameId, gameState);
+      } catch (error) {
+          console.error(`Error in discardTile for game ${gameId}:`, error);
+          socket.emit('gameError', { message: error.message });
+      }
     }
   });
 

@@ -1229,11 +1229,11 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
-          socket.emit('executeStock', { gameId: this.onlineGameId, playerId, tileIdToStock, isFromDrawnTile });
+          socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard: tileIdToStock, isFromDrawnTile, isStocking: true });
         }
         return;
       }
-    // ... 既存のアクション ...
+      // オフラインロジック
       const player = this.players.find(p => p.id === playerId);
       if (!player) {
         console.error('executeStock: Player not found');
@@ -1273,6 +1273,11 @@ export const useGameStore = defineStore('game', {
       }
 
       player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
+
+      this.stockAnimationPlayerId = playerId;
+      setTimeout(() => {
+        this.stockAnimationPlayerId = null;
+      }, 600);
 
       // 次のプレイヤーのターンへ
       this.moveToNextPlayer();
