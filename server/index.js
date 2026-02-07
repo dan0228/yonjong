@@ -1190,6 +1190,8 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
     gameState.waitingForPlayerResponses = [];
     let canAnyoneAct = false;
 
+    console.log(`[DEBUG] Checking actions for discard by ${discarderId}. Tile: ${JSON.stringify(discardedTile)}`);
+
     gameState.players.forEach(p => {
       if (p.id !== discarderId) {
         // オブジェクトの構造を常に一定に保つため、毎回全プロパティを初期化する
@@ -1203,12 +1205,20 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
         const gameContext = createGameContextForPlayer(gameState, p, false, discardedTile);
         const isPlayerInFuriTen = gameState.isFuriTen[p.id] || gameState.isDoujunFuriTen[p.id];
 
+        // ★★★ ここから詳細ログ ★★★
+        console.log(`[DEBUG] Checking player ${p.id}: isRiichi=${p.isRiichi}, isFuriTen=${gameState.isFuriTen[p.id]}, isDoujunFuriTen=${gameState.isDoujunFuriTen[p.id]}`);
+
         if (!isPlayerInFuriTen) {
           const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, gameContext);
           eligibility.canRon = ronResult.isWin;
+          // ronResultがオブジェクトの場合、中身もログに出す
+          const ronResultLog = typeof ronResult === 'object' ? JSON.stringify(ronResult) : ronResult;
+          console.log(`[DEBUG] Player ${p.id} is NOT in furiten. checkCanRon result: ${ronResultLog}. Setting canRon to ${ronResult.isWin}`);
         } else {
           eligibility.canRon = false;
+          console.log(`[DEBUG] Player ${p.id} IS in furiten. Cannot ron.`);
         }
+        // ★★★ ここまで詳細ログ ★★★
 
         if (!isFinalAction && gameState.wall.length > 3 && !p.isRiichi && !p.isDoubleRiichi) {
           eligibility.canPon = mahjongLogic.checkCanPon(p.hand, discardedTile) ? discardedTile : null;
@@ -1221,6 +1231,7 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
         }
       }
     });
+    console.log(`[DEBUG] Finished checking actions. canAnyoneAct=${canAnyoneAct}, waitingForPlayerResponses=${JSON.stringify(gameState.waitingForPlayerResponses)}`);
     return canAnyoneAct;
 }
 
