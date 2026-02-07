@@ -181,21 +181,15 @@ export function sortHand(hand) {
  * @returns {Array<Object>} 各プレイヤーに `seatWind` プロパティが追加された新しいプレイヤー配列。
  */
 export function assignPlayerWinds(players, dealerIndex, playerCount = 4) {
-  const winds = ['東', '南', '西', '北']; // 内部で使用する風の配列
+  // 元のプレイヤー配列を変更しないようにコピーを作成
+  const updatedPlayers = players.map(player => ({ ...player }));
 
-  return players.map((player, index) => {
-    if (!player) {
-      console.error(`assignPlayerWinds: プレイヤー配列にnull/undefinedの要素が見つかりました。インデックス: ${index}。`);
-      // クラッシュを防ぐため、最小限のダミーオブジェクトを返す。これはより深い問題を示唆しています。
-      return { id: `corrupted_player_${index}`, name: 'Corrupted', avatar_url: '', score: 0, isDealer: false, seatWind: 'unknown' };
-    }
-    const windIndex = (index - dealerIndex + playerCount) % playerCount;
-    return {
-      ...player,
-      isDealer: index === dealerIndex, // ここで親の状態を設定
-      seatWind: winds[windIndex]
-    };
-  });
+  for (let i = 0; i < playerCount; i++) {
+    // 親から数えてi番目のプレイヤーの実際のインデックスを計算
+    const playerActualIndex = (dealerIndex + i) % playerCount;
+    updatedPlayers[playerActualIndex].seatWind = WIND_ORDER[i];
+  }
+  return updatedPlayers;
 }
 
 /**
@@ -1717,114 +1711,12 @@ export function checkYonhaiWin(currentHandWithWinTile, winTile, isTsumo, gameCon
       playerCount: gameContext.playerCount, // プレイヤー数を渡す
       gameContext: gameContext // 人和判定のために gameContext 自体も渡す
     };
-    const isParent = gameContext.isParent || false;
     const yakuResult = calculateYonhaiYaku(handDataForYaku);
-
-    // --- 役なし和了（チョンボ）の処理 ---
-    // 役なし和了は認めないため、役がない場合はチョンボとして扱う
-    // ドラのみの場合もチョンボとするため、pureFans を参照する
-    if (yakuResult.pureFans === 0 && yakuResult.yakumanPower === 0) {
-        const chomboScore = isParent ? -12000 : -8000; // 親か子かでチョンボの点数を設定
-        return {
-            isWin: true, // 和了形は成立しているが、役がない状態
-            yaku: [{ name: "役なしチョンボ", fans: 0, isChombo: true }], // チョンボ役を追加
-            score: chomboScore, // チョンボしたプレイヤーが失う点数
-            fans: 0,
-            isYakuman: false,
-            yakumanPower: 0,
-            scoreName: "役なしチョンボ",
-            isChombo: true, // チョンボであることを示すフラグ
-            chomboPlayerIsParent: isParent, // チョンボしたのが親かどうかのフラグ
-            chomboHand: currentHandWithWinTile // チョンボ時の手牌
-        };
-    }
-
-    let score = 0;
-    let calculatedFans = yakuResult.fans;
-    let calculatedYakumanPower = yakuResult.yakumanPower;
-    let isWinResult = false; 
-    let resultYakuList = [];
-    let resultIsYakuman = false;
-    let resultYakumanPower = calculatedYakumanPower;
-    let scoreName = null;
-
-    const MANGAN_BASE_KO = 8000;
-    const MANGAN_BASE_OYA = 12000;
-    const KAZOE_YAKUMAN_FANS_THRESHOLD = 13;
-
-    if (calculatedYakumanPower > 0) { // 役満の場合
-      isWinResult = true;
-      resultIsYakuman = true;
-      resultYakuList = yakuResult.yakuman;
-      
-      // 役満は満貫の4倍が基本
-      const yakumanUnitScore = isParent ? MANGAN_BASE_OYA * 4 : MANGAN_BASE_KO * 4;
-      score = yakumanUnitScore * calculatedYakumanPower; // N倍役満に対応
-      scoreName = calculatedYakumanPower >= 2 ? `${calculatedYakumanPower}倍役満` : "役満";
-
-    } else if (calculatedFans >= KAZOE_YAKUMAN_FANS_THRESHOLD) { // 数え役満の場合
-      isWinResult = true;
-      resultIsYakuman = true;
-      resultYakumanPower = 1; // 1倍役満として扱う
-      resultYakuList = yakuResult.yaku; // 通常役のリストはそのまま
-      const yakumanUnitScore = isParent ? MANGAN_BASE_OYA * 4 : MANGAN_BASE_KO * 4;
-      score = yakumanUnitScore;
-      scoreName = "数え役満";
-    } else if (calculatedFans > 0) { // 通常役の場合
-      isWinResult = true;
-      resultIsYakuman = false;
-      resultYakuList = yakuResult.yaku;
-
-      // 翻数に応じた満貫以上の点数計算
-      const MANGAN_FANS_THRESHOLD = 4;     // 4翻以上で満貫
-      const HANEMAN_FANS_THRESHOLD = 6;    // 6翻以上で跳満
-      const BAIMAN_FANS_THRESHOLD = 8;     // 8翻以上で倍満
-      const SANBAIMAN_FANS_THRESHOLD = 11; // 11翻以上で三倍満
-
-      if (calculatedFans >= SANBAIMAN_FANS_THRESHOLD) { // 三倍満
-        score = isParent ? MANGAN_BASE_OYA * 3 : MANGAN_BASE_KO * 3;
-        scoreName = "三倍満";
-      } else if (calculatedFans >= BAIMAN_FANS_THRESHOLD) { // 倍満
-        score = isParent ? MANGAN_BASE_OYA * 2 : MANGAN_BASE_KO * 2;
-        scoreName = "倍満";
-      } else if (calculatedFans >= HANEMAN_FANS_THRESHOLD) { // 跳満
-        score = isParent ? 18000 : 12000; // 親18000点, 子12000点
-        scoreName = "跳満";
-      } else if (calculatedFans >= MANGAN_FANS_THRESHOLD) { // 満貫
-        // 4翻かつ平和+ツモの場合は0点とする特殊ルール
-        const isPinfuTsumo4Han = calculatedFans === 4 &&
-                                resultYakuList.some(y => y.name === YONHAI_YAKU.PINFU.name) &&
-                                resultYakuList.some(y => y.name === YONHAI_YAKU.TSUMO.name);
-        if (isPinfuTsumo4Han) {
-          score = 0; // 特殊ルールにより0点
-        } else {
-          score = isParent ? MANGAN_BASE_OYA : MANGAN_BASE_KO; // 通常の満貫点
-          scoreName = "満貫";
-        }
-      } else {
-        // 満貫未満の場合は点数移動なし (score は 0 のまま)
-        score = 0;
-        scoreName = null;
-      }
-    } else {
-      // 役なし (calculateYonhaiYaku で yakuResult.fans と yakumanPower が 0 になるため)
-      isWinResult = false;
-    }
-
-    // 最終的な和了結果を返却
-    if (isWinResult) {
-      return { 
-        isWin: true, 
-        yaku: resultYakuList, 
-        score: score, // 満貫未満なら0, それ以上なら計算後の点数
-        fans: calculatedFans, 
-        isYakuman: resultIsYakuman,
-        yakumanPower: resultYakumanPower,
-        scoreName: scoreName
-      };
+    if (yakuResult.fans > 0 || yakuResult.yakumanPower > 0) {
+      return { isWin: true, ...yakuResult };
     }
   }
-  // 基本和了形不成立
+  // 基本和了形不成立、または役なし
   return { isWin: false, yaku: [], score: 0, fans: 0, isYakuman: false, yakumanPower: 0 };
 }
 

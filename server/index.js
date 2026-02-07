@@ -420,6 +420,53 @@ async function drawRinshanAfterKakan(gameId, playerId) {
   }
 }
 
+// 点数計算を行うヘルパー関数
+function calculateScore(fans, yakumanPower, isDealer) {
+  const MANGAN_BASE_KO = 8000;
+  const MANGAN_BASE_OYA = 12000;
+  const KAZOE_YAKUMAN_FANS_THRESHOLD = 13;
+
+  if (yakumanPower > 0) {
+    const yakumanUnitScore = isDealer ? MANGAN_BASE_OYA * 4 : MANGAN_BASE_KO * 4;
+    return { score: yakumanUnitScore * yakumanPower, scoreName: yakumanPower >= 2 ? `${yakumanPower}倍役満` : "役満" };
+  }
+  if (fans >= KAZOE_YAKUMAN_FANS_THRESHOLD) {
+    const yakumanUnitScore = isDealer ? MANGAN_BASE_OYA * 4 : MANGAN_BASE_KO * 4;
+    return { score: yakumanUnitScore, scoreName: "数え役満" };
+  }
+
+  const MANGAN_FANS_THRESHOLD = 4;
+  const HANEMAN_FANS_THRESHOLD = 6;
+  const BAIMAN_FANS_THRESHOLD = 8;
+  const SANBAIMAN_FANS_THRESHOLD = 11;
+
+  if (fans >= SANBAIMAN_FANS_THRESHOLD) {
+    return { score: isDealer ? MANGAN_BASE_OYA * 3 : MANGAN_BASE_KO * 3, scoreName: "三倍満" };
+  }
+  if (fans >= BAIMAN_FANS_THRESHOLD) {
+    return { score: isDealer ? MANGAN_BASE_OYA * 2 : MANGAN_BASE_KO * 2, scoreName: "倍満" };
+  }
+  if (fans >= HANEMAN_FANS_THRESHOLD) {
+    return { score: isDealer ? 18000 : 12000, scoreName: "跳満" };
+  }
+  if (fans >= MANGAN_FANS_THRESHOLD) {
+    return { score: isDealer ? MANGAN_BASE_OYA : MANGAN_BASE_KO, scoreName: "満貫" };
+  }
+  return { score: 0, scoreName: null };
+}
+
+// ツモ和了時の支払い点数を計算するヘルパー関数
+function calculateTsumoPayment(totalScore, isDealer) {
+  if (isDealer) {
+    const payment = Math.ceil(totalScore / 3 / 100) * 100;
+    return { dealer: 0, nonDealer: payment };
+  } else {
+    const dealerPayment = Math.ceil(totalScore / 2 / 100) * 100;
+    const nonDealerPayment = Math.ceil(totalScore / 4 / 100) * 100;
+    return { dealer: dealerPayment, nonDealer: nonDealerPayment };
+  }
+}
+
 // 和了処理を行うヘルパー関数
 async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
   const gameState = gameStates[gameId];
@@ -461,6 +508,9 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     return;
   }
 
+  // 点数計算
+  const { score, scoreName } = calculateScore(winResult.fans, winResult.yakumanPower, player.isDealer);
+
   // ロンされた場合、相手の河から牌を削除
   if (!isTsumo && !gameCtxForWin.isChankan) {
     const targetPlayer = gameState.players.find(p => p.id === ronTargetPlayerId);
@@ -483,10 +533,10 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     winningHand: handForWin,
     agariTile: agariTile,
     yakuList: winResult.yaku,
-    totalFans: winResult.totalFans,
-    fu: winResult.fu,
-    score: winResult.score,
-    scoreName: winResult.scoreName,
+    totalFans: winResult.fans,
+    fu: 0, // 符計算はなし
+    score: score,
+    scoreName: scoreName,
     pointChanges: {},
     isDraw: false,
   };
@@ -497,18 +547,19 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   const totalHonbaPoints = gameState.honba * 300; // 1本場につき300点
 
   if (isTsumo) {
+    const tsumoPayments = calculateTsumoPayment(score, player.isDealer);
     const dealer = gameState.players.find(p => p.isDealer);
     const nonDealers = gameState.players.filter(p => !p.isDealer);
 
     if (player.isDealer) {
       // 親のツモ和了
-      const payment = winResult.score.tsumo.nonDealer + honbaPointsPerPlayer;
+      const payment = tsumoPayments.nonDealer + honbaPointsPerPlayer;
       nonDealers.forEach(p => { pointChanges[p.id] -= payment; });
       pointChanges[player.id] += payment * nonDealers.length;
     } else {
       // 子のツモ和了
-      const dealerPayment = winResult.score.tsumo.dealer + honbaPointsPerPlayer;
-      const nonDealerPayment = winResult.score.tsumo.nonDealer + honbaPointsPerPlayer;
+      const dealerPayment = tsumoPayments.dealer + honbaPointsPerPlayer;
+      const nonDealerPayment = tsumoPayments.nonDealer + honbaPointsPerPlayer;
       pointChanges[dealer.id] -= dealerPayment;
       nonDealers.forEach(p => {
         if (p.id !== player.id) {
@@ -518,7 +569,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
       pointChanges[player.id] += dealerPayment + nonDealerPayment * (nonDealers.length - 1);
     }
   } else { // Ron
-    const payment = winResult.score.ron + totalHonbaPoints;
+    const payment = score + totalHonbaPoints;
     pointChanges[ronTargetPlayerId] -= payment;
     pointChanges[player.id] += payment;
   }
@@ -818,14 +869,6 @@ async function handleRyuukyoku(gameId) {
     }
     gameState.agariResultDetails.pointChanges = pointChanges;
 
-    // Apply point changes to scores immediately to determine rank for game end conditions
-    for (const playerId in pointChanges) {
-        const player = gameState.players.find(p => p.id === playerId);
-        if (player) {
-            player.score += pointChanges[playerId];
-        }
-    }
-
     const isDealerTenpai = tenpaiPlayers.some(p => p.id === dealerPlayer.id);
     const rankedPlayers = getRankedPlayers(gameState.players);
     const dealerRank = rankedPlayers.find(p => p.id === dealerPlayer.id)?.rank;
@@ -973,18 +1016,16 @@ async function _initializeGameCore(gameId) {
   const playerCount = localGameState.players.length;
   const currentDealerIndex = localGameState.dealerIndex;
 
+  localGameState.players.forEach((player, index) => {
+    player.isDealer = (index === currentDealerIndex);
+  });
+
   const playersWithWinds = mahjongLogic.assignPlayerWinds(
     localGameState.players,
     currentDealerIndex,
     playerCount
   );
-  // assignPlayerWindsでnullが返される可能性を考慮し、フィルタリング
-  localGameState.players = playersWithWinds.filter(p => p !== null);
-  if (localGameState.players.length !== playerCount) {
-      console.error(`_initializeGameCore: assignPlayerWinds後のプレイヤー配列の長さが一致しません。期待値: ${playerCount}、実際: ${localGameState.players.length}。これは破損したプレイヤーオブジェクトが返されたことを示します。`);
-      // 重大な問題を示唆するため、ここでエラーを投げるか、より丁寧なエラーハンドリングが必要です。
-      // 現時点では、破損した状態のまま処理を続行します。
-  }
+  localGameState.players = playersWithWinds;
 
   let fullWall = mahjongLogic.getAllTiles();
   fullWall = mahjongLogic.shuffleWall(fullWall);
