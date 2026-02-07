@@ -1186,7 +1186,14 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
 
     gameState.players.forEach(p => {
       if (p.id !== discarderId) {
-        const eligibility = {};
+        // オブジェクトの構造を常に一定に保つため、毎回全プロパティを初期化する
+        gameState.playerActionEligibility[p.id] = {
+            canRon: false,
+            canPon: null,
+            canMinkan: null
+        };
+        const eligibility = gameState.playerActionEligibility[p.id]; // ショートカット
+
         const gameContext = createGameContextForPlayer(gameState, p, false, discardedTile);
         const isPlayerInFuriTen = gameState.isFuriTen[p.id] || gameState.isDoujunFuriTen[p.id];
 
@@ -1195,16 +1202,12 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
           const contextForRonCheck = { ...gameContext, isRiichi: false, isDoubleRiichi: false };
           const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, contextForRonCheck);
           eligibility.canRon = ronResult.isWin;
-        } else {
-          eligibility.canRon = false;
         }
 
         if (!isFinalAction && gameState.wall.length > 3 && !p.isRiichi && !p.isDoubleRiichi) {
           eligibility.canPon = mahjongLogic.checkCanPon(p.hand, discardedTile) ? discardedTile : null;
           eligibility.canMinkan = mahjongLogic.checkCanMinkan(p.hand, discardedTile) ? discardedTile : null;
         }
-
-        gameState.playerActionEligibility[p.id] = eligibility;
 
         if (eligibility.canRon || eligibility.canPon || eligibility.canMinkan) {
           canAnyoneAct = true;
