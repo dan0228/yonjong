@@ -431,8 +431,17 @@ export const useGameStore = defineStore('game', {
       // サーバーからの状態で上書きされたくないプロパティを保持
       const localId = this.localPlayerId;
 
-      // サーバーから送られてくる状態を適用
-      this.$patch(newState);
+      // playerActionEligibility とそれ以外のプロパティを分割
+      const { playerActionEligibility, ...restOfState } = newState;
+
+      // まず、playerActionEligibility 以外の状態を効率的に更新
+      this.$patch(restOfState);
+
+      // playerActionEligibility をオブジェクトごと再代入することで、
+      // ネストされたオブジェクトの変更でもリアクティビティの更新を確実にする
+      if (playerActionEligibility) {
+        this.playerActionEligibility = playerActionEligibility;
+      }
 
       // 保持しておいたプロパティを再設定
       if (localId) {
