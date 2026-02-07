@@ -1191,7 +1191,9 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
         const isPlayerInFuriTen = gameState.isFuriTen[p.id] || gameState.isDoujunFuriTen[p.id];
 
         if (!isPlayerInFuriTen) {
-          const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, gameContext);
+          // isRiichi フラグに関わらず、まずは和了形かだけを判定する
+          const contextForRonCheck = { ...gameContext, isRiichi: false, isDoubleRiichi: false };
+          const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, contextForRonCheck);
           eligibility.canRon = ronResult.isWin;
         } else {
           eligibility.canRon = false;
