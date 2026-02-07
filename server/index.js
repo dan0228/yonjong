@@ -518,14 +518,13 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   // リーチ棒と本場の精算
   const riichiStickPoints = gameState.riichiSticks * 1000;
   pointChanges[player.id] += riichiStickPoints;
-  gameState.riichiSticks = 0;
 
   const honbaPoints = gameState.honba * 300; // クライアントのロジックに合わせる
   pointChanges[player.id] += honbaPoints;
 
   gameState.agariResultDetails.pointChanges = pointChanges;
 
-  // 親の連荘・移動の決定
+  // 親の連荘・移動の決定と、次局の本場・リーチ棒の更新
   if (player.isDealer) {
     gameState.resultMessage = `親（${player.name}）の和了`;
     gameState.honba++;
@@ -537,6 +536,8 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     gameState.nextDealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
     gameState.shouldAdvanceRound = true;
   }
+  // 和了があったので、リーチ棒は0に戻る
+  gameState.riichiSticks = 0;
 
   // 点数移動を適用
   applyPointChanges(gameId);
@@ -1166,14 +1167,17 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
 
   // リーチ後の自動ツモ切り処理
   if ((player.isRiichi || player.isDoubleRiichi) && !eligibility.canTsumoAgari && !eligibility.canAnkan) {
-    // 和了もカンもできない場合は、0.5秒後に自動でツモ切りする
-    setTimeout(async () => {
-      console.log(`[Server] Riichi player ${playerId} cannot win or kan. Auto-discarding.`);
-      await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
-      await updateAndBroadcastGameState(gameId, gameStates[gameId]);
-    }, 500);
+    // 和了もカンもできない場合は、即座にツモ切り処理を実行する
+    // setTimeoutによる非同期処理をやめ、一連の処理として実行することで状態の不整合を防ぐ
+    console.log(`[Server] Riichi player ${playerId} cannot win or kan. Auto-discarding.`);
+    // _processDiscardを直接呼び出し、その後のブロードキャストもこの中で行われる
+    await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
+    // この後のブロードキャストは_processDiscardに任せるため、ここでは何もしない
+    return; // 処理が完了したので関数を抜ける
   }
-}
+
+  // 通常のツモ（自動ツモ切り以外）の場合、状態をブロードキャスト
+  await updateAndBroadcastGameState(gameId, gameState);
 
 // 他のプレイヤーのアクションを確認するヘルパー関数
 function _checkForPlayerActions(gameId, discarderId, discardedTile) {
@@ -1290,7 +1294,6 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
       } else {
         await moveToNextPlayer(gameId);
         await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
-        await updateAndBroadcastGameState(gameId, gameState);
       }
     }
 }
