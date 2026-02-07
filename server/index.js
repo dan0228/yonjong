@@ -222,9 +222,9 @@ function updateFuriTenState(gameId, playerId) {
   const tenpaiResult = mahjongLogic.checkYonhaiTenpai(player.hand, gameContext);
 
   if (tenpaiResult.isTenpai) {
-    const allDiscards = gameState.players.flatMap(p => p.discards);
+    const myDiscards = player.discards;
     const hasFuriTen = tenpaiResult.waits.some(waitTile =>
-      allDiscards.some(discard => mahjongLogic.getTileKey(discard) === mahjongLogic.getTileKey(waitTile))
+      myDiscards.some(discard => mahjongLogic.getTileKey(discard) === mahjongLogic.getTileKey(waitTile))
     );
     gameState.isFuriTen[playerId] = hasFuriTen;
   } else {
