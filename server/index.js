@@ -1179,6 +1179,8 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   // 通常のツモ（自動ツモ切り以外）の場合、状態をブロードキャスト
   await updateAndBroadcastGameState(gameId, gameState);
 
+}
+
 // 他のプレイヤーのアクションを確認するヘルパー関数
 function _checkForPlayerActions(gameId, discarderId, discardedTile) {
     const gameState = gameStates[gameId];
