@@ -595,9 +595,6 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   // 和了があったので、リーチ棒は0に戻る
   gameState.riichiSticks = 0;
 
-  // 点数移動を適用
-  applyPointChanges(gameId);
-
   // ゲーム終了条件のチェック
   const rankedPlayers = getRankedPlayers(gameState.players);
   const winnerRank = rankedPlayers.find(p => p.id === player.id)?.rank;
@@ -1078,6 +1075,13 @@ async function _initializeGameCore(gameId) {
 async function prepareNextRound(gameId) {
   const gameState = gameStates[gameId];
   if (!gameState) return;
+
+  applyPointChanges(gameId); // 点数更新をここで実行
+
+  // 和了した場合のみリーチ棒をリセット
+  if (gameState.agariResultDetails && !gameState.agariResultDetails.isDraw) {
+    gameState.riichiSticks = 0;
+  }
 
   gameState.playersReadyForNextRound = []; // ★次のラウンドの準備を始める前に、必ず準備完了リストをリセット
 
