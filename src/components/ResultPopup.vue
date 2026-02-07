@@ -344,24 +344,24 @@ const resultTitle = computed(() => {
   // 2. 流局の場合
   if (isDrawResult.value) return t('resultPopup.draw');
 
-  // 3. 和了の場合
-  const winnerId = Object.keys(props.resultDetails.pointChanges || {}).find(
+  // 3. 和了の場合 (winnerId を使用)
+  if (props.resultDetails.winnerId) {
+    const winner = gameStore.getPlayerById(props.resultDetails.winnerId);
+    if (winner) {
+      return t('resultPopup.titleWin', { playerName: getTranslatedPlayerName(winner) });
+    }
+  }
+
+  // 4. フォールバック (古いデータ構造や予期せぬエラー用)
+  const winnerIdFromPoints = Object.keys(props.resultDetails.pointChanges || {}).find(
     playerId => (props.resultDetails.pointChanges[playerId] || 0) > 0
   );
-  if (winnerId) {
-    const winner = gameStore.getPlayerById(winnerId);
+  if (winnerIdFromPoints) {
+    const winner = gameStore.getPlayerById(winnerIdFromPoints);
     if (winner) return t('resultPopup.titleWin', { playerName: getTranslatedPlayerName(winner) });
   }
-
-  // 4. 点数移動がない和了の場合 (0点和了など)
-  const match = props.message.match(/(.+?) の和了/);
-  if (match && match[1]) {
-    const playerName = match[1];
-    const player = gameStore.players.find(p => p.name === playerName);
-    return t('resultPopup.titleWin', { playerName: getTranslatedPlayerName(player) });
-  }
-
-  // 5. 上記で見つからない場合のフォールバック
+  
+  // 5. 上記で見つからない場合の最終フォールバック
   return t('resultPopup.titleResult');
 });
 

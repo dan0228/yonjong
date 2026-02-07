@@ -474,6 +474,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
   // 和了結果詳細を格納
   gameState.agariResultDetails = {
+    winnerId: agariPlayerId, // ★ 和了者IDを追加
     roundWind: gameState.currentRound.wind,
     roundNumber: gameState.currentRound.number,
     honba: gameState.honba,
@@ -492,35 +493,39 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
   const pointChanges = {};
   gameState.players.forEach(p => pointChanges[p.id] = 0);
+  const honbaPointsPerPlayer = gameState.honba * 100; // 1本場につき100点
+  const totalHonbaPoints = gameState.honba * 300; // 1本場につき300点
 
   if (isTsumo) {
     const dealer = gameState.players.find(p => p.isDealer);
     const nonDealers = gameState.players.filter(p => !p.isDealer);
 
     if (player.isDealer) {
-      const payment = winResult.score.tsumo.nonDealer;
+      // 親のツモ和了
+      const payment = winResult.score.tsumo.nonDealer + honbaPointsPerPlayer;
       nonDealers.forEach(p => { pointChanges[p.id] -= payment; });
       pointChanges[player.id] += payment * nonDealers.length;
     } else {
-      pointChanges[dealer.id] -= winResult.score.tsumo.dealer;
+      // 子のツモ和了
+      const dealerPayment = winResult.score.tsumo.dealer + honbaPointsPerPlayer;
+      const nonDealerPayment = winResult.score.tsumo.nonDealer + honbaPointsPerPlayer;
+      pointChanges[dealer.id] -= dealerPayment;
       nonDealers.forEach(p => {
         if (p.id !== player.id) {
-          pointChanges[p.id] -= winResult.score.tsumo.nonDealer;
+          pointChanges[p.id] -= nonDealerPayment;
         }
       });
-      pointChanges[player.id] += winResult.score.tsumo.dealer + winResult.score.tsumo.nonDealer * (nonDealers.length - 1);
+      pointChanges[player.id] += dealerPayment + nonDealerPayment * (nonDealers.length - 1);
     }
   } else { // Ron
-    pointChanges[ronTargetPlayerId] -= winResult.score.ron;
-    pointChanges[player.id] += winResult.score.ron;
+    const payment = winResult.score.ron + totalHonbaPoints;
+    pointChanges[ronTargetPlayerId] -= payment;
+    pointChanges[player.id] += payment;
   }
 
-  // リーチ棒と本場の精算
+  // リーチ棒の精算
   const riichiStickPoints = gameState.riichiSticks * 1000;
   pointChanges[player.id] += riichiStickPoints;
-
-  const honbaPoints = gameState.honba * 300; // クライアントのロジックに合わせる
-  pointChanges[player.id] += honbaPoints;
 
   gameState.agariResultDetails.pointChanges = pointChanges;
 

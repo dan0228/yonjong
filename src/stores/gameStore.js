@@ -218,6 +218,7 @@ export function createDefaultGameState() {
     riichiDiscardOptions: [],
     isDeclaringRiichi: {},
     agariResultDetails: {
+      winnerId: null, // ★ 和了者IDを追加
       roundWind: null,
       roundNumber: null,
       honba: 0,
