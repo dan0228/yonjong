@@ -1269,20 +1269,23 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
 
     // Step 4: 次のゲーム状態を決定する
     if (isFinalAction) {
-      if (canAnyoneAct) {
-        gameState.gamePhase = GAME_PHASES.AWAITING_ACTION_RESPONSE;
-        await setNextActiveResponder(gameId);
-      } else {
-        await handleRyuukyoku(gameId);
-      }
+        if (canAnyoneAct) {
+            gameState.gamePhase = GAME_PHASES.AWAITING_ACTION_RESPONSE;
+            await setNextActiveResponder(gameId);
+            await updateAndBroadcastGameState(gameId, gameState);
+        } else {
+            await handleRyuukyoku(gameId);
+        }
     } else {
       if (canAnyoneAct) {
         gameState.gamePhase = GAME_PHASES.AWAITING_ACTION_RESPONSE;
         gameState.playerResponses = {};
         await setNextActiveResponder(gameId);
+        await updateAndBroadcastGameState(gameId, gameState);
       } else {
         await moveToNextPlayer(gameId);
         await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        await updateAndBroadcastGameState(gameId, gameState);
       }
     }
 }
@@ -1798,7 +1801,6 @@ io.on('connection', (socket) => {
       }
       try {
           await _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTile);
-          await updateAndBroadcastGameState(gameId, gameState);
       } catch (error) {
           console.error(`Error in discardTile for game ${gameId}:`, error);
           socket.emit('gameError', { message: error.message });

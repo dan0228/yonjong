@@ -447,7 +447,7 @@ onBeforeUnmount(() => {
 }
 .countdown-number { /* 新しいクラスのスタイル */
   color: white;
-  font-size: 24px; /* 少し大きくする */
+  font-size: 18px;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 1);
   font-weight: bold;
 }
