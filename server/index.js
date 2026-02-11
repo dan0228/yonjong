@@ -2246,24 +2246,31 @@ io.on('connection', (socket) => {
     await updateAndBroadcastGameState(gameId, gameState);
   });
 
-  // ★修正: 信頼できる送信者情報を元にチャットを転送する
-  socket.on('sendChatMessage', ({ gameId, messageId }) => {
-    let senderId = null;
-    // userSocketMapを逆引きして、ソケットIDからユーザーIDを見つける
-    for (const [userId, socketId] of userSocketMap.entries()) {
-      if (socketId === socket.id) {
-        senderId = userId;
-        break;
-      }
-    }
+  // クライアントがツモ和了を宣言する
+  socket.on('declareTsumoAgari', async ({ gameId, playerId }) => {
+    const gameState = gameStates[gameId];
+    if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
+    if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
 
-    if (senderId) {
-      // 見つけたユーザーIDを使って、ルームの全員にメッセージを転送
-      io.to(gameId).emit('newChatMessage', { playerId: senderId, messageId });
+    const player = gameState.players.find(p => p.id === playerId);
+    if (!player) return socket.emit('gameError', { message: 'プレイヤーが見つかりません。' });
+
+    // サーバー側でツモ和了の条件を再検証
+    const gameContext = createGameContextForPlayer(gameState, player, true);
+    const winResult = mahjongLogic.checkYonhaiWin([...player.hand, gameState.drawnTile], gameState.drawnTile, true, gameContext);
+
+    if (winResult.isWin) {
+        await handleAgari(gameId, playerId, gameState.drawnTile, true);
     } else {
-      console.error(`Could not find user for socket ${socket.id} to send chat message.`);
+        socket.emit('gameError', { message: 'ツモ和了の条件を満たしていません。' });
     }
   });
+
+  // クライアントがチャットメッセージを送信する
+  socket.on('sendChatMessage', ({ gameId, playerId, messageId }) => {
+    io.to(gameId).emit('newChatMessage', { playerId, messageId });
+  });
+});
 
 });
 

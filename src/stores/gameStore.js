@@ -2219,11 +2219,12 @@ export const useGameStore = defineStore('game', {
     },
     handleAgari(agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
       if (this.isGameOnline) {
-        if (agariPlayerId !== this.localPlayerId) return;
-        if (socket && socket.connected) {
-          socket.emit('handleAgari', { gameId: this.onlineGameId, agariPlayerId, agariTile, isTsumo, ronTargetPlayerId });
+        if (isTsumo) {
+          socket.emit('declareTsumoAgari', { gameId: this.onlineGameId, playerId: agariPlayerId });
+        } else {
+          this.playerDeclaresCall(agariPlayerId, 'ron', agariTile);
         }
-        return; // サーバーからの状態更新を待つ
+        return;
       }
 
       const audioStore = useAudioStore();
