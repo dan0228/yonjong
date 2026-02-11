@@ -299,7 +299,7 @@ h2 {
 }
 
 .yaku-table {
-  width: 99%;
+  width: 94%;
   margin-left: 0px;
   border-collapse: collapse;
   margin-top: 0px;
