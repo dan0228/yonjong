@@ -269,7 +269,7 @@ const statusKey = computed(() => {
 const statusText = computed(() => {
     const baseText = t(`matchmaking.status.${statusKey.value}`);
     if (gameStore.onlineGameId && !gameStore.isGameReady) {
-        const playerCount = gameStore.players?.length || 0;
+        const playerCount = gameStore.matchmakingPlayers?.length || 0;
         return `${baseText} (${playerCount} / 4)`;
     }
     return baseText;
