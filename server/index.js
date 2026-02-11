@@ -1134,6 +1134,16 @@ async function prepareNextRound(gameId) {
   }
   
   await _initializeGameCore(gameId); // _initializeGameCoreを呼び出す
+
+  // ★★★ 修正: 次の局の親が最初のツモを行う処理を追加 ★★★
+  const dealerId = gameState.players[gameState.dealerIndex]?.id;
+  if (dealerId) {
+    console.log(`[Server] Next round dealer is ${dealerId}. Executing first draw.`);
+    await _executeDrawTile(gameId, dealerId);
+    await updateAndBroadcastGameState(gameId, gameState);
+  } else {
+    console.error(`[Server] Could not determine dealer for the next round in game ${gameId}.`);
+  }
 }
 
 // 牌を引く共通ヘルパー関数
