@@ -456,6 +456,7 @@ export const useGameStore = defineStore('game', {
       if (!this.isGameOnline) {
         this.showResultPopup = false;
         if (this.shouldEndGameAfterRound) {
+          this.applyPointChanges(); // ★ 点数変動を適用してからゲーム終了処理を呼ぶ
           this.handleGameEnd({ showLoading: false });
         } else {
           this.prepareNextRound();
