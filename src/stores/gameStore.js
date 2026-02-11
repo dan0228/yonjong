@@ -258,6 +258,7 @@ export function createDefaultGameState() {
     stockSelectionTimerId: null,
     stockAnimationPlayerId: null,
     isTenpaiDisplay: {},
+    isFadingToFinalResult: false, // フェードアウトの状態を追加
 
     // Online Match State
     onlineGameId: null,
@@ -680,6 +681,8 @@ export const useGameStore = defineStore('game', {
 
       if (this.currentRound.wind === 'east' && this.currentRound.number === 1 && this.honba === 0) {
         this.showDealerDeterminationPopup = true;
+      } else {
+        this.startGameFlow();
       }
     },
 
@@ -1543,7 +1546,24 @@ export const useGameStore = defineStore('game', {
         return;
       }
       this.initializeGame();
-      this.startGameFlow();
+    },
+
+    startGameFlow() {
+      // オンラインゲームの場合はサーバーからの指示を待つため、何もしない
+      if (this.isGameOnline) {
+        return;
+      }
+
+      // 現在のターンプレイヤーが設定されているか確認
+      if (this.currentTurnPlayerId) {
+        const currentPlayer = this.players.find(p => p.id === this.currentTurnPlayerId);
+        
+        // プレイヤーが存在し、ゲームフェーズが適切（ツモ待ち）であることを確認
+        if (currentPlayer && this.gamePhase === GAME_PHASES.PLAYER_TURN) {
+          // ツモ処理を開始する
+          this.drawTile();
+        }
+      }
     },
 
     setGameMode(mode) {
@@ -2924,14 +2944,21 @@ export const useGameStore = defineStore('game', {
       }, 0);
     },
     startGameFlow() {
-      const dealer = this.players[this.dealerIndex];
-      if (!dealer) return;
-
-      // オフラインのAI対戦で、親がAIの場合のみ自動でツモを実行
-      if (this.gameMode === 'vsCPU' && dealer.isAi) {
-        setTimeout(() => this.drawTile(), 1000);
+      // オンラインゲームの場合はサーバーからの指示を待つため、何もしない
+      if (this.isGameOnline) {
+        return;
       }
-      // オンライン対戦や人間プレイヤーが親の場合は、サーバーからの指示を待つ
+
+      // 現在のターンプレイヤーが設定されているか確認
+      if (this.currentTurnPlayerId) {
+        const currentPlayer = this.players.find(p => p.id === this.currentTurnPlayerId);
+        
+        // プレイヤーが存在し、ゲームフェーズが適切（ツモ待ち）であることを確認
+        if (currentPlayer && this.gamePhase === GAME_PHASES.PLAYER_TURN) {
+          // ツモ処理を開始する
+          this.drawTile();
+        }
+      }
     },
   },
   getters: {
