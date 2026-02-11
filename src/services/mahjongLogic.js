@@ -1711,7 +1711,6 @@ export function checkYonhaiWin(currentHandWithWinTile, winTile, isTsumo, gameCon
       playerCount: gameContext.playerCount, // プレイヤー数を渡す
       gameContext: gameContext // 人和判定のために gameContext 自体も渡す
     };
-    const isParent = gameContext.isParent || false;
     const yakuResult = calculateYonhaiYaku(handDataForYaku);
 
     // --- 役なし和了（チョンボ）の処理 ---
