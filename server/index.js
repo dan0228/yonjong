@@ -1136,11 +1136,13 @@ async function prepareNextRound(gameId) {
   await _initializeGameCore(gameId); // _initializeGameCoreを呼び出す
 
   // ★★★ 修正: 次の局の親が最初のツモを行う処理を追加 ★★★
-  const dealerId = gameState.players[gameState.dealerIndex]?.id;
+  // _initializeGameCore で gameState オブジェクトが再生成されるため、参照を再取得する
+  const freshGameState = gameStates[gameId];
+  const dealerId = freshGameState.players[freshGameState.dealerIndex]?.id;
   if (dealerId) {
     console.log(`[Server] Next round dealer is ${dealerId}. Executing first draw.`);
     await _executeDrawTile(gameId, dealerId);
-    await updateAndBroadcastGameState(gameId, gameState);
+    await updateAndBroadcastGameState(gameId, freshGameState);
   } else {
     console.error(`[Server] Could not determine dealer for the next round in game ${gameId}.`);
   }
