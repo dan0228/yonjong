@@ -223,6 +223,7 @@
 
           <button
             :disabled="isLocalPlayerReady"
+            :class="{ 'waiting': isLocalPlayerReady }"
             @click="signalReady"
           >
             {{ isLocalPlayerReady ? t('resultPopup.waiting') : t('resultPopup.next') }}
@@ -699,7 +700,7 @@ function getMeldTileClass(meld, tileIndex) {
   justify-content: center;
   color: rgb(43, 6, 6);
   font-family: 'Yuji Syuku', serif;
-  font-size: 1.3em;
+  font-size: 1.2em;
   transition: transform 0.2s ease;
   margin-top: -5px;
   margin-left: 130px;
@@ -711,6 +712,9 @@ function getMeldTileClass(meld, tileIndex) {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none; /* ホバー効果を無効化 */
+}
+.popup-content button.waiting {
+  font-size: 0.8em;
 }
 .popup-inner-content {
   margin-left: 10px; /* 背景画像以外の内容を右にずらす */
