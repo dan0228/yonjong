@@ -340,7 +340,19 @@ async function processPendingActions(gameId) {
           winningRonAction = ronActions[0];
         }
         // ロンを処理（頭ハネを考慮済み）
-        await handleAgari(gameId, winningRonAction.playerId, gameState.lastDiscardedTile, false, gameState.lastActionPlayerId);
+        // ★★★ 修正: ハイライト表示のために、和了処理を遅延させる ★★★
+        // まず、ロンされた牌をハイライトする状態をクライアントに通知
+        gameState.highlightedDiscardTileId = gameState.lastDiscardedTile.id;
+        io.to(gameId).emit('game-state-update', gameState);
+
+        // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
+        setTimeout(async () => {
+            const currentGameState = gameStates[gameId];
+            if (currentGameState) {
+                await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
+            }
+        }, 1500); // 1.5秒待つ
+
       } else if (highestPriorityAction.actionType === 'minkan') {
         await declareMinkan(gameId, highestPriorityAction.playerId, gameState.lastActionPlayerId, highestPriorityAction.tile);
       } else if (highestPriorityAction.actionType === 'pon') {
@@ -539,6 +551,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     scoreName: scoreName,
     pointChanges: {},
     isDraw: false,
+    melds: player.melds,
   };
 
   const pointChanges = {};
@@ -1328,7 +1341,6 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
 
     player.discards.push(discardedTileActual);
     gameState.lastDiscardedTile = discardedTileActual;
-    gameState.highlightedDiscardTileId = discardedTileActual.id;
 
     // Step 2: 打牌後のエフェクトを処理する
     if (gameState.isDeclaringRiichi[playerId]) {
