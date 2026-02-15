@@ -449,6 +449,13 @@ export const useGameStore = defineStore('game', {
       if (localId) {
         this.localPlayerId = localId;
       }
+
+      // ★★★ 修正: ストック選択タイマーを開始する処理を追加 ★★★
+      // 新しいフェーズがストック選択待ちで、かつ自分のターンの場合
+      if (newState.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER &&
+          newState.currentTurnPlayerId === this.localPlayerId) {
+        this.startStockSelectionCountdown(this.localPlayerId);
+      }
     },
 
     signalReadyForNextRound(remotePlayerId = null) {
