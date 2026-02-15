@@ -366,13 +366,23 @@ async function processPendingActions(gameId) {
         if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
             await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
         } else {
-            // ターンが次の人に移り、その人がストック選択待ちになったので、その状態をブロードキャストする
             await updateAndBroadcastGameState(gameId, gameState);
         }
-        
-        setTimeout(async () => {
-            const currentGameState = gameStates[gameId];
-            if (currentGameState) {
+      }
+    }
+  }
+
+  // 状態をリセット
+  gameState.actionResponseQueue = [];
+  gameState.waitingForPlayerResponses = [];
+  gameState.playerResponses = {};
+  if (gameState.gamePhase !== GAME_PHASES.ROUND_END && gameState.gamePhase !== GAME_PHASES.GAME_OVER && gameState.gamePhase !== GAME_PHASES.AWAITING_DISCARD) {
+      gameState.players.forEach(p => gameState.playerActionEligibility[p.id] = {});
+  }
+  gameState.isChankanChance = false;
+  gameState.chankanTile = null;
+  gameState.activeActionPlayerId = null;
+}
 
 // リーチ宣言を確定するヘルパー関数
 function _finalizeRiichi(gameId, playerId) {
