@@ -362,7 +362,12 @@ async function processPendingActions(gameId) {
       // 誰もアクションしなかった場合
       if (gameState.actionResponseQueue.length === 0) {
         await moveToNextPlayer(gameId);
-        await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        // ストック選択待ちの場合は、ツモらずにクライアントの選択を待つ
+        if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+            await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        } else {
+            await updateAndBroadcastGameState(gameId, gameState);
+        }
       }
     }
   }
@@ -1873,10 +1878,13 @@ io.on('connection', (socket) => {
         gameState.stockAnimationPlayerId = playerId;
         
         await moveToNextPlayer(gameId);
-        await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        // ストック選択待ちの場合は、ツモらずにクライアントの選択を待つ
+        if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+            await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        } else {
+            await updateAndBroadcastGameState(gameId, gameState);
+        }
         
-        await updateAndBroadcastGameState(gameId, gameState);
-
         setTimeout(async () => {
             const currentGameState = gameStates[gameId];
             if (currentGameState) {
