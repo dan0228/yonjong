@@ -1800,6 +1800,22 @@ io.on('connection', (socket) => {
     await updateAndBroadcastGameState(gameId, gameState);
   });
 
+  // クライアントがストック牌を使わずに山から引くことを選択した
+  socket.on('chooseToDrawFromWall', async ({ gameId, playerId }) => {
+    const gameState = gameStates[gameId];
+    if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
+    if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
+    if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) return socket.emit('gameError', { message: '牌を引けるフェーズではありません。' });
+
+    const player = gameState.players.find(p => p.id === playerId);
+    if (player) {
+        player.isUsingStockedTile = false;
+    }
+
+    await _executeDrawTile(gameId, playerId);
+    // _executeDrawTile が内部でブロードキャストするため、ここでは不要
+  });
+
   // クライアントがストックした牌を使用することを要求する
   socket.on('useStockedTile', async ({ gameId, playerId }) => {
     const gameState = gameStates[gameId];
