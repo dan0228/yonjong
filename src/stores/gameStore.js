@@ -273,7 +273,6 @@ export function createDefaultGameState() {
     matchmakingPlayers: [], // ★マッチング待機画面専用のプレイヤーリスト
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
     lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
-    lastProcessedStockAnimationPlayerId: null, // ★最後に処理したストックアニメーションのプレイヤーID
   };
 }
 
@@ -433,10 +432,6 @@ export const useGameStore = defineStore('game', {
       this.isActionPending = false; // ★サーバーから応答があったので、アクションロックを解除
       if (!this.isGameOnline || !newState) return;
 
-      // ★★★ ストックアニメーションのクライアント側タイマー管理 ★★★
-      const newStockPlayerId = newState.stockAnimationPlayerId;
-      const oldStockPlayerId = this.stockAnimationPlayerId;
-
       // サーバーからの状態で上書きされたくないプロパティを保持
       const localId = this.localPlayerId;
       const isOnline = this.isGameOnline; // ★★★ isGameOnlineの値を保持
@@ -458,17 +453,6 @@ export const useGameStore = defineStore('game', {
         this.localPlayerId = localId;
       }
       this.isGameOnline = isOnline; // ★★★ 保持した isGameOnline の値を再設定
-
-      // ★★★ ストックアニメーションのクライアント側タイマーロジック ★★★
-      if (newStockPlayerId && newStockPlayerId !== oldStockPlayerId) {
-        // this.$patchによって新しいIDがセットされているはずなので、それを元にタイマーを開始
-        setTimeout(() => {
-          // タイムアウト後にIDがまだ同じであればクリアする（別の更新で上書きされていないことを確認）
-          if (this.stockAnimationPlayerId === newStockPlayerId) {
-            this.stockAnimationPlayerId = null;
-          }
-        }, 600); // CSSアニメーションの時間に合わせる
-      }
 
       // ★★★ 修正: ストック選択タイマーを開始する処理を追加 ★★★
       // 新しいフェーズがストック選択待ちで、かつ自分のターンの場合
@@ -1532,7 +1516,6 @@ export const useGameStore = defineStore('game', {
       }
 
       this.playersReadyForNextRound = []; // ★次のラウンドの準備を始める前に、必ず準備完了リストをリセット
-      this.lastProcessedStockAnimationPlayerId = null; // ★アニメーション再生履歴をリセット
 
       const playerBelowZero = this.players.find(p => p.score < 0);
       if (playerBelowZero) {
