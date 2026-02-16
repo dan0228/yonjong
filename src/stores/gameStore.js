@@ -273,6 +273,7 @@ export function createDefaultGameState() {
     matchmakingPlayers: [], // ★マッチング待機画面専用のプレイヤーリスト
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
     lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
+    lastProcessedStockAnimationPlayerId: null, // ★最後に処理したストックアニメーションのプレイヤーID
   };
 }
 
@@ -1531,6 +1532,7 @@ export const useGameStore = defineStore('game', {
       }
 
       this.playersReadyForNextRound = []; // ★次のラウンドの準備を始める前に、必ず準備完了リストをリセット
+      this.lastProcessedStockAnimationPlayerId = null; // ★アニメーション再生履歴をリセット
 
       const playerBelowZero = this.players.find(p => p.score < 0);
       if (playerBelowZero) {
