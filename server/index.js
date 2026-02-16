@@ -1129,6 +1129,7 @@ async function prepareNextRound(gameId) {
   gameState.drawnTile = null;
   gameState.lastDiscardedTile = null;
   gameState.highlightedDiscardTileId = null;
+  gameState.stockAnimationPlayerId = null; // ★ストックアニメーションIDをリセット
   gameState.animationState = { type: null, playerId: null };
   if (gameState.isChankanChance) gameState.isChankanChance = false;
   gameState.chankanTile = null;
@@ -1912,13 +1913,7 @@ io.on('connection', (socket) => {
             await updateAndBroadcastGameState(gameId, gameState);
         }
         
-        setTimeout(async () => {
-            const currentGameState = gameStates[gameId];
-            if (currentGameState) {
-                currentGameState.stockAnimationPlayerId = null;
-                await updateAndBroadcastGameState(gameId, currentGameState);
-            }
-        }, 650);
+        
 
       } catch (error) {
         console.error(`Error in stock action for game ${gameId}:`, error);
