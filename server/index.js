@@ -1385,7 +1385,13 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
         await updateAndBroadcastGameState(gameId, gameState);
       } else {
         await moveToNextPlayer(gameId);
-        await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        // ストック選択待ちの場合は、ツモらずにクライアントの選択を待つ
+        if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+            await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
+        } else {
+            // ストック選択待ちの場合、状態を更新してクライアントの応答を待つだけ
+            await updateAndBroadcastGameState(gameId, gameState);
+        }
       }
     }
 }
