@@ -432,6 +432,7 @@ export const useGameStore = defineStore('game', {
 
       // サーバーからの状態で上書きされたくないプロパティを保持
       const localId = this.localPlayerId;
+      const isOnline = this.isGameOnline; // ★★★ isGameOnlineの値を保持
 
       // playerActionEligibility とそれ以外のプロパティを分割
       const { playerActionEligibility, ...restOfState } = newState;
@@ -449,6 +450,7 @@ export const useGameStore = defineStore('game', {
       if (localId) {
         this.localPlayerId = localId;
       }
+      this.isGameOnline = isOnline; // ★★★ 保持した isGameOnline の値を再設定
 
       // ★★★ 修正: ストック選択タイマーを開始する処理を追加 ★★★
       // 新しいフェーズがストック選択待ちで、かつ自分のターンの場合
@@ -1612,6 +1614,12 @@ export const useGameStore = defineStore('game', {
     startStockSelectionCountdown(playerId) {
       const player = this.players.find(p => p.id === playerId);
       if (!player || player.isAi) return;
+
+      // 既にタイマーが作動中の場合は、多重起動を防ぐために何もしない。
+      // これにより、サーバーからの状態更新が短時間に2回来た場合にゲージがリセットされるのを防ぐ。
+      if (this.stockSelectionTimerId) {
+        return;
+      }
 
       this.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER;
       this.stockSelectionCountdown = 1.3;
