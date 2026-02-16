@@ -340,15 +340,20 @@ async function processPendingActions(gameId) {
           winningRonAction = ronActions[0];
         }
         // ロンを処理（頭ハネを考慮済み）
-        // ★★★ 修正: ハイライト表示のために、和了処理を遅延させる ★★★
-        // まず、ロンされた牌をハイライトする状態をクライアントに通知
+        // ★★★ 修正: アニメーション再生のためのロジックを追加 ★★★
+        // まず、ロンアニメーションの状態を設定
+        gameState.animationState = { type: 'ron', playerId: winningRonAction.playerId };
         gameState.highlightedDiscardTileId = gameState.lastDiscardedTile.id;
-        io.to(gameId).emit('game-state-update', gameState);
+        
+        // アニメーションとハイライトの状態をブロードキャスト
+        await updateAndBroadcastGameState(gameId, gameState);
 
         // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
         setTimeout(async () => {
             const currentGameState = gameStates[gameId];
             if (currentGameState) {
+                // アニメーション状態をクリアしてから和了処理
+                currentGameState.animationState = { type: null, playerId: null };
                 await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
             }
         }, 1500); // 1.5秒待つ
