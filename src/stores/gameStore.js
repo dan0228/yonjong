@@ -263,6 +263,7 @@ export function createDefaultGameState() {
     // Online Match State
     onlineGameId: null,
     isGameOnline: false,
+    isActionPending: false, // ★サーバー応答待ちかどうか
     localPlayerId: null,
     playersReadyForNextRound: [], // 次のラウンドに進む準備ができたプレイヤーのリスト
     isGameReady: false, // ゲームの初期化が完了し、開始準備ができたかどうか
@@ -428,6 +429,7 @@ export const useGameStore = defineStore('game', {
     },
 
     handleRemoteStateUpdate(newState) {
+      this.isActionPending = false; // ★サーバーから応答があったので、アクションロックを解除
       if (!this.isGameOnline || !newState) return;
 
       // サーバーからの状態で上書きされたくないプロパティを保持
@@ -479,6 +481,7 @@ export const useGameStore = defineStore('game', {
 
       // オンラインモードではサーバーに通知
       if (socket && socket.connected) {
+        this.isActionPending = true; // ★アクションロック
         socket.emit('playerReadyForNextRound', { gameId: this.onlineGameId, playerId });
       }
     },
@@ -699,6 +702,7 @@ export const useGameStore = defineStore('game', {
     drawTile() {
       if (this.isGameOnline) { // isHostチェックを削除
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('drawTile', { gameId: this.onlineGameId, playerId: this.localPlayerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -901,6 +905,7 @@ export const useGameStore = defineStore('game', {
     useStockedTile(playerId) {
       if (this.isGameOnline) {
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('useStockedTile', { gameId: this.onlineGameId, playerId: this.localPlayerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -947,6 +952,7 @@ export const useGameStore = defineStore('game', {
     drawFromWall(playerId) {
       if (this.isGameOnline) {
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('drawFromWall', { gameId: this.onlineGameId, playerId: this.localPlayerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -1078,6 +1084,7 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
 
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard, isFromDrawnTile, isStocking });
         }
         return; // サーバーからの状態更新を待つ
@@ -1252,6 +1259,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard: tileIdToStock, isFromDrawnTile, isStocking: true });
         }
         return;
@@ -1588,6 +1596,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('chooseToDrawFromWall', { gameId: this.onlineGameId, playerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -1675,6 +1684,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('declareRiichi', { gameId: this.onlineGameId, playerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -1718,6 +1728,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('playerSkipsCall', { gameId: this.onlineGameId, playerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -1747,6 +1758,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('playerDeclaresCall', { gameId: this.onlineGameId, playerId, actionType, tile });
         }
         return; // サーバーからの状態更新を待つ
@@ -1879,6 +1891,7 @@ export const useGameStore = defineStore('game', {
     declarePon(playerId, targetPlayerId, tileToPon) {
       if (this.isGameOnline) {
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('declarePon', { gameId: this.onlineGameId, playerId, targetPlayerId, tileToPon });
         }
         return; // サーバーからの状態更新を待つ
@@ -1969,6 +1982,7 @@ export const useGameStore = defineStore('game', {
     declareMinkan(playerId, targetPlayerId, tileToKan) {
       if (this.isGameOnline) {
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('declareMinkan', { gameId: this.onlineGameId, playerId, targetPlayerId, tileToKan });
         }
         return; // サーバーからの状態更新を待つ
@@ -2057,6 +2071,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('declareAnkan', { gameId: this.onlineGameId, playerId, tileToAnkan });
         }
         return; // サーバーからの状態更新を待つ
@@ -2137,6 +2152,7 @@ export const useGameStore = defineStore('game', {
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
+          this.isActionPending = true; // ★アクションロック
           socket.emit('declareKakan', { gameId: this.onlineGameId, playerId, tileToKakan });
         }
         return; // サーバーからの状態更新を待つ
@@ -2959,23 +2975,6 @@ export const useGameStore = defineStore('game', {
           this.playerSkipsCall(aiPlayerId);
         }
       }, 0);
-    },
-    startGameFlow() {
-      // オンラインゲームの場合はサーバーからの指示を待つため、何もしない
-      if (this.isGameOnline) {
-        return;
-      }
-
-      // 現在のターンプレイヤーが設定されているか確認
-      if (this.currentTurnPlayerId) {
-        const currentPlayer = this.players.find(p => p.id === this.currentTurnPlayerId);
-        
-        // プレイヤーが存在し、ゲームフェーズが適切（ツモ待ち）であることを確認
-        if (currentPlayer && this.gamePhase === GAME_PHASES.PLAYER_TURN) {
-          // ツモ処理を開始する
-          this.drawTile();
-        }
-      }
     },
   },
   getters: {

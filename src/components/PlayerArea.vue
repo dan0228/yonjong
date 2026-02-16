@@ -14,7 +14,7 @@
     <!-- ストック選択中にツモ牌の位置に表示されるクリック領域 -->
     <div
       v-if="shouldRenderDrawFromWallButton"
-      :class="['draw-from-wall-area', { 'is-active': isDrawFromWallActive, 'has-melds': hasMelds }]"
+      :class="['draw-from-wall-area', { 'is-active': isDrawFromWallActive, 'has-melds': hasMelds, 'is-waiting': gameStore.isActionPending }]"
       @click="isDrawFromWallActive && drawFromWall()"
     >
       <img

@@ -148,8 +148,9 @@
         'drawn-tile': isDrawnTile,
         'selectable': isSelectable,
         'is-stocked-tile': tile?.isStockedTile, // ストック牌の場合にクラスを追加
+        'is-waiting': gameStore.isActionPending, // サーバー応答待ち
         // 自分の手番で、リーチ中で、かつ選択できない牌を無効化する
-        'disabled': props.canDiscard && isRiichiPhase && !isSelectable && !gameStore.isWaitingForHost,
+        'disabled': props.canDiscard && isRiichiPhase && !isSelectable,
       }
     ];
   }

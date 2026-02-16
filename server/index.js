@@ -1918,7 +1918,7 @@ io.on('connection', (socket) => {
                 currentGameState.stockAnimationPlayerId = null;
                 await updateAndBroadcastGameState(gameId, currentGameState);
             }
-        }, 600);
+        }, 650);
 
       } catch (error) {
         console.error(`Error in stock action for game ${gameId}:`, error);
