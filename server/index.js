@@ -1912,11 +1912,11 @@ io.on('connection', (socket) => {
             await updateAndBroadcastGameState(gameId, gameState);
         }
         
-        setTimeout(async () => {
+        setTimeout(() => {
             const currentGameState = gameStates[gameId];
             if (currentGameState) {
-                currentGameState.stockAnimationPlayerId = null;
-                await updateAndBroadcastGameState(gameId, currentGameState);
+                currentGameState.stockAnimationPlayerId = null; // サーバーの状態も更新
+                io.to(gameId).emit('stock-animation-end');
             }
         }, 650);
 

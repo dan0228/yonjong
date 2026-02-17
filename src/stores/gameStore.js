@@ -340,6 +340,10 @@ export const useGameStore = defineStore('game', {
           }
         });
 
+        socket.on('stock-animation-end', () => {
+          this.stockAnimationPlayerId = null;
+        });
+
         socket.on('connect_error', (err) => {
           console.error('[GameStore] Connection failed:', err.message);
           this.isMatchmakingRequested = false; // 接続エラー時はリクエストフラグをリセット
