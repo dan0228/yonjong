@@ -1310,9 +1310,6 @@ export const useGameStore = defineStore('game', {
       player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
 
       this.stockAnimationPlayerId = playerId;
-      setTimeout(() => {
-        this.stockAnimationPlayerId = null;
-      }, 600);
 
       // 次のプレイヤーのターンへ
       this.moveToNextPlayer();

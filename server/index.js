@@ -1918,7 +1918,7 @@ io.on('connection', (socket) => {
                 currentGameState.stockAnimationPlayerId = null; // サーバーの状態も更新
                 io.to(gameId).emit('stock-animation-end');
             }
-        }, 650);
+        }, 600);
 
       } catch (error) {
         console.error(`Error in stock action for game ${gameId}:`, error);
