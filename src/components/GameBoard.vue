@@ -589,7 +589,16 @@
    * @returns {Object|null} ツモ牌オブジェクト。ツモ番でない場合はnull。
    */
   function drawnTileForPlayer(playerId) {
+    const player = gameStore.players.find(p => p.id === playerId);
     if (gameStore.currentTurnPlayerId === playerId && gameStore.drawnTile) {
+      // プレイヤーがストック牌を使用中でない場合、
+      // サーバーから誤って付与された可能性のある isStockedTile フラグを無視するため、
+      // クリーンな新しいオブジェクトを生成して返す。
+      if (player && !player.isUsingStockedTile) {
+        const cleanDrawnTile = { ...gameStore.drawnTile };
+        delete cleanDrawnTile.isStockedTile;
+        return cleanDrawnTile;
+      }
       return gameStore.drawnTile;
     }
     return null;

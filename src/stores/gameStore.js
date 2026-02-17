@@ -443,6 +443,16 @@ export const useGameStore = defineStore('game', {
       // playerActionEligibility とそれ以外のプロパティを分割
       const { playerActionEligibility, ...restOfState } = newState;
 
+      // ★★★ 最終防衛ライン: クライアント側でツモ牌の状態を検証・浄化する ★★★
+      if (restOfState.drawnTile) {
+        // 現在ストック牌を使用中のプレイヤーがいるかどうかを確認
+        const isAnyoneUsingStock = restOfState.players.some(p => p.isUsingStockedTile);
+        // 誰もストックを使用中でないのに isStockedTile フラグが立っている場合、それを削除する
+        if (!isAnyoneUsingStock && restOfState.drawnTile.isStockedTile) {
+          delete restOfState.drawnTile.isStockedTile;
+        }
+      }
+
       // まず、playerActionEligibility 以外の状態を効率的に更新
       this.$patch(restOfState);
 
