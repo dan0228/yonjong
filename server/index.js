@@ -1355,6 +1355,11 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
     }
     if (!discardedTileActual) { throw new Error('打牌処理に失敗しました。'); }
 
+    // ストック牌を使用したフラグは、打牌が完了したこの時点でリセットする
+    if (player.isUsingStockedTile) {
+      player.isUsingStockedTile = false;
+    }
+
     player.discards.push(discardedTileActual);
     gameState.lastDiscardedTile = discardedTileActual;
 
