@@ -157,6 +157,19 @@ async function saveGameState(gameId, gameState) {
 
 // Helper to update game state and broadcast to clients
 async function updateAndBroadcastGameState(gameId, gameState) {
+  // 送信直前にツモ牌の状態を最終チェックし、不要なプロパティを削除する
+  const isAnyoneUsingStock = gameState.players.some(p => p.isUsingStockedTile);
+  if (gameState.drawnTile && !isAnyoneUsingStock) {
+    if (gameState.drawnTile.isStockedTile) {
+      // 元の牌オブジェクトを変更せず、クリーンな新しいオブジェクトで上書きする
+      gameState.drawnTile = {
+        suit: gameState.drawnTile.suit,
+        rank: gameState.drawnTile.rank,
+        id: gameState.drawnTile.id
+      };
+    }
+  }
+
   await saveGameState(gameId, gameState);
   io.to(gameId).emit('game-state-update', gameState);
 }
