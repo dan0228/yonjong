@@ -1187,11 +1187,13 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
 
   // 牌を引く
   const tile = isRinshan ? mahjongLogic.drawRinshanTile(gameState.wall) : gameState.wall.shift();
-  
-  // isStockedTile プロパティが次のツモに引き継がれる問題を修正するため、
-  // ツモった牌を新しいオブジェクトとして再生成し、不要なプロパティを確実に除去する。
-  const cleanTile = { suit: tile.suit, rank: tile.rank, id: tile.id };
-  gameState.drawnTile = cleanTile;
+  gameState.drawnTile = tile;
+
+  // ストック牌使用後、次のツモ牌にエフェクトが残る問題への対策。
+  // ツモった牌に isStockedTile プロパティが存在する場合、それを削除してクリーンな状態にする。
+  if (gameState.drawnTile && gameState.drawnTile.isStockedTile) {
+    delete gameState.drawnTile.isStockedTile;
+  }
   gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
   gameState.lastActionPlayerId = playerId;
 
