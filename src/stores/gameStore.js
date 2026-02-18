@@ -1310,18 +1310,14 @@ export const useGameStore = defineStore('game', {
       player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
 
       this.stockAnimationPlayerId = playerId;
+    
 
-      // アニメーションを一定時間後に非表示にし、その後に次のプレイヤーのターンへ移行する
+      // アニメーションを一定時間後に非表示にするタイマーをセット。
+      // AIの思考時間(約600ms)と衝突しないよう、表示時間を少し短めに取る。
       setTimeout(() => {
         this.stockAnimationPlayerId = null;
-        
-        // アニメーションの消滅を確実に描画させるため、
-        // 次のターンへの移行を少しだけ遅らせる
-        setTimeout(() => {
-            // 次のプレイヤーのターンへ
-            this.moveToNextPlayer();
-        }, 50); // 50msの短い遅延を追加
-      }, 600);
+        this.moveToNextPlayer();
+      }, 550);
     },
 
     /**
