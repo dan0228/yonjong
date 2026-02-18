@@ -1630,41 +1630,45 @@ export const useGameStore = defineStore('game', {
       const player = this.players.find(p => p.id === playerId);
       if (!player || player.isAi) return;
 
-      // 既にタイマーが作動中の場合は、多重起動を防ぐために何もしない。
-      // これにより、サーバーからの状態更新が短時間に2回来た場合にゲージがリセットされるのを防ぐ。
       if (this.stockSelectionTimerId) {
         return;
       }
 
-      this.isStockSelectionActionTaken = false; // アクションフラグをリセット
+      this.isStockSelectionActionTaken = false;
       this.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER;
-      this.stockSelectionCountdown = 1.3;
+      
+      const duration = 1300; // 1.3秒 (ミリ秒)
+      let startTime = null;
 
-      if (this.stockSelectionTimerId) {
-        clearInterval(this.stockSelectionTimerId);
-      }
+      const animate = (timestamp) => {
+        if (!startTime) {
+          startTime = timestamp;
+        }
 
-      this.stockSelectionTimerId = setInterval(() => {
-        this.stockSelectionCountdown = parseFloat((this.stockSelectionCountdown - 0.01).toFixed(2));
-        if (this.stockSelectionCountdown <= 0) {
-          clearInterval(this.stockSelectionTimerId);
+        const elapsedTime = timestamp - startTime;
+        const progress = Math.max(0, duration - elapsedTime);
+        this.stockSelectionCountdown = parseFloat((progress / 1000).toFixed(2));
+
+        if (progress > 0) {
+          this.stockSelectionTimerId = requestAnimationFrame(animate);
+        } else {
           this.stockSelectionTimerId = null;
-
-          // タイムアウトしたら即座に山からツモる
           const currentPlayer = this.players.find(p => p.id === playerId);
           if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && currentPlayer && !currentPlayer.isStockedTileSelected) {
             this.chooseToDrawFromWall(playerId);
           }
         }
-      }, 10);
+      };
+
+      this.stockSelectionTimerId = requestAnimationFrame(animate);
     },
 
     stopStockSelectionCountdown() {
       if (this.stockSelectionTimerId) {
-        clearInterval(this.stockSelectionTimerId);
+        cancelAnimationFrame(this.stockSelectionTimerId); // cancelAnimationFrame を使用
         this.stockSelectionTimerId = null;
       }
-      this.stockSelectionCountdown = 1.3;
+      this.stockSelectionCountdown = 1.3; // カウントダウンをリセット
     },
 
     setRiichiAnimationState(playerId) {
