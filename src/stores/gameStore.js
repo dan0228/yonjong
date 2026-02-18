@@ -751,8 +751,11 @@ export const useGameStore = defineStore('game', {
                   this.useStockedTile(currentPlayer.id);
                 }, aiDelay);
               } else {
-                // ストックを使わないと即決した場合、遅延なく山から引く
-                this.drawFromWall(currentPlayer.id);
+                // ストックを使わないと即決した場合でも、思考時間を設ける
+                const aiDelay = Math.random() * (800 - 200) + 200;
+                setTimeout(() => {
+                  this.drawFromWall(currentPlayer.id);
+                }, aiDelay);
               }
 
               return;
@@ -1065,7 +1068,10 @@ export const useGameStore = defineStore('game', {
             } else if (this.canDeclareKakan[playerId] && Math.random() < 1.0) {
               this.declareKakan(playerId, this.canDeclareKakan[playerId][0]);
             } else {
-              handleAiDiscardLogic(this, playerId);
+              const discardDelay = Math.random() * (900 - 700) + 700; // 700msから900msのランダムな遅延
+              setTimeout(() => {
+                handleAiDiscardLogic(this, playerId);
+              }, discardDelay);
             }
           }
         }
