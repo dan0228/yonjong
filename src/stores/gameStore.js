@@ -745,14 +745,14 @@ export const useGameStore = defineStore('game', {
               const useStocked = Math.random() < 0.3;
 
               if (useStocked) {
-                const aiDelay = Math.random() * (1200 - 200) + 200;
+                const aiDelay = Math.random() * (1200 - 500) + 500;
                 setTimeout(() => {
                   // タイムアウト前にストックを使うことを決定
                   this.useStockedTile(currentPlayer.id);
                 }, aiDelay);
               } else {
                 // ストックを使わないと即決した場合でも、思考時間を設ける
-                const aiDelay = Math.random() * (800 - 200) + 200;
+                const aiDelay = Math.random() * (800 - 500) + 500;
                 setTimeout(() => {
                   this.drawFromWall(currentPlayer.id);
                 }, aiDelay);
