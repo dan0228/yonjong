@@ -1311,13 +1311,17 @@ export const useGameStore = defineStore('game', {
 
       this.stockAnimationPlayerId = playerId;
 
-      // アニメーションを一定時間後に非表示にする
+      // アニメーションを一定時間後に非表示にし、その後に次のプレイヤーのターンへ移行する
       setTimeout(() => {
         this.stockAnimationPlayerId = null;
+        
+        // アニメーションの消滅を確実に描画させるため、
+        // 次のターンへの移行を少しだけ遅らせる
+        setTimeout(() => {
+            // 次のプレイヤーのターンへ
+            this.moveToNextPlayer();
+        }, 50); // 50msの短い遅延を追加
       }, 600);
-
-      // 次のプレイヤーのターンへ
-      this.moveToNextPlayer();
     },
 
     /**
