@@ -1857,6 +1857,12 @@ io.on('connection', (socket) => {
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
     if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
     
+    // タイムアウト処理との競合を防ぐため、フェーズを厳密にチェックする
+    if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+      console.warn(`[Race Condition Guard] Player ${playerId} tried to use stock tile in wrong phase: ${gameState.gamePhase}. Ignoring.`);
+      return; // 処理を中断
+    }
+    
     const player = gameState.players.find(p => p.id === playerId);
     if (!player || !player.stockedTile) return socket.emit('gameError', { message: 'ストックした牌がありません。' });
 

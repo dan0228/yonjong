@@ -740,20 +740,13 @@ export const useGameStore = defineStore('game', {
             }
             if (currentPlayer.id !== 'player1') {
               this.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER;
-              this.stockSelectionCountdown = 1.3;
 
               const useStocked = Math.random() < 0.3;
 
               if (useStocked) {
                 const aiDelay = Math.random() * (1200 - 200) + 200;
-                this.stockSelectionTimerId = setInterval(() => {
-                  this.stockSelectionCountdown = parseFloat((this.stockSelectionCountdown - 0.01).toFixed(2));
-                  if (this.stockSelectionCountdown <= 0) {
-                    clearInterval(this.stockSelectionTimerId);
-                  }
-                }, 10);
                 setTimeout(() => {
-                  this.stopStockSelectionCountdown();
+                  // タイムアウト前にストックを使うことを決定
                   this.useStockedTile(currentPlayer.id);
                 }, aiDelay);
               } else {
@@ -1649,12 +1642,11 @@ export const useGameStore = defineStore('game', {
           clearInterval(this.stockSelectionTimerId);
           this.stockSelectionTimerId = null;
 
-          setTimeout(() => {
-            const currentPlayer = this.players.find(p => p.id === playerId);
-            if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && currentPlayer && !currentPlayer.isStockedTileSelected) {
-              this.chooseToDrawFromWall(playerId);
-            }
-          }, 0);
+          // タイムアウトしたら即座に山からツモる
+          const currentPlayer = this.players.find(p => p.id === playerId);
+          if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && currentPlayer && !currentPlayer.isStockedTileSelected) {
+            this.chooseToDrawFromWall(playerId);
+          }
         }
       }, 10);
     },
