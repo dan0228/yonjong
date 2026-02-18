@@ -757,18 +757,8 @@ export const useGameStore = defineStore('game', {
                   this.useStockedTile(currentPlayer.id);
                 }, aiDelay);
               } else {
-                this.stockSelectionTimerId = setInterval(() => {
-                  this.stockSelectionCountdown = parseFloat((this.stockSelectionCountdown - 0.01).toFixed(2));
-                  if (this.stockSelectionCountdown <= 0) {
-                    clearInterval(this.stockSelectionTimerId);
-                  }
-                }, 10);
-                setTimeout(() => {
-                  if (this.stockSelectionTimerId) {
-                    this.stopStockSelectionCountdown();
-                    this.drawFromWall(currentPlayer.id);
-                  }
-                }, 600);
+                // ストックを使わないと即決した場合、遅延なく山から引く
+                this.drawFromWall(currentPlayer.id);
               }
 
               return;
@@ -1321,6 +1311,11 @@ export const useGameStore = defineStore('game', {
 
       this.stockAnimationPlayerId = playerId;
 
+      // アニメーションを一定時間後に非表示にする
+      setTimeout(() => {
+        this.stockAnimationPlayerId = null;
+      }, 600);
+
       // 次のプレイヤーのターンへ
       this.moveToNextPlayer();
     },
@@ -1659,7 +1654,7 @@ export const useGameStore = defineStore('game', {
             if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && currentPlayer && !currentPlayer.isStockedTileSelected) {
               this.chooseToDrawFromWall(playerId);
             }
-          }, 250);
+          }, 0);
         }
       }, 10);
     },
