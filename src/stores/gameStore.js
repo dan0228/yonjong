@@ -270,6 +270,7 @@ export function createDefaultGameState() {
     isAppReady: false, // アプリケーションの初期読み込みが完了したかどうか
     hasGameStarted: false, // ゲームが開始されたかどうかを示すフラグ
     isMatchmakingRequested: false, // マッチメイキングリクエストが送信されたかどうか
+    isStockSelectionActionTaken: false, // ストック選択アクションが実行されたかどうかのフラグ
     matchmakingPlayers: [], // ★マッチング待機画面専用のプレイヤーリスト
     chatBubbles: {}, // ★チャット吹き出しの状態を管理
     lastChattedPlayerId: null, // ★最後にチャットしたプレイヤーID
@@ -1592,6 +1593,9 @@ export const useGameStore = defineStore('game', {
     },
 
     chooseToDrawFromWall(playerId) {
+      if (this.isStockSelectionActionTaken) return; // 既にアクション済みなら何もしない
+      this.isStockSelectionActionTaken = true;
+
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -1609,10 +1613,13 @@ export const useGameStore = defineStore('game', {
     },
 
     toggleStockedTileSelection(playerId) {
+      if (this.isStockSelectionActionTaken) return; // 既にアクション済みなら何もしない
+
       const player = this.players.find(p => p.id === playerId);
       if (player && player.stockedTile) {
         player.isStockedTileSelected = !player.isStockedTileSelected;
         if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && player.isStockedTileSelected) {
+          this.isStockSelectionActionTaken = true;
           this.stopStockSelectionCountdown();
           this.useStockedTile(playerId);
         }
@@ -1629,6 +1636,7 @@ export const useGameStore = defineStore('game', {
         return;
       }
 
+      this.isStockSelectionActionTaken = false; // アクションフラグをリセット
       this.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER;
       this.stockSelectionCountdown = 1.3;
 
