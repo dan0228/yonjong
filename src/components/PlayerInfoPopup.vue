@@ -42,8 +42,14 @@
 
         <!-- 4. 追加情報 (アバターとレートの下) -->
         <div class="additional-stats">
-          <span class="stat-item">平均順位：{{ averageRank }}</span>
-          <span class="stat-item">総対局数：{{ player.total_games_played ?? 0 }}</span>
+          <div class="stat-item">
+            <span class="stat-label">平均順位：</span>
+            <span class="stat-value-num">{{ averageRank }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">総対局数：</span>
+            <span class="stat-value-num">{{ player.total_games_played ?? 0 }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -201,12 +207,27 @@ const statBoardImageSrc = computed(() => {
   color: #4a2c1a;
   text-align: center;
   display: flex;
-  gap: 35px;
+  gap: 20px;
   white-space: nowrap;
   margin-bottom: 30px;
   margin-top: -10px;
-  margin-right: 40px;
 }
+
+.stat-item {
+  display: flex;
+  align-items: center;
+}
+
+.stat-label {
+  /* ラベルのスタイル（変更なし） */
+}
+
+.stat-value-num {
+  min-width: 40px; /* 数値部分の最小幅を確保 */
+  text-align: left; /* 数値を左揃えにする */
+  display: inline-block;
+}
+
 
 /* 3. レートと猫コイン (中央右) */
 .player-stats-area {
@@ -259,4 +280,5 @@ const statBoardImageSrc = computed(() => {
   margin-right: 23px;
 }
 </style>
+
 

@@ -609,6 +609,8 @@ export const useGameStore = defineStore('game', {
           humanPlayer.cat_coins = userStore.profile.cat_coins;
           humanPlayer.rating = userStore.profile.rating;
           humanPlayer.avatar_url = userStore.profile.avatar_url;
+          humanPlayer.total_games_played = userStore.profile.total_games_played;
+          humanPlayer.sum_of_ranks = userStore.profile.sum_of_ranks;
         }
 
         this.players = [
