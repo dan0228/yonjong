@@ -362,6 +362,10 @@
     "score": "{score}点",
     "countdown": "{n}秒後にゲーム開始"
   },
+  "playerInfo": {
+    "avgRank": "平均順位",
+    "totalGames": "総対局数"
+  },
   "playerNames": {
     "you": "あなた"
   },

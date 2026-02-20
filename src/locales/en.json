@@ -362,6 +362,10 @@
     "score": "{score} pts",
     "countdown": "Game starts in {n} seconds"
   },
+  "playerInfo": {
+    "avgRank": "Avg. Rank",
+    "totalGames": "Games"
+  },
   "playerNames": {
     "you": "You"
   },

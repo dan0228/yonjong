@@ -100,9 +100,12 @@
             </div>
             <div class="player-info">
               <span class="user-name">{{ player.name }}</span>
-              <div class="player-details">
+              <div
+                  class="player-details"
+                  @click="openPlayerInfoPopup(player)"
+                >
                 <img
-                  :src="player.profile_image_url"
+                  :src="player.avatar_url"
                   alt="avatar"
                   class="player-icon"
                 >
@@ -119,6 +122,11 @@
         </div>
       </transition>
     </div>
+    <PlayerInfoPopup
+      :show="showPlayerInfoPopup"
+      :player="selectedPlayerForPopup"
+      @close="closePlayerInfoPopup"
+    />
   </div>
 </template>
 
@@ -130,7 +138,7 @@ import { useViewportHeight } from '@/composables/useViewportHeight';
 import { useAudioStore } from '@/stores/audioStore';
 import { supabase } from '@/supabaseClient';
 import { useUserStore } from '@/stores/userStore';
-
+import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 
 // --- リアクティブな状態とストア ---
 const router = useRouter();
@@ -143,7 +151,20 @@ const ratingLeaderboard = ref([]);
 const catCoinsLeaderboard = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
-const activeRankingType = ref('rating'); // 初期表示を猫コインに変更
+const activeRankingType = ref('rating');
+
+const showPlayerInfoPopup = ref(false);
+const selectedPlayerForPopup = ref(null);
+
+// --- ポップアップ制御 ---
+function openPlayerInfoPopup(player) {
+  selectedPlayerForPopup.value = player;
+  showPlayerInfoPopup.value = true;
+}
+
+function closePlayerInfoPopup() {
+  showPlayerInfoPopup.value = false;
+}
 
 // --- 画面のスケーリング処理 ---
 const DESIGN_WIDTH = 360;
@@ -173,15 +194,13 @@ async function fetchLeaderboardData(type) {
   isLoading.value = true;
   error.value = null;
   try {
-    let query = supabase.from('users');
+    const selectColumns = 'id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks';
+    let query = supabase.from('users').select(selectColumns);
+
     if (type === 'rating') {
-      query = query.select('id, username, rating, avatar_url')
-                   .not('rating', 'is', null)
-                   .order('rating', { ascending: false });
+      query = query.not('rating', 'is', null).order('rating', { ascending: false });
     } else if (type === 'catCoins') {
-      query = query.select('id, username, cat_coins, avatar_url')
-                   .not('cat_coins', 'is', null)
-                   .order('cat_coins', { ascending: false });
+      query = query.not('cat_coins', 'is', null).order('cat_coins', { ascending: false });
     }
     
     const { data: fetchedData, error: supabaseError } = await query.limit(30);
@@ -190,8 +209,12 @@ async function fetchLeaderboardData(type) {
     const processedData = fetchedData.map(player => ({
       id: player.id,
       name: player.username,
-      score: player.rating ?? player.cat_coins,
-      profile_image_url: player.avatar_url || '/assets/images/info/hito_icon_1.png',
+      score: type === 'rating' ? player.rating : player.cat_coins,
+      avatar_url: player.avatar_url || '/assets/images/info/hito_icon_1.png',
+      rating: player.rating,
+      cat_coins: player.cat_coins,
+      total_games_played: player.total_games_played,
+      sum_of_ranks: player.sum_of_ranks,
     }));
 
     if (type === 'rating') {
@@ -234,8 +257,6 @@ const displayLeaderboard = computed(() => {
   return rankedData;
 });
 
-
-
 const activeRankingTitle = computed(() => {
   if (activeRankingType.value === 'rating') {
     return t('leaderboardView.typeRating');
@@ -248,7 +269,7 @@ const activeRankingTitle = computed(() => {
 onMounted(() => {
   updateScaleFactor();
   window.addEventListener('resize', updateScaleFactor);
-  fetchLeaderboardData(activeRankingType.value); // 初期表示
+  fetchLeaderboardData(activeRankingType.value);
   audioStore.setBgm('GB-JP-A02-2(Menu-Loop105).mp3');
 });
 
@@ -284,18 +305,16 @@ watch(activeRankingType, (newType) => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* padding: 20px; */ /* 全体paddingを削除 */
   font-family: 'Yuji Syuku', serif;
   color: #333;
   background-image: url('/assets/images/back/ranking.png');
-  background-size: contain; /* coverからcontainに変更 */
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
   box-sizing: border-box;
   touch-action: none !important;
 }
 
-/* Copied from other views */
 .user-stats {
   position: absolute;
   top: 575px;
@@ -319,15 +338,14 @@ watch(activeRankingType, (newType) => {
 .rating-number-on-board { top: 5px; }
 .cat-coins-number-on-board { top: 37px; }
 
-/* Top-right controls */
 .top-controls {
   position: absolute;
-  top: 567px; /* 画面下からの位置を調整 */
-  left: 67%; /* 中央寄せの基準 */
-  transform: translateX(-50%); /* 中央寄せ */
+  top: 567px;
+  left: 67%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 10px; /* テキストとボタンの間隔 */
+  gap: 10px;
   z-index: 10;
 }
 .top-30-text {
@@ -335,10 +353,10 @@ watch(activeRankingType, (newType) => {
   font-size: 1.0em;
   color: #441800;
   text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
-  margin: 0; /* デフォルトのマージンをリセット */
+  margin: 0;
 }
 .back-button {
-  position: static; /* top-controlsのflexbox内で配置するためstaticに */
+  position: static;
   background: none;
   border: none;
   cursor: pointer;
@@ -351,18 +369,16 @@ watch(activeRankingType, (newType) => {
   height: auto;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1));
   transition: all 0.2s ease;
-  /* margin-topとmargin-rightを削除 */
 }
 .back-button:hover img { transform: translateY(-4px); }
 
 h1 {
-  margin-top: 85px; /* 位置調整 */
+  margin-top: 85px;
   margin-bottom: 5px;
   font-size: 1.65em;
   color: #5c4b4b;
 }
 
-/* Toggle Buttons */
 .cat-coin-toggle-button,
 .rating-toggle-button {
   position: absolute;
@@ -379,7 +395,6 @@ h1 {
   white-space: nowrap;
 }
 
-/* --- Japanese (Vertical) Styles --- */
 .cat-coin-toggle-button.vertical {
   writing-mode: vertical-rl;
   top: 68px;
@@ -391,33 +406,30 @@ h1 {
   right: 62px;
 }
 
-/* --- English (Rotated) Styles --- */
 .cat-coin-toggle-button:not(.vertical) {
   transform: rotate(90deg);
   top: 95px;
-  left: 36px; /* 英語の時だけ外側にずらす */
+  left: 36px;
   font-size: 0.9em;
 }
 .rating-toggle-button:not(.vertical) {
   transform: rotate(90deg);
   top: 92px;
-  right: 40px; /* 英語の時だけ外側にずらす */
+  right: 40px;
 }
 
-/* --- Active State --- */
 .cat-coin-toggle-button.active,
 .rating-toggle-button.active {
-  font-weight: bold; /* 文字を太く */
+  font-weight: bold;
   color: #790d0d;
-  text-shadow: 0 0 8px #fff; /* 影を少し強く */
+  text-shadow: 0 0 8px #fff;
 }
 
-/* New Ranking List Styles */
 .ranking-list-container {
   width: 100%;
   max-width: 280px;
-  height: 442px; /* 縦幅を長く */
-  margin-top: 68px; /* 位置を少し下に */
+  height: 442px;
+  margin-top: 68px;
   overflow-y: auto;
   padding: 0px;
   box-sizing: border-box;
@@ -512,6 +524,7 @@ h1 {
   align-items: center;
   justify-content: center;
   margin-top: 2px;
+  cursor: pointer;
 }
 
 .player-icon {
@@ -521,6 +534,8 @@ h1 {
   border-radius: 25%;
   border: 1px solid #200101;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .user-name {

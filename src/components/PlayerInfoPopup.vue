@@ -43,11 +43,11 @@
         <!-- 4. 追加情報 (アバターとレートの下) -->
         <div class="additional-stats">
           <div class="stat-item">
-            <span class="stat-label">平均順位：</span>
+            <span class="stat-label">{{ t('playerInfo.avgRank') }}：</span>
             <span class="stat-value-num">{{ averageRank }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">総対局数：</span>
+            <span class="stat-label">{{ t('playerInfo.totalGames') }}：</span>
             <span class="stat-value-num">{{ player.total_games_played ?? 0 }}</span>
           </div>
         </div>
@@ -73,7 +73,7 @@ const props = defineProps({
   },
 });
 
-const { locale } = useI18n();
+const { locale, t } = useI18n();
 
 // 平均順位を計算する算出プロパティ
 const averageRank = computed(() => {
