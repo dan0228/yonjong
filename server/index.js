@@ -967,18 +967,60 @@ async function handleGameEnd(gameId) {
   // 最終的なスコアに基づいてプレイヤーをランク付け
   const rankedPlayers = getRankedPlayers(gameState.players);
 
-  // TODO: オンライン対戦における猫コイン、レートの更新ロジックを検討
-  // 現状は、クライアント側で処理されることを想定し、サーバー側では基本的な状態更新のみ
+  // 猫コインと統計情報の更新
+  const coinChanges = { 1: 100, 2: 50, 3: -50, 4: -100 };
+  const updatedRankedPlayers = [];
+
+  const updatePromises = rankedPlayers.map(async (player) => {
+    const coinChange = coinChanges[player.rank] || 0;
+    
+    // AIプレイヤーはDB更新しない
+    if (player.isAi) {
+      updatedRankedPlayers.push({ ...player, coin_change: coinChange });
+      return;
+    }
+
+    try {
+      // RPCを使って原子的に更新
+      const { error: rpcError } = await supabase.rpc('update_user_stats_and_coins', {
+        p_user_id: player.id,
+        p_rank: player.rank,
+        p_coin_change: coinChange
+      });
+
+      if (rpcError) {
+        console.error(`Error updating stats for player ${player.id}:`, rpcError);
+        // エラーが発生しても処理を続行するが、コインの変更は0として扱う
+        updatedRankedPlayers.push({ ...player, coin_change: 0 });
+      } else {
+        updatedRankedPlayers.push({ ...player, coin_change: coinChange });
+      }
+    } catch (e) {
+      console.error(`Exception during player stats update for ${player.id}:`, e);
+      updatedRankedPlayers.push({ ...player, coin_change: 0 });
+    }
+  });
+
+  await Promise.all(updatePromises);
+
+  // 元の順位を保持するために、更新後のリストをソートし直す
+  updatedRankedPlayers.sort((a, b) => {
+    const originalA = rankedPlayers.find(p => p.id === a.id);
+    const originalB = rankedPlayers.find(p => p.id === b.id);
+    return originalA.rank - originalB.rank;
+  });
 
   gameState.finalResultDetails = {
-    rankedPlayers: rankedPlayers,
+    rankedPlayers: updatedRankedPlayers,
   };
-  gameState.showFinalResultPopup = true; // クライアントに最終結果表示を促す
+  gameState.showFinalResultPopup = true;
+  gameState.gamePhase = GAME_PHASES.GAME_OVER;
 
-  // ゲームの状態をリセット (次のゲームのためにメモリから削除)
-  delete gameStates[gameId];
-
+  // ゲームの状態をDBに保存し、クライアントにブロードキャスト
   await updateAndBroadcastGameState(gameId, gameState);
+
+  // ゲームの状態をメモリから削除
+  delete gameStates[gameId];
 }
 
 // ゲームのコア初期化ロジックを処理するヘルパー関数

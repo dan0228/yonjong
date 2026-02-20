@@ -467,6 +467,14 @@ export const useGameStore = defineStore('game', {
       }
       this.isGameOnline = isOnline; // ★★★ 保持した isGameOnline の値を再設定
 
+      // ゲーム終了時に自分のコイン増減をlastCoinGainにセットする
+      if (newState.gamePhase === GAME_PHASES.GAME_OVER) {
+        const myResult = newState.finalResultDetails?.rankedPlayers.find(p => p.id === this.localPlayerId);
+        if (myResult) {
+          this.lastCoinGain = myResult.coin_change || 0;
+        }
+      }
+
       // ★★★ 修正: ストック選択タイマーを開始する処理を追加 ★★★
       // 新しいフェーズがストック選択待ちで、かつ自分のターンの場合
       if (newState.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER &&
