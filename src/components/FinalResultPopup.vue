@@ -101,8 +101,8 @@ import { useZoomLock } from '@/composables/useZoomLock';
 
 /**
  * 最終結果表示用ポップアップコンポーネント。
- * ゲーム終了時にプレイヤーのランキング、スコア、連勝記録などを表示します。
- * 新しいゲームの開始、タイトルへの復帰、SNSでの結果共有機能を提供します。
+ * ゲーム終了時にプレイヤーのスコアなどを表示します。
+ * 新しいゲームの開始、タイトルへの復帰を提供します。
  */
 
 const { t } = useI18n();
@@ -129,11 +129,11 @@ const props = defineProps({
   /**
    * 表示する最終結果の詳細情報。
    * gameStore.finalResultDetailsが渡されることを想定しています。
-   * 形式: { rankedPlayers: [{ id, rank, name, score }], consecutiveWins: number }
+   * 形式: { rankedPlayers: [{ id, rank, name, score }]}
    */
   finalResultDetails: {
     type: Object,
-    default: () => ({ rankedPlayers: [], consecutiveWins: 0 }),
+    default: () => ({ rankedPlayers: [] }),
   },
 });
 
@@ -416,14 +416,6 @@ function getPlayerIcon(playerId) {
 .score {
   font-size: 1.4em;
   font-family: 'Yuji Syuku', serif; /* ParentDecisionPopup.vue と同じ */
-}
-.consecutive-wins {
-  font-size: 1.6em;
-  font-weight: bold;
-  color: #ff9800; /* オレンジ色 */
-  margin-top: 0px;
-  margin-bottom: 0px;
-  margin-left: 0px;
 }
 
 .coin-gain {

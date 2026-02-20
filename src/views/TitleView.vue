@@ -259,7 +259,7 @@ const handlePopupSelect = (payload) => {
     gameStore.setRuleMode(action);
     const gameMode = 'vsCPU';
     gameStore.setGameMode(gameMode);
-    gameStore.resetGameForNewSession({ keepStreak: true });
+    gameStore.resetGameForNewSession();
     gameStore.initializeGame();
     gameStore.showDealerDeterminationPopup = true;
     router.push('/game');

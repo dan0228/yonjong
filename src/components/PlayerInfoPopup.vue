@@ -9,12 +9,12 @@
         class="player-info-popup"
         @click.stop
       >
-        <!-- 1. プレイヤー名 (一番上の中央) -->
+        <!-- 1. プレイヤー名 -->
         <h3 class="player-name">
           {{ player.name }}
         </h3>
         
-        <!-- 2. プレイヤーアイコン (左下) -->
+        <!-- 2. プレイヤーアイコン -->
         <div class="player-icon-area">
           <img
             :src="playerIconSrc"
@@ -23,7 +23,7 @@
           >
         </div>
 
-        <!-- 3. レートと猫コイン (右下) -->
+        <!-- 3. レートと猫コイン -->
         <div class="player-stats-area">
           <img
             :src="statBoardImageSrc"
@@ -38,6 +38,12 @@
               <span class="stat-value">{{ player.cat_coins }}</span>
             </div>
           </div>
+        </div>
+
+        <!-- 4. 追加情報 (アバターとレートの下) -->
+        <div class="additional-stats">
+          <span class="stat-item">平均順位：{{ averageRank }}</span>
+          <span class="stat-item">総対局数：{{ player.total_games_played ?? 0 }}</span>
         </div>
       </div>
     </div>
@@ -62,6 +68,15 @@ const props = defineProps({
 });
 
 const { locale } = useI18n();
+
+// 平均順位を計算する算出プロパティ
+const averageRank = computed(() => {
+  if (!props.player || !props.player.total_games_played) {
+    return '-';
+  }
+  const avg = props.player.sum_of_ranks / props.player.total_games_played;
+  return avg.toFixed(2);
+});
 
 const playerIconSrc = computed(() => {
   if (!props.player || !props.player.id) return '/assets/images/info/hito_icon_1.png'; // プレイヤーオブジェクトまたはIDがない場合
@@ -120,7 +135,7 @@ const statBoardImageSrc = computed(() => {
 /* ポップアップ本体のレイアウトをCSS Gridに変更 */
 .player-info-popup {
   width: 360px;
-  height: 200px;
+  height: 250px;
   background-image: url('/assets/images/back/omikuji_board.png');
   background-size: 100% 100%;
   padding: 20px;
@@ -131,10 +146,11 @@ const statBoardImageSrc = computed(() => {
   /* CSS Gridで新しいレイアウトを定義 */
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
-    "name   name"
-    "icon   stats";
+    "name      name"
+    "icon      stats"
+    "add-stats add-stats";
   align-items: center;
   justify-items: center;
   gap: 5px; /* グリッドアイテム間の隙間 */
@@ -154,14 +170,14 @@ const statBoardImageSrc = computed(() => {
   text-align: center;
   line-height: 1.2;
   align-self: start; /* 上端に配置 */
-  padding-top: 10px; /* 上部の余白を調整 */
+  padding-top: 15px; /* 上部の余白を調整 */
 }
 
-/* 2. プレイヤーアイコン (左下) */
+/* 2. プレイヤーアイコン (中央左) */
 .player-icon-area {
   grid-area: icon;
-  justify-self: center; /* 水平方向中央 */
-  align-self: center; /* 垂直方向中央 */
+  justify-self: center;
+  align-self: center;
 }
 
 .player-avatar {
@@ -170,20 +186,38 @@ const statBoardImageSrc = computed(() => {
   border-radius: 50%;
   border: 3px solid #411603;
   object-fit: cover;
-  margin-bottom: 15px;
-  margin-left: 20px;
+  margin-top: -10px;
+  margin-left: 15px;
 }
 
-/* 3. レートと猫コイン (右下) */
+/* 4. 追加情報のスタイル */
+.additional-stats {
+  grid-area: add-stats;
+  justify-self: center;
+  align-self: start;
+  font-family: 'Yuji Syuku', serif;
+  font-size: 1.0em;
+  font-weight: bold;
+  color: #4a2c1a;
+  text-align: center;
+  display: flex;
+  gap: 35px;
+  white-space: nowrap;
+  margin-bottom: 30px;
+  margin-top: -10px;
+  margin-right: 40px;
+}
+
+/* 3. レートと猫コイン (中央右) */
 .player-stats-area {
   grid-area: stats;
   position: relative;
   width: 160px;
   height: 100px;
-  justify-self: center; /* 水平方向中央 */
-  align-self: center; /* 垂直方向中央 */
-  margin-bottom: 20px;
-  margin-right: 13px;
+  justify-self: center;
+  align-self: center;
+  margin-top: 0px;
+  margin-right: 20px;
 }
 
 .stat-board-image {
@@ -225,3 +259,4 @@ const statBoardImageSrc = computed(() => {
   margin-right: 23px;
 }
 </style>
+

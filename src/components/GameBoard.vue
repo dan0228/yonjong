@@ -706,7 +706,7 @@
     await userStore.fetchUserProfile();
 
     isFadingToFinalResult.value = false; // フェードをリセット
-    gameStore.resetGameForNewSession({ keepStreak: true }); // 連勝数を維持
+    gameStore.resetGameForNewSession();
     gameStore.initializeGame();
     gameStore.showDealerDeterminationPopup = true; // 親決めポップアップを表示
   }
@@ -717,7 +717,7 @@
   function handleBackToTitleFromFinalResult() {
     isFadingToFinalResult.value = false; // フェードをリセット
     router.push('/');
-    gameStore.resetGameForNewSession({ keepStreak: true }); // 連勝数を維持してリセット
+    gameStore.resetGameForNewSession();
   }
 
   /**

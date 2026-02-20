@@ -51,7 +51,7 @@ const routes = [
     component: () => import('../views/LeaderboardView.vue'),
     meta: {
       title: 'ランキング | よんじゃん！',
-      description: '最大連勝数のランキングです。',
+      description: '猫コインとレートのランキングです。',
       bgm: 'GB-JP-A02-2(Menu-Loop105).mp3'
     },
   },

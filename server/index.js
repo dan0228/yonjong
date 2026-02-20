@@ -75,7 +75,7 @@ function createDefaultGameState() {
     showResultPopup: false,
     resultMessage: '',
     showFinalResultPopup: false,
-    finalResultDetails: { rankedPlayers: [], consecutiveWins: 0 },
+    finalResultDetails: { rankedPlayers: [] },
     currentRound: { wind: 'east', number: 1 },
     honba: 0,
     riichiSticks: 0,
@@ -967,13 +967,11 @@ async function handleGameEnd(gameId) {
   // 最終的なスコアに基づいてプレイヤーをランク付け
   const rankedPlayers = getRankedPlayers(gameState.players);
 
-  // 最大連勝数を更新 (サーバー側では 'player1' の概念がないため、ここではスキップまたはオンラインプレイヤーの勝敗を考慮)
-  // TODO: オンライン対戦における連勝数・猫コインの更新ロジックを検討
+  // TODO: オンライン対戦における猫コイン、レートの更新ロジックを検討
   // 現状は、クライアント側で処理されることを想定し、サーバー側では基本的な状態更新のみ
 
   gameState.finalResultDetails = {
     rankedPlayers: rankedPlayers,
-    consecutiveWins: 0, // サーバー側では連勝数を直接計算しない
   };
   gameState.showFinalResultPopup = true; // クライアントに最終結果表示を促す
 
@@ -1737,7 +1735,7 @@ io.on('connection', (socket) => {
 
       const { data: profiles, error: profileError } = await supabase
         .from('users')
-        .select('id, username, avatar_url, cat_coins, rating')
+        .select('id, username, avatar_url, cat_coins, rating, total_games_played, sum_of_ranks')
         .in('id', playerIds);
 
       if (profileError || !profiles) {
@@ -1753,6 +1751,8 @@ io.on('connection', (socket) => {
               avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
+              total_games_played: profile?.total_games_played || 0,
+              sum_of_ranks: profile?.sum_of_ranks || 0,
               hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null,
               stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false,
               isAi: false,

@@ -95,27 +95,6 @@ export const useUserStore = defineStore('user', () => {
 
         if (data) {
           profile.value = { ...data, email: user.email }; // user.emailをprofileにマージ
-          // Xアカウント関連のロジックは削除
-
-          // アプリ再起動時にゲームが進行中だった場合、連勝数をリセットし、猫コインを減らす
-          if (profile.value.is_game_in_progress) {
-            // public.matchesテーブルにペナルティレコードを挿入
-            const { error: insertError } = await supabase
-              .from('matches')
-              .insert({
-                user_id: user.id,
-                rank: 4, // 最下位として扱う
-                is_win: false,
-                coin_change: -390, // ペナルティとして-390コイン
-                is_interrupted: 1 // 中断レコードとしてマーク
-              });
-            if (insertError) {
-              console.error('ペナルティレコードの挿入エラー:', insertError);
-            }
-            // is_game_in_progress フラグは update_user_metrics 関数によって FALSE に設定されるため、ここでは不要
-            await setGameInProgress(false); // ゲーム進行中フラグを解除
-            showPenaltyPopup.value = true; // ペナルティポップアップを表示
-          }
         }
       } else {
         // ユーザーがいない場合はプロフィールをnullに設定
@@ -461,14 +440,6 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
-   * ユーザーの連勝数をリセットします。
-   */
-  async function resetWinStreak() {
-    if (!profile.value) return;
-    await updateUserProfile({ current_win_streak: 0 }, { showLoading: false });
-  }
-
-  /**
    * 初回アクセス時にゲストとして自動登録します。
    */
   async function registerAsGuest() {
@@ -524,7 +495,6 @@ export const useUserStore = defineStore('user', () => {
     penaltyMessage, // ★公開
     setPenalty, // ★公開
     setShowPenaltyPopup,
-    resetWinStreak, // 連勝数リセットアクションを公開
     registerAsGuest, // 新しいアクションを公開
   };
 });

@@ -191,7 +191,6 @@ export function createDefaultGameState() {
     showFinalResultPopup: false,
     finalResultDetails: {
       rankedPlayers: [],
-      consecutiveWins: 0,
     },
     currentRound: { wind: 'east', number: 1 },
     honba: 0,
@@ -245,7 +244,6 @@ export function createDefaultGameState() {
       playerId: null,
     },
     riichiDiscardedTileId: {},
-    previousConsecutiveWins: 0,
     showDealerDeterminationPopup: false,
     dealerDeterminationResult: {
       players: [],
@@ -704,8 +702,6 @@ export const useGameStore = defineStore('game', {
         score: 50000,
         originalId: p.originalId,
       }));
-
-            // userStore.setGameInProgress(true); // AI対戦では切断ペナルティを無効にするため、ゲーム進行中フラグを立てない
 
       if (this.currentRound.wind === 'east' && this.currentRound.number === 1 && this.honba === 0) {
         this.showDealerDeterminationPopup = true;
@@ -2434,9 +2430,6 @@ export const useGameStore = defineStore('game', {
       setTimeout(() => {
         this.showResultPopup = true;
         this.stopRiichiBgm();
-        if (this.isGameOnline) {
-          this.broadcastGameState();
-        }
       }, 1800);
     },
 
@@ -2446,32 +2439,6 @@ export const useGameStore = defineStore('game', {
     this.gamePhase = GAME_PHASES.GAME_OVER;
     const rankedPlayers = getRankedPlayers(this.players);
     const myPlayerRank = rankedPlayers.find(p => p.id === 'player1')?.rank;
-
-    if (this.gameMode !== 'allManual' && userStore.profile) {
-      let initialCurrentWinStreak = userStore.profile?.current_win_streak || 0;
-      let maxConsecutiveWins = userStore.profile?.max_win_streak || 0;
-
-      let newConsecutiveWins = initialCurrentWinStreak;
-      if (myPlayerRank === 1) {
-        newConsecutiveWins++;
-        this.previousConsecutiveWins = 0;
-      } else {
-        if (initialCurrentWinStreak > 0) {
-          this.previousConsecutiveWins = initialCurrentWinStreak;
-        } else {
-          this.previousConsecutiveWins = 0;
-        }
-        newConsecutiveWins = 0;
-      }
-      if (newConsecutiveWins > maxConsecutiveWins) {
-        maxConsecutiveWins = newConsecutiveWins;
-      }
-
-      this.finalResultDetails.consecutiveWins = newConsecutiveWins;
-    } else if (userStore.profile) {
-      this.finalResultDetails.consecutiveWins = userStore.profile.current_win_streak || 0;
-    }
-
 
     this.finalResultDetails.rankedPlayers = rankedPlayers.map(p => ({
       id: p.id,
@@ -2502,57 +2469,23 @@ export const useGameStore = defineStore('game', {
         }
       }
       this.lastCoinGain = gain;
-
-      const matchData = {
-        user_id: userStore.profile.id,
-        rank: myPlayerRank,
-        is_win: myPlayerRank === 1,
-        coin_change: gain,
-      };
-      // UI表示を優先するため、awaitせずにバックグラウンドで実行
-      supabase.from('matches').insert([matchData]).then(({ error }) => {
-        if (error) {
-          console.error('matchesテーブルへの対局結果の保存中にエラーが発生しました:', error.message);
-        } else {
-          console.log('対局結果をmatchesテーブルに保存しました。');
-        }
-      });
     }
-
-    userStore.setGameInProgress(false);
+    userStore.updateCatCoins(this.lastCoinGain, options)
 
     this.showFinalResultPopup = true;
 
-    if (this.isGameOnline) {
-      await this.broadcastGameState();
-    }
   },
 
     returnToTitle() {
-      const userStore = useUserStore();
       this.showFinalResultPopup = false;
       this.resetGameForNewSession();
     },
 
-    resetGameAndStreak() {
-      const userStore = useUserStore();
-      this.showFinalResultPopup = false;
-      this.resetGameForNewSession();
-      userStore.resetWinStreak();
-    },
-
-    resetGameForNewSession(options = { keepStreak: false }) {
+    resetGameForNewSession() {
       this.playersReadyForNextRound = []; // ★ 強制的にリセット
 
       const userStore = useUserStore();
       userStore.resetTemporaryData();
-
-      if (!options.keepStreak) {
-        // 後から記載
-      }
-
-      const currentStreakFromUserStore = userStore.profile?.current_win_streak || 0;
-      const wins = options.keepStreak ? currentStreakFromUserStore : 0;
 
       const localPlayerId = this.isGameOnline ? this.localPlayerId : 'player1';
       const localPlayer = this.players.find(p => p.id === localPlayerId);
@@ -2592,9 +2525,7 @@ export const useGameStore = defineStore('game', {
       this.showFinalResultPopup = false;
       this.finalResultDetails = {
         rankedPlayers: [],
-        consecutiveWins: wins,
       };
-      this.previousConsecutiveWins = 0;
       this.currentRound = { wind: 'east', number: 1 };
       this.honba = 0;
       this.turnCount = 0;

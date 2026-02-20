@@ -13,7 +13,7 @@
           alt="Board"
           class="board-image"
         >
-        <span class="rating-number-on-board">{{ userStore.profile?.rating ?? 3000 }}</span>
+        <span class="rating-number-on-board">{{ userStore.profile?.rating ?? 1500 }}</span>
         <span class="cat-coins-number-on-board">{{ userStore.profile?.cat_coins || 0 }}</span>
       </div>
       <div class="top-controls">
