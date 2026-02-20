@@ -3,13 +3,14 @@
     class="title-view-container"
     :style="{ height: viewportHeight }"
   >
-    <!-- アプリケーションの準備ができていない場合はローディングインジケーターを表示 -->
+    <!-- ★修正: isAppReadyがfalseの間、スピナーを表示 -->
     <LoadingIndicator v-if="!gameStore.isAppReady" />
 
     <!-- 背景スクロールコンテナ(imgタグは不要) -->
     <div class="scrolling-background-container" />
 
     <div
+      v-if="gameStore.isAppReady"
       class="title-screen"
       :style="scalerStyle"
     >
