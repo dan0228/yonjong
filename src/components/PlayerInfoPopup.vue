@@ -21,6 +21,12 @@
             alt="Player Avatar"
             class="player-avatar"
           >
+          <img
+            v-if="rankBadgeSrc"
+            :src="rankBadgeSrc"
+            alt="Rank Badge"
+            class="rank-badge"
+          >
         </div>
 
         <!-- 3. レートと猫コイン -->
@@ -74,6 +80,24 @@ const props = defineProps({
 });
 
 const { locale, t } = useI18n();
+
+const rankBadgeSrc = computed(() => {
+  const rank = props.player?.rank;
+  if (!rank) return null;
+
+  const langSuffix = locale.value === 'en' ? '_en' : '';
+  
+  switch (rank) {
+    case 1:
+      return `/assets/images/info/kitten${langSuffix}.png`;
+    case 2:
+      return `/assets/images/info/alley${langSuffix}.png`;
+    case 3:
+      return `/assets/images/info/boss${langSuffix}.png`;
+    default:
+      return null;
+  }
+});
 
 // 平均順位を計算する算出プロパティ
 const averageRank = computed(() => {
@@ -184,6 +208,7 @@ const statBoardImageSrc = computed(() => {
   grid-area: icon;
   justify-self: center;
   align-self: center;
+  position: relative; /* バッジを絶対配置するために必要 */
 }
 
 .player-avatar {
@@ -194,6 +219,16 @@ const statBoardImageSrc = computed(() => {
   object-fit: cover;
   margin-top: -10px;
   margin-left: 15px;
+}
+
+.rank-badge {
+  position: absolute;
+  width: 50px; /* バッジのサイズを調整 */
+  height: 50px; /* バッジのサイズを調整 */
+  right: -5px; /* アイコンの右端に配置 */
+  bottom: 10px; /* アイコンの下端に配置し、少しはみ出すように調整 */
+  transform: translateX(25%) translateY(25%); /* アイコンの右下に少し重なるように調整 */
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); /* 影を追加して目立たせる */
 }
 
 /* 4. 追加情報のスタイル */
@@ -216,10 +251,6 @@ const statBoardImageSrc = computed(() => {
 .stat-item {
   display: flex;
   align-items: center;
-}
-
-.stat-label {
-  /* ラベルのスタイル（変更なし） */
 }
 
 .stat-value-num {

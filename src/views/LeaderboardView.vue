@@ -101,9 +101,9 @@
             <div class="player-info">
               <span class="user-name">{{ player.name }}</span>
               <div
-                  class="player-details"
-                  @click="openPlayerInfoPopup(player)"
-                >
+                class="player-details"
+                @click="openPlayerInfoPopup(player)"
+              >
                 <img
                   :src="player.avatar_url"
                   alt="avatar"

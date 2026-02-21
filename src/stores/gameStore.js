@@ -781,6 +781,8 @@ export const useGameStore = defineStore('game', {
         const selectedAis = shuffledAis.slice(0, 3).map((ai, index) => {
           let catCoins = 0;
           let rating = 0;
+          let rank = 1; // デフォルトは子猫級
+
           switch (ai.originalId) {
             case 'kuro':
               catCoins = 4583;
@@ -792,15 +794,24 @@ export const useGameStore = defineStore('game', {
               break;
             case 'tama':
               catCoins = 6372;
-              rating = 1584;
+              rating = 2584;
               break;
             case 'janneko':
               catCoins = 9235;
-              rating = 1883;
+              rating = 5002;
               break;
             default:
               catCoins = 0;
               rating = 1500;
+          }
+
+          // レーティングに基づいてランクを決定
+          if (rating >= 5000) {
+            rank = 3;
+          } else if (rating >= 2000) {
+            rank = 2;
+          } else {
+            rank = 1;
           }
 
           return {
@@ -818,6 +829,7 @@ export const useGameStore = defineStore('game', {
             isStockedTileSelected: false,
             cat_coins: catCoins,
             rating: rating,
+            rank: rank, // ★AIプレイヤーにrankを設定
             isAi: true, // AIプレイヤーであることを明示
           };
         });
@@ -844,6 +856,7 @@ export const useGameStore = defineStore('game', {
           humanPlayer.avatar_url = userStore.profile.avatar_url;
           humanPlayer.total_games_played = userStore.profile.total_games_played;
           humanPlayer.sum_of_ranks = userStore.profile.sum_of_ranks;
+          humanPlayer.rank = userStore.profile.rank; // ★人間プレイヤーにrankを設定
         }
 
         this.players = [
