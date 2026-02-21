@@ -1,5 +1,6 @@
 import { useAudioStore } from './audioStore';
 import { useUserStore } from './userStore';
+import { preloadImages } from '@/utils/imageLoader';
 
 // src/stores/gameStore.js
 import { defineStore } from 'pinia';

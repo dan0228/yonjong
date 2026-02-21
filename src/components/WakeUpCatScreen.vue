@@ -19,7 +19,7 @@
         {{ $t('wakeUpCat.button') }}
       </span>
       <span 
-        v-if="isSleeping && !canWakeUp" 
+        v-if="isSleeping" 
         class="loading-text"
       >
         Loading...

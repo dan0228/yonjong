@@ -249,7 +249,8 @@ const selectOption = (action) => {
 }
 
 .mode-right.online-ranked-button {
-  top: 70px;
+  top: 90px;
+  padding-bottom: 50px; /* 下方向のクリック領域を拡大 */
 }
 
 .mode-option.clickable:hover {
