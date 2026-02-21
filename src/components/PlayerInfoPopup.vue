@@ -218,17 +218,17 @@ const statBoardImageSrc = computed(() => {
   border: 3px solid #411603;
   object-fit: cover;
   margin-top: -10px;
-  margin-left: 15px;
+  margin-left: -5px;
 }
 
 .rank-badge {
   position: absolute;
-  width: 50px; /* バッジのサイズを調整 */
-  height: 50px; /* バッジのサイズを調整 */
-  right: -5px; /* アイコンの右端に配置 */
-  bottom: 10px; /* アイコンの下端に配置し、少しはみ出すように調整 */
+  width: 80px; /* バッジのサイズを調整 */
+  height: 80px; /* バッジのサイズを調整 */
+  right: -42px; /* アイコンの右端に配置 */
+  bottom: 15px; /* アイコンの下端に配置し、少しはみ出すように調整 */
   transform: translateX(25%) translateY(25%); /* アイコンの右下に少し重なるように調整 */
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); /* 影を追加して目立たせる */
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); /* 影を追加して目立たせる */
 }
 
 /* 4. 追加情報のスタイル */
@@ -264,12 +264,12 @@ const statBoardImageSrc = computed(() => {
 .player-stats-area {
   grid-area: stats;
   position: relative;
-  width: 160px;
-  height: 100px;
+  width: 120px;
+  height: 90px;
   justify-self: center;
   align-self: center;
   margin-top: 0px;
-  margin-right: 20px;
+  margin-right: -10px;
 }
 
 .stat-board-image {
@@ -306,9 +306,9 @@ const statBoardImageSrc = computed(() => {
 }
 
 .stat-value {
-  font-size: 1.3em;
+  font-size: 1.1em;
   font-family: 'Yuji Syuku', serif;
-  margin-right: 23px;
+  margin-right: 17px;
 }
 </style>
 

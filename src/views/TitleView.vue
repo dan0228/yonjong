@@ -813,10 +813,10 @@ onBeforeUnmount(() => {
 
 .rating-badge-image {
   position: absolute;
-  width: 40px;
+  width: 55px;
   height: auto;
-  top: 0px;
-  right: -38px;
+  top: 2px;
+  right: -52px;
 }
 
 .rating-number-on-board {

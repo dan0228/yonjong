@@ -797,7 +797,7 @@ export const useGameStore = defineStore('game', {
               rating = 2584;
               break;
             case 'janneko':
-              catCoins = 9235;
+              catCoins = 19235;
               rating = 5002;
               break;
             default:
