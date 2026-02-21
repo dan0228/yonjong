@@ -960,6 +960,15 @@ function applyPointChanges(gameId) {
 }
 
 // ゲーム終了処理を行うヘルパー関数
+
+// レートに基づいたランク名を取得する関数
+function getRankName(playerClass) {
+  if (playerClass === 1) return '子猫級';
+  if (playerClass === 2) return '野良猫級';
+  if (playerClass === 3) return 'ボス猫級';
+  return '不明';
+}
+
 async function handleGameEnd(gameId) {
   const gameState = gameStates[gameId];
   if (!gameState) return;
@@ -967,17 +976,54 @@ async function handleGameEnd(gameId) {
   // 最終的なスコアに基づいてプレイヤーをランク付け
   const rankedPlayers = getRankedPlayers(gameState.players);
 
-  // 猫コインと統計情報の更新
+  // --- レート計算ロジック ---
+  const baseRatingChanges = {
+    '子猫級': { 1: 150, 2: 50, 3: -10, 4: -50 },
+    '野良猫級': { 1: 100, 2: 30, 3: -30, 4: -100 },
+    'ボス猫級': { 1: 80, 2: 20, 3: -40, 4: -120 },
+  };
+
+  // 部屋全体の平均レートを計算 (AIプレイヤーは除く)
+  const humanPlayers = rankedPlayers.filter(p => !p.isAi);
+  const totalRating = humanPlayers.reduce((sum, player) => sum + player.rating, 0);
+  const roomAverageRating = humanPlayers.length > 0 ? totalRating / humanPlayers.length : 1500;
+
+  // 猫コインと統計情報の���新
   const coinChanges = { 1: 100, 2: 50, 3: -50, 4: -100 };
   const updatedRankedPlayers = [];
 
   const updatePromises = rankedPlayers.map(async (player) => {
     const coinChange = coinChanges[player.rank] || 0;
-    
+    let ratingChange = 0;
+
     // AIプレイヤーはDB更新しない
     if (player.isAi) {
-      updatedRankedPlayers.push({ ...player, coin_change: coinChange });
+      updatedRankedPlayers.push({ ...player, coin_change: coinChange, rating_change: 0 });
       return;
+    }
+
+    // オンライン対戦の場合のみレートを計算
+    if (gameState.gameMode === 'online') {
+      // 1. 基礎点の計算
+      const rankName = getRankName(player.class);
+      const basePoint = baseRatingChanges[rankName]?.[player.rank] || 0;
+
+      // 2. 補正値の計算
+      const otherPlayers = humanPlayers.filter(p => p.id !== player.id);
+      const othersTotalRating = otherPlayers.reduce((sum, p) => sum + p.rating, 0);
+      const othersAverageRating = otherPlayers.length > 0 ? othersTotalRating / otherPlayers.length : roomAverageRating;
+      const correction = (othersAverageRating - player.rating) / 20;
+
+      // 3. 最終的なレート変動値の計算 (整数に丸める)
+      let finalRatingChange = Math.round(basePoint + correction);
+
+      // 4. 最低保証の適用
+      if (player.rank === 1 && finalRatingChange < 10) {
+        finalRatingChange = 10;
+      } else if (player.rank === 2 && finalRatingChange < 2) {
+        finalRatingChange = 2;
+      }
+      ratingChange = finalRatingChange;
     }
 
     try {
@@ -985,19 +1031,20 @@ async function handleGameEnd(gameId) {
       const { error: rpcError } = await supabase.rpc('update_user_stats_and_coins', {
         p_user_id: player.id,
         p_rank: player.rank,
-        p_coin_change: coinChange
+        p_coin_change: coinChange,
+        p_rating_change: ratingChange, // レート変動値を渡す
       });
 
       if (rpcError) {
         console.error(`Error updating stats for player ${player.id}:`, rpcError);
-        // エラーが発生しても処理を続行するが、コインの変更は0として扱う
-        updatedRankedPlayers.push({ ...player, coin_change: 0 });
+        // エラーが発生しても処理を続行するが、変更は0として扱う
+        updatedRankedPlayers.push({ ...player, coin_change: 0, rating_change: 0 });
       } else {
-        updatedRankedPlayers.push({ ...player, coin_change: coinChange });
+        updatedRankedPlayers.push({ ...player, coin_change: coinChange, rating_change: ratingChange });
       }
     } catch (e) {
       console.error(`Exception during player stats update for ${player.id}:`, e);
-      updatedRankedPlayers.push({ ...player, coin_change: 0 });
+      updatedRankedPlayers.push({ ...player, coin_change: 0, rating_change: 0 });
     }
   });
 
@@ -1777,7 +1824,7 @@ io.on('connection', (socket) => {
 
       const { data: profiles, error: profileError } = await supabase
         .from('users')
-        .select('id, username, avatar_url, cat_coins, rating, total_games_played, sum_of_ranks')
+        .select('id, username, avatar_url, cat_coins, rating, total_games_played, sum_of_ranks, class')
         .in('id', playerIds);
 
       if (profileError || !profiles) {
@@ -1793,6 +1840,7 @@ io.on('connection', (socket) => {
               avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
+              class: profile?.class || 1,
               total_games_played: profile?.total_games_played || 0,
               sum_of_ranks: profile?.sum_of_ranks || 0,
               hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null,

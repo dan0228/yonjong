@@ -6,7 +6,6 @@ import { preloadImages } from '@/utils/imageLoader';
 import { defineStore } from 'pinia';
 import * as mahjongLogic from '@/services/mahjongLogic';
 import { io } from 'socket.io-client'; // Socket.ioクライアントをインポート
-import { supabase } from '@/supabaseClient';
 
 // ゲームサーバーのURLを環境変数から取得
 const GAME_SERVER_URL = import.meta.env.VITE_APP_GAME_SERVER_URL;
@@ -781,7 +780,7 @@ export const useGameStore = defineStore('game', {
         const selectedAis = shuffledAis.slice(0, 3).map((ai, index) => {
           let catCoins = 0;
           let rating = 0;
-          let rank = 1; // デフォルトは子猫級
+          let user_rank_class = 1; // デフォルトは子猫級
 
           switch (ai.originalId) {
             case 'kuro':
@@ -807,11 +806,11 @@ export const useGameStore = defineStore('game', {
 
           // レーティングに基づいてランクを決定
           if (rating >= 5000) {
-            rank = 3;
+            user_rank_class = 3;
           } else if (rating >= 2000) {
-            rank = 2;
+            user_rank_class = 2;
           } else {
-            rank = 1;
+            user_rank_class = 1;
           }
 
           return {
@@ -829,7 +828,7 @@ export const useGameStore = defineStore('game', {
             isStockedTileSelected: false,
             cat_coins: catCoins,
             rating: rating,
-            rank: rank, // ★AIプレイヤーにrankを設定
+            user_rank_class: user_rank_class, // ★AIプレイヤーにuser_rank_classを設定
             isAi: true, // AIプレイヤーであることを明示
           };
         });
@@ -856,7 +855,7 @@ export const useGameStore = defineStore('game', {
           humanPlayer.avatar_url = userStore.profile.avatar_url;
           humanPlayer.total_games_played = userStore.profile.total_games_played;
           humanPlayer.sum_of_ranks = userStore.profile.sum_of_ranks;
-          humanPlayer.rank = userStore.profile.rank; // ★人間プレイヤーにrankを設定
+          humanPlayer.user_rank_class = userStore.profile.user_rank_class; // ★人間プレイヤーにuser_rank_classを設定
         }
 
         this.players = [

@@ -20,12 +20,12 @@ BEGIN
     PERFORM pg_advisory_xact_lock(1);
 
     -- 参加するプレイヤーの完全なプロフィールを取得
-    SELECT id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, rank
+    SELECT id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, class as user_class
     INTO v_user_profile
     FROM public.users
     WHERE id = p_user_id;
 
-    -- ===第一段階:レーティングが近い参加可能なゲームを探す===
+    -- ===第一段階:レーティングが近い参加可能なゲ��ムを探す===
     SELECT gs.id, gs.player_1_id, gs.player_2_id,
            gs.player_3_id, gs.player_4_id,
            gs.avg_rating, gs.game_data
@@ -81,7 +81,7 @@ BEGIN
             'cat_coins', v_user_profile.cat_coins,
             'total_games_played', v_user_profile.total_games_played,
             'sum_of_ranks', v_user_profile.sum_of_ranks,
-            'rank', v_user_profile.rank, -- ★ rankを追加
+            'class', v_user_profile.user_class,
             'score', 50000,
             'isAi', false
         );
@@ -126,7 +126,7 @@ BEGIN
                         'cat_coins', v_user_profile.cat_coins,
                         'total_games_played', v_user_profile.total_games_played,
                         'sum_of_ranks', v_user_profile.sum_of_ranks,
-                        'rank', v_user_profile.rank, -- ★ rankを追加
+                        'class', v_user_profile.user_class,
                         'score', 50000,
                         'isAi', false
                     )
