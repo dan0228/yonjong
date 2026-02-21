@@ -29,6 +29,12 @@
             class="board-image"
           >
           <span class="rating-number-on-board">{{ userStore.profile?.rating ?? 1500 }}</span>
+          <img
+            v-if="ratingBadgeSrc"
+            :src="ratingBadgeSrc"
+            alt="Rating Badge"
+            class="rating-badge-image"
+          >
           <span class="cat-coins-number-on-board">{{ userStore.profile?.cat_coins || 0 }}</span>
         </div>
         <!-- 上部コントロール -->
@@ -374,6 +380,26 @@ const boardImageSrc = computed(() =>
     : '/assets/images/info/board.png'
 );
 
+const ratingBadgeSrc = computed(() => {
+  const rank = userStore.profile?.rank;
+  if (!rank) {
+    return null;
+  }
+
+  const langSuffix = locale.value === 'en' ? '_en' : '';
+  
+  switch (rank) {
+    case 1:
+      return `/assets/images/info/kitten${langSuffix}.png`;
+    case 2:
+      return `/assets/images/info/alley${langSuffix}.png`;
+    case 3:
+      return `/assets/images/info/boss${langSuffix}.png`;
+    default:
+      return null;
+  }
+});
+
 const handleVolumeChange = (event) => {
   audioStore.setVolume(parseFloat(event.target.value));
 };
@@ -383,12 +409,8 @@ const handleVolumeChange = (event) => {
 const DESIGN_WIDTH = 360;
 const DESIGN_HEIGHT = 640;
 
-/**
- * 現在のウィンドウサイズに基づいて適切なスケール値を計算します。
- * @returns {number} 計算されたスケール値
- */
 const calculateScaleFactor = () => {
-  if (typeof window === 'undefined') return 1; // SSRガード
+  if (typeof window === 'undefined') return 1;
   const currentWidth = window.innerWidth;
   const currentHeight = window.innerHeight;
   const scaleX = currentWidth / DESIGN_WIDTH;
@@ -396,14 +418,12 @@ const calculateScaleFactor = () => {
   return Math.min(scaleX, scaleY);
 };
 
-// コンポーネント初期化時に正しいスケール値を設定
 const scaleFactor = ref(calculateScaleFactor());
 
 const scalerStyle = computed(() => ({
   transform: `translate(-50%, -50%) scale(${scaleFactor.value})`,
 }));
 
-// リサイズイベント用にスケールを更新する関数
 const updateScaleFactor = () => {
   scaleFactor.value = calculateScaleFactor();
 };
@@ -412,15 +432,12 @@ const updateScaleFactor = () => {
 onMounted(async () => {
   isMobileDevice.value = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
-  // まずユーザー情報を取得しようと試みる
   await userStore.fetchUserProfile({ showLoading: false });
 
-  // ユーザー情報がなければ、新しいゲストとして自動登録
   if (!userStore.profile) {
     await userStore.registerAsGuest();
   }
 
-  // 初期スケールは既に設定済みのため、ここではリサイズイベントのリスナーを追加するだけ
   window.addEventListener('resize', updateScaleFactor);
 });
 
@@ -794,6 +811,13 @@ onBeforeUnmount(() => {
   height: auto;
 }
 
+.rating-badge-image {
+  position: absolute;
+  width: 40px;
+  height: auto;
+  top: 0px;
+  right: -38px;
+}
 
 .rating-number-on-board {
   position: absolute;
