@@ -170,7 +170,10 @@ BEGIN
             'rating', u.rating,
             'cat_coins', u.cat_coins,
             'total_games_played', u.total_games_played,
-            'sum_of_ranks', u.sum_of_ranks,
+            'first_place_count', u.first_place_count,   -- ★追加
+            'second_place_count', u.second_place_count, -- ★追加
+            'third_place_count', u.third_place_count,   -- ★追加
+            'fourth_place_count', u.fourth_place_count, -- ★追加
             'user_rank_class', u.class,
             'score', 50000, -- ゲーム開始時の初期スコア
             'isAi', false,

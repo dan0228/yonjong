@@ -1890,7 +1890,7 @@ io.on('connection', (socket) => {
 
       const { data: profiles, error: profileError } = await supabase
         .from('users')
-        .select('id, username, avatar_url, cat_coins, rating, total_games_played, sum_of_ranks, class')
+        .select('id, username, avatar_url, cat_coins, rating, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, class') // ★修正
         .in('id', playerIds);
 
       if (profileError || !profiles) {
@@ -1908,7 +1908,10 @@ io.on('connection', (socket) => {
               rating: profile?.rating || 1500,
               user_rank_class: profile?.class || 1,
               total_games_played: profile?.total_games_played || 0,
-              sum_of_ranks: profile?.sum_of_ranks || 0,
+              first_place_count: profile?.first_place_count || 0,   // ★追加
+              second_place_count: profile?.second_place_count || 0, // ★追加
+              third_place_count: profile?.third_place_count || 0,   // ★追加
+              fourth_place_count: profile?.fourth_place_count || 0, // ★追加
               hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null,
               stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false,
               isAi: false,
