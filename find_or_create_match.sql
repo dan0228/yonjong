@@ -23,7 +23,9 @@ BEGIN
     PERFORM pg_advisory_xact_lock(1);
 
     -- 参加するプレイヤーの完全なプロフィールを取得
-    SELECT id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, class as user_class
+    SELECT id, username, avatar_url, rating, cat_coins, total_games_played,
+           first_place_count, second_place_count, third_place_count, fourth_place_count, -- ★修正: 順位カウントカラムを追加
+           class as user_class
     INTO v_user_profile
     FROM public.users
     WHERE id = p_user_id;
@@ -91,7 +93,10 @@ BEGIN
             'rating', p_user_rating,
             'cat_coins', v_user_profile.cat_coins,
             'total_games_played', v_user_profile.total_games_played,
-            'sum_of_ranks', v_user_profile.sum_of_ranks,
+            'first_place_count', v_user_profile.first_place_count,   -- ★修正
+            'second_place_count', v_user_profile.second_place_count, -- ★修正
+            'third_place_count', v_user_profile.third_place_count,   -- ★修正
+            'fourth_place_count', v_user_profile.fourth_place_count, -- ★修正
             'user_rank_class', v_user_profile.user_class,
             'score', 50000,
             'isAi', false
@@ -115,7 +120,7 @@ BEGIN
         v_game_id := v_game_record.id;
         out_is_full := (v_player_count + 1) = 4;
 
-    -- ゲームが見つからなかった場合 (第一段階も第二段階も見つからなかった場合)
+    -- ゲームが見つからなかった場合 (第一���階も第二段階も見つからなかった場合)
     ELSE
         v_new_game_id := gen_random_uuid();
         INSERT INTO public.games (id, room_tier, status, avg_rating, game_data)
@@ -137,7 +142,10 @@ BEGIN
                         'rating', p_user_rating,
                         'cat_coins', v_user_profile.cat_coins,
                         'total_games_played', v_user_profile.total_games_played,
-                        'sum_of_ranks', v_user_profile.sum_of_ranks,
+                        'first_place_count', v_user_profile.first_place_count,   -- ★修正
+                        'second_place_count', v_user_profile.second_place_count, -- ★修正
+                        'third_place_count', v_user_profile.third_place_count,   -- ★修正
+                        'fourth_place_count', v_user_profile.fourth_place_count, -- ★修正
                         'user_rank_class', v_user_profile.user_class,
                         'score', 50000,
                         'isAi', false

@@ -870,7 +870,10 @@ export const useGameStore = defineStore('game', {
           humanPlayer.rating = userStore.profile.rating;
           humanPlayer.avatar_url = userStore.profile.avatar_url;
           humanPlayer.total_games_played = userStore.profile.total_games_played;
-          humanPlayer.sum_of_ranks = userStore.profile.sum_of_ranks;
+          humanPlayer.first_place_count = userStore.profile.first_place_count;   // ★追加
+          humanPlayer.second_place_count = userStore.profile.second_place_count; // ★追加
+          humanPlayer.third_place_count = userStore.profile.third_place_count;   // ★追加
+          humanPlayer.fourth_place_count = userStore.profile.fourth_place_count; // ★追加
           humanPlayer.user_rank_class = userStore.profile.user_rank_class; // ★人間プレイヤーにuser_rank_classを設定
         }
 

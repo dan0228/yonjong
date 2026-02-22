@@ -1733,6 +1733,7 @@ io.on('connection', (socket) => {
         // メモリにゲーム状態がなければ、DBからロードを試みる
         console.log(`No game state in memory for ${gameId}. Attempting to load from DB.`);
         const { data, error } = await supabase
+            .from('games') // ★修正: from('games') を追加
             .select('game_data, version') // ★修正: version も取得
             .eq('id', gameId)
             .single();
