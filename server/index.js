@@ -1592,76 +1592,38 @@ async function handlePlayerLeave(gameId, userId) {
     newGameStatus = 'waiting';
   }
 
-  // games テーブルの status と updated_at を更新
-  const { error: updateGameError } = await supabase
+  // ★修正: games テーブルの status, game_data, updated_at, version をまとめて更新
+  // 現在のゲームのバージョンを取得
+  const { data: currentGameStateFromDb, error: fetchGameError } = await supabase
+    .from('games')
+    .select('version')
+    .eq('id', gameId)
+    .single();
+
+  if (fetchGameError || !currentGameStateFromDb) {
+    console.error(`Error fetching current game version for game ${gameId}:`, fetchGameError?.message);
+    return;
+  }
+  const currentVersion = currentGameStateFromDb.version;
+
+  const { error: updateGameError, count: updateCount } = await supabase
     .from('games')
     .update({
       status: newGameStatus,
       updated_at: new Date(),
-      // game_data 内の players 配列も更新する必要がある
-      // これは後でまとめて取得して更新する
+      game_data: game, // 更新された game.players を含む
+      version: currentVersion + 1 // version をインクリメント
     })
-    .eq('id', gameId);
+    .eq('id', gameId)
+    .eq('version', currentVersion); // 楽観的ロックの条件
 
   if (updateGameError) {
-    console.error(`Error updating game status for game ${gameId} after player left:`, updateGameError);
+    console.error(`Error updating game status and data for game ${gameId} after player left:`, updateGameError);
     return;
   }
-
-  // メモリ上のゲーム状態からプレイヤーを削除
-  game.players = game.players.filter(p => p.id !== userId);
-
-  // game_data 内の players 配列を更新するために、最新のプレイヤーリストを再構築
-  const { data: currentPlayersInDb, error: fetchPlayersError } = await supabase
-    .from('game_players')
-    .select('user_id, seat_index')
-    .eq('game_id', gameId)
-    .order('seat_index', { ascending: true });
-
-  if (fetchPlayersError) {
-    console.error(`Error fetching current players for game_data update for game ${gameId}:`, fetchPlayersError);
-    return;
-  }
-
-  const playerProfiles = await Promise.all(currentPlayersInDb.map(async (gp) => {
-    const { data: userProfile, error: userProfileError } = await supabase
-      .from('users')
-      .select('id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, class')
-      .eq('id', gp.user_id)
-      .single();
-
-    if (userProfileError) {
-      console.error(`Error fetching user profile for ${gp.user_id}:`, userProfileError);
-      return null;
-    }
-
-    return {
-      id: userProfile.id,
-      name: userProfile.username,
-      username: userProfile.username,
-      avatar_url: userProfile.avatar_url || '/assets/images/info/hito_icon_1.png',
-      rating: userProfile.rating,
-      cat_coins: userProfile.cat_coins,
-      total_games_played: userProfile.total_games_played,
-      sum_of_ranks: userProfile.sum_of_ranks,
-      user_rank_class: userProfile.class,
-      score: 50000, // 初期スコア
-      isAi: false,
-      seat_index: gp.seat_index, // seat_index を追加
-    };
-  }));
-
-  // nullを除外してフィルタリング
-  game.players = playerProfiles.filter(Boolean);
-
-  // game_data を更新
-  const { error: updateGameDataError } = await supabase
-    .from('games')
-    .update({ game_data: game })
-    .eq('id', gameId);
-
-  if (updateGameDataError) {
-    console.error(`Error updating game_data for game ${gameId} after player left:`, updateGameDataError);
+  if (updateCount === 0) {
+    console.warn(`Optimistic lock failed for game ${gameId} during player leave. Game state was already updated.`);
+    // ここでリカバリーロジックを検討することも可能
     return;
   }
 
@@ -1679,6 +1641,8 @@ async function handlePlayerLeave(gameId, userId) {
     console.log(`Game ${gameId} removed from memory and DB.`);
   } else {
     // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
+    // メモリ上のゲーム状態のバージョンも更新
+    game.version = currentVersion + 1;
     io.to(gameId).emit('game-state-update', game);
   }
 }

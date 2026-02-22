@@ -16,7 +16,8 @@ DECLARE
     v_new_game_id uuid;
     v_user_profile RECORD; -- ユーザー情報を格納する変数をRECORD型に変更
     v_game_id uuid; -- 内部で使用するゲームID
-    
+    v_room_tier text; -- room_tier を格納する変数
+    v_adjacent_room_tiers text[]; -- 隣接する room_tier を格納する配列
 BEGIN
     -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
     PERFORM pg_advisory_xact_lock(1);
@@ -27,29 +28,42 @@ BEGIN
     FROM public.users
     WHERE id = p_user_id;
 
-    -- ===第一段階:レーティングが近い参加可能なゲームを探す===
-    SELECT g.id, g.avg_rating, g.game_data
+    -- ユーザーのレーティングに基づいて room_tier を決定
+    IF v_user_profile.rating >= 5000 THEN
+        v_room_tier := 'Boss';
+        v_adjacent_room_tiers := ARRAY['Alley']; -- Bossの隣はAlley
+    ELSIF v_user_profile.rating >= 2000 THEN
+        v_room_tier := 'Alley';
+        v_adjacent_room_tiers := ARRAY['Kitten', 'Boss']; -- Alleyの隣はKittenとBoss
+    ELSE
+        v_room_tier := 'Kitten';
+        v_adjacent_room_tiers := ARRAY['Alley']; -- Kittenの隣はAlley
+    END IF;
+
+    -- ===第一段階: 同じ階級の部屋で、平均レートが近い順に探す===
+    SELECT g.id, g.avg_rating, g.game_data, g.version -- ★修正: version も取得
     INTO v_game_record
     FROM public.games g
     WHERE
         g.status = 'waiting'
-        AND g.avg_rating BETWEEN (p_user_rating - 2000) AND (p_user_rating + 2000)
+        AND g.room_tier = v_room_tier -- 同じ room_tier のゲームを探す
         AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
         AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
-    ORDER BY abs(g.avg_rating - p_user_rating)
+    ORDER BY abs(g.avg_rating - p_user_rating) -- ★修正: 平均レートが近い順
     LIMIT 1
     FOR UPDATE;
 
-    -- ===第二段階:レーティングマッチで見つからなかった場合、空いているゲームを探す ===
+    -- ===第二段階: 同じ階級で見つからなかった場合、隣接する階級の部屋で平均レートが近い順に探す ===
     IF NOT FOUND THEN
-        SELECT g.id, g.avg_rating, g.game_data
+        SELECT g.id, g.avg_rating, g.game_data, g.version -- ★修正: version も取得
         INTO v_game_record
         FROM public.games g
         WHERE
             g.status = 'waiting'
+            AND g.room_tier = ANY(v_adjacent_room_tiers) -- 隣接する room_tier のゲームを探す
             AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
             AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
-        ORDER BY g.created_at ASC
+        ORDER BY abs(g.avg_rating - p_user_rating) -- ★修正: 平均レートが近い順
         LIMIT 1
         FOR UPDATE;
     END IF;
@@ -93,20 +107,21 @@ BEGIN
                 v_game_record.game_data,
                 '{players}',
                 v_game_record.game_data->'players' || v_players_data
-            )
-        WHERE id = v_game_record.id;
+            ),
+            version = v_game_record.version + 1 -- ★追加: version をインクリメント
+        WHERE id = v_game_record.id AND version = v_game_record.version; -- ★追加: 楽観的ロックの条件
 
         SELECT game_data INTO v_current_game_data FROM public.games WHERE id = v_game_record.id;
         v_game_id := v_game_record.id;
         out_is_full := (v_player_count + 1) = 4;
 
-    -- ゲームが見つからなかった場合
+    -- ゲームが見つからなかった場合 (第一段階も第二段階も見つからなかった場合)
     ELSE
         v_new_game_id := gen_random_uuid();
         INSERT INTO public.games (id, room_tier, status, avg_rating, game_data)
         VALUES (
             v_new_game_id,
-            'ranked', -- デフォルトで'ranked'を設定
+            v_room_tier, -- 決定された room_tier を使用
             'waiting',
             p_user_rating,
             jsonb_build_object(
