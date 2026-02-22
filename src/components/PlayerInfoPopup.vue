@@ -101,10 +101,17 @@ const rankBadgeSrc = computed(() => {
 
 // 平均順位を計算する算出プロパティ
 const averageRank = computed(() => {
-  if (!props.player || !props.player.total_games_played) {
+  if (!props.player || !props.player.total_games_played || props.player.total_games_played === 0) {
     return '-';
   }
-  const avg = props.player.sum_of_ranks / props.player.total_games_played;
+
+  const totalRankPoints =
+    (1 * (props.player.first_place_count ?? 0)) +
+    (2 * (props.player.second_place_count ?? 0)) +
+    (3 * (props.player.third_place_count ?? 0)) +
+    (4 * (props.player.fourth_place_count ?? 0));
+
+  const avg = totalRankPoints / props.player.total_games_played;
   return avg.toFixed(2);
 });
 
