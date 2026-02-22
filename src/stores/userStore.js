@@ -87,7 +87,7 @@ export const useUserStore = defineStore('user', () => {
       if (user) {
         const { data, error, status } = await supabase
           .from('users')
-          .select(`*, rank as user_rank_class`) // rankカラムをuser_rank_classとして取得するように修正
+          .select(`*, user_rank_class:class`)
           .eq('id', user.id)
           .single();
 

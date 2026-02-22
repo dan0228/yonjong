@@ -194,7 +194,7 @@ async function fetchLeaderboardData(type) {
   isLoading.value = true;
   error.value = null;
   try {
-    const selectColumns = 'id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks';
+    const selectColumns = 'id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, user_rank_class:class';
     let query = supabase.from('users').select(selectColumns);
 
     if (type === 'rating') {
@@ -215,6 +215,7 @@ async function fetchLeaderboardData(type) {
       cat_coins: player.cat_coins,
       total_games_played: player.total_games_played,
       sum_of_ranks: player.sum_of_ranks,
+      user_rank_class: player.user_rank_class,
     }));
 
     if (type === 'rating') {

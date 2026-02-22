@@ -82,7 +82,7 @@ const props = defineProps({
 const { locale, t } = useI18n();
 
 const rankBadgeSrc = computed(() => {
-  const rank = props.player?.rank;
+  const rank = props.player?.user_rank_class;
   if (!rank) return null;
 
   const langSuffix = locale.value === 'en' ? '_en' : '';
