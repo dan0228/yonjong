@@ -129,6 +129,7 @@ function createDefaultGameState() {
     hasGameStarted: false,
     chatBubbles: {},
     lastChattedPlayerId: null,
+    version: 1, // ★追加: 楽観的ロックのためのバージョン管理
   };
 }
 
@@ -139,20 +140,30 @@ app.get('/', (req, res) => {
 });
 
 // ゲームの状態をSupabaseに保存するヘルパー関数
-async function saveGameState(gameId, gameState) {
-  const { error } = await supabase
-    .from('games') // game_states から games に変更
+async function saveGameState(gameId, gameState, expectedVersion) { // expectedVersion を追加
+  const { data, error, count } = await supabase // count を取得
+    .from('games')
     .update({
       game_data: gameState,
       updated_at: new Date(),
       current_turn_user_id: gameState.currentTurnPlayerId,
-      status: gameState.gamePhase === 'gameOver' ? 'finished' : 'in_progress'
+      status: gameState.gamePhase === 'gameOver' ? 'finished' : 'in_progress',
+      version: expectedVersion + 1 // version をインクリメント
     })
-    .eq('id', gameId);
+    .eq('id', gameId)
+    .eq('version', expectedVersion); // 楽観的ロックの条件
 
   if (error) {
     console.error("Error updating game state in DB:", error);
+    return false; // 更新失敗
   }
+
+  if (count === 0) {
+    console.warn(`Optimistic lock failed for game ${gameId}. Expected version ${expectedVersion}, but it was already updated.`);
+    // ここでクライアントにエラーを通知するか、リトライロジックを検討することも可能
+    return false; // 更新失敗
+  }
+  return true; // 更新成功
 }
 
 // Helper to update game state and broadcast to clients
@@ -170,8 +181,32 @@ async function updateAndBroadcastGameState(gameId, gameState) {
     }
   }
 
-  await saveGameState(gameId, gameState);
-  io.to(gameId).emit('game-state-update', gameState);
+  // ★修正: saveGameState に現在のバージョンを渡す
+  const success = await saveGameState(gameId, gameState, gameState.version);
+  if (success) {
+    // DB更新が成功した場合のみ、メモリ上のバージョンを更新し、クライアントにブロードキャスト
+    gameState.version++; // メモリ上のバージョンもインクリメント
+    io.to(gameId).emit('game-state-update', gameState);
+  } else {
+    // 楽観的ロックに失敗した場合、最新のゲーム状態をDBから再取得してクライアントに送信するなどのリカバリー処理を検討
+    console.warn(`Failed to save game state for ${gameId} due to optimistic lock. Attempting to re-fetch and broadcast latest state.`);
+    const { data, error } = await supabase
+      .from('games')
+      .select('game_data, version')
+      .eq('id', gameId)
+      .single();
+
+    if (error || !data) {
+      console.error(`Error re-fetching game state for ${gameId} after optimistic lock failure:`, error?.message);
+      // クライアントにエラーを通知
+      io.to(gameId).emit('gameError', { message: 'ゲームの状態同期に失敗しました。' });
+      return;
+    }
+    // 最新の状態をメモリにロードし、クライアントにブロードキャスト
+    gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
+    gameStates[gameId].version = data.version; // 最新のバージョンをセ���ト
+    io.to(gameId).emit('game-state-update', gameStates[gameId]);
+  }
 }
 
 // 現在のプレイヤーをスコアでランク付けし、順位を付与する関数
@@ -1734,8 +1769,7 @@ io.on('connection', (socket) => {
         // メモリにゲーム状態がなければ、DBからロードを試みる
         console.log(`No game state in memory for ${gameId}. Attempting to load from DB.`);
         const { data, error } = await supabase
-            .from('games') // game_states から games に変更
-            .select('game_data')
+            .select('game_data, version') // ★修正: version も取得
             .eq('id', gameId)
             .single();
 
@@ -1745,6 +1779,7 @@ io.on('connection', (socket) => {
             return;
         }
         currentState = Object.assign(createDefaultGameState(), data.game_data);
+        currentState.version = data.version; // ★追加: version をセット
         gameStates[gameId] = currentState; // メモリにロード
         socket.emit('game-state-update', currentState);
         console.log(`Loaded game state of ${gameId} from DB and sent to player ${userId}`);
@@ -1847,7 +1882,7 @@ io.on('connection', (socket) => {
         console.log(`[Server] Game ${gameId} not found in memory or is empty. Attempting to load from DB.`);
         const { data, error } = await supabase
             .from('games') // game_states から games に変更
-            .select('game_data, status') // status も取得
+            .select('game_data, status, version') // ★修正: version も取得
             .eq('id', gameId)
             .single();
 
@@ -1859,7 +1894,8 @@ io.on('connection', (socket) => {
         gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
         // DBからロードしたstatusをメモリ上のゲーム状態にも反映
         gameStates[gameId].status = data.status;
-        console.log(`[Server] Game ${gameId} loaded from DB. Status: ${gameStates[gameId].status}`);
+        gameStates[gameId].version = data.version; // ★追加: version をセット
+        console.log(`[Server] Game ${gameId} loaded from DB. Status: ${gameStates[gameId].status}, Version: ${gameStates[gameId].version}`);
       }
 
       console.log(`Initializing game ${gameId} by user ${userId}`);
