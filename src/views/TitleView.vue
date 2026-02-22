@@ -381,7 +381,7 @@ const boardImageSrc = computed(() =>
 );
 
 const ratingBadgeSrc = computed(() => {
-  const rank = userStore.profile?.rank;
+  const rank = userStore.profile?.user_rank_class;
   if (!rank) {
     return null;
   }
