@@ -630,6 +630,11 @@ export const useGameStore = defineStore('game', {
           this.isMatchmakingRequested = false; // ゲームが見つかったらリクエストフラグをリセット
           this.initializeOnlineGame(); // ★★★ ゲーム初期化をリクエスト
         });
+
+        socket.on('matchmaking-cancelled', () => {
+          console.log('[GameStore] Matchmaking was cancelled by the server.');
+          this.isGameReady = false; // ゲーム準備完了状態をリセット
+        });
       }
     },
     setOnlineGame({ gameId, localUserId }) { // hostIdは不要
@@ -653,6 +658,10 @@ export const useGameStore = defineStore('game', {
 
     disconnectOnlineGame() {
       if (socket && socket.connected) {
+        // サーバーに退出したことを通知
+        if (this.onlineGameId && this.localPlayerId) {
+          socket.emit('leaveGame', { gameId: this.onlineGameId, userId: this.localPlayerId });
+        }
         socket.disconnect();
       }
       this.isGameOnline = false;

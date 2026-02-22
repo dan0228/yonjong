@@ -1512,189 +1512,136 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
     }
 }
 
+// プレイヤーの退出・切断を処理する共通関数
+async function handlePlayerLeave(gameId, userId) {
+  const game = gameStates[gameId];
+  if (!game || !Array.isArray(game.players)) {
+    console.warn(`handlePlayerLeave: Game ${gameId} not found or has invalid players array.`);
+    return;
+  }
+
+  const playerIndex = game.players.findIndex(p => p.id === userId);
+  if (playerIndex === -1) {
+    console.warn(`handlePlayerLeave: Player ${userId} not found in game ${gameId}.`);
+    return;
+  }
+
+  const initialPlayerCount = game.players.length;
+  console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}. Initial count: ${initialPlayerCount}`);
+
+  const remainingPlayers = game.players.filter(p => p.id !== userId);
+  game.players = remainingPlayers;
+
+  const updateData = { updated_at: new Date(), game_data: game };
+  updateData.player_1_id = remainingPlayers[0]?.id || null;
+  updateData.player_2_id = remainingPlayers[1]?.id || null;
+  updateData.player_3_id = remainingPlayers[2]?.id || null;
+  updateData.player_4_id = remainingPlayers[3]?.id || null;
+
+  if (remainingPlayers.length === 0) {
+    updateData.status = 'cancelled';
+    console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
+  } else {
+    // ゲーム開始前（カウントダウン中を含む）に4人から3人以下になった場合
+    if (!game.hasGameStarted && initialPlayerCount === 4 && remainingPlayers.length < 4) {
+      updateData.status = 'waiting';
+      game.isGameReady = false; // isGameReadyをfalseに戻す
+      console.log(`Game ${gameId} is returning to matchmaking state. Notifying remaining players.`);
+      // ★★★ 修正点: マッチングキャンセルを通知 ★★★
+      io.to(gameId).emit('matchmaking-cancelled');
+    } else if (!game.hasGameStarted) {
+      updateData.status = 'waiting';
+    }
+  }
+
+  const { error } = await supabase.from('game_states').update(updateData).eq('id', gameId);
+  if (error) {
+    console.error(`Error updating game state for game ${gameId} after player left:`, error);
+  }
+
+  if (remainingPlayers.length === 0) {
+    delete gameStates[gameId];
+    console.log(`Game ${gameId} removed from memory.`);
+  } else {
+    // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
+    // 'matchmaking-update' を送信してプレイヤーリストを更新させる
+    const { data: remainingProfiles, error: profileError } = await supabase
+        .from('users')
+        .select('id, username, avatar_url, rating, class, cat_coins, total_games_played, sum_of_ranks')
+        .in('id', remainingPlayers.map(p => p.id));
+    
+    if (profileError) {
+        console.error(`Error fetching remaining profiles for game ${gameId}:`, profileError);
+    } else {
+        const formattedPlayers = remainingProfiles.map(p => ({
+            id: p.id, name: p.username, username: p.username, avatar_url: p.avatar_url,
+            rating: p.rating, class: p.class, cat_coins: p.cat_coins,
+            total_games_played: p.total_games_played, sum_of_ranks: p.sum_of_ranks,
+            score: 50000, isAi: false
+        }));
+        io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: formattedPlayers });
+    }
+  }
+}
+
+
 // Socket.io接続ハンドラ
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  socket.on('disconnect', async () => { // async を追加
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
     let disconnectedUserId = null;
+    let gameIdToUpdate = null;
 
-    // userSocketMapから切断したユーザーを削除
     for (const [userId, socketId] of userSocketMap.entries()) {
-        if (socketId === socket.id) {
-            disconnectedUserId = userId;
-            userSocketMap.delete(userId);
-            console.log(`Removed user ${userId} from userSocketMap`);
-            break;
-        }
+      if (socketId === socket.id) {
+        disconnectedUserId = userId;
+        userSocketMap.delete(userId);
+        break;
+      }
     }
 
-    // ユーザーが切断された場合の処理
     if (disconnectedUserId) {
-        let gameFoundAndUpdated = false;
+      // メモリ上のアクティブなゲームから探す
+      for (const gameId in gameStates) {
+        if (gameStates[gameId].players.some(p => p.id === disconnectedUserId)) {
+          gameIdToUpdate = gameId;
+          break;
+        }
+      }
+      
+      if (gameIdToUpdate) {
+        await handlePlayerLeave(gameIdToUpdate, disconnectedUserId);
+      } else {
+        // メモリになければDBのマッチング中のゲームから探す (元のロジックを簡略化)
+        const { data: matchmakingGames, error } = await supabase
+          .from('game_states')
+          .select('id, player_1_id, player_2_id, player_3_id, player_4_id, game_data')
+          .or(`player_1_id.eq.${disconnectedUserId},player_2_id.eq.${disconnectedUserId},player_3_id.eq.${disconnectedUserId},player_4_id.eq.${disconnectedUserId}`)
+          .eq('status', 'waiting');
 
-        // 1. メモリ上のアクティブなゲームから切断したユーザーを探す
-        for (const gameId in gameStates) {
-            const game = gameStates[gameId];
-            if (!Array.isArray(game.players)) {
-                console.warn(`Game ${gameId} has invalid players array.`);
-                continue;
-            }
-
-            const playerIndex = game.players.findIndex(p => p.id === disconnectedUserId);
-
-            if (playerIndex !== -1) {
-                const initialPlayerCount = game.players.length; // 切断前のプレイヤー数を記録
-                console.log(`Player ${disconnectedUserId} disconnected from active game ${gameId}. Initial count: ${initialPlayerCount}`);
-
-                const updateData = { updated_at: new Date() };
-
-                const remainingPlayers = game.players.filter(p => p.id !== disconnectedUserId);
-                game.players = remainingPlayers;
-                updateData.game_data = game;
-
-                updateData.player_1_id = remainingPlayers[0]?.id || null;
-                updateData.player_2_id = remainingPlayers[1]?.id || null;
-                updateData.player_3_id = remainingPlayers[2]?.id || null;
-                updateData.player_4_id = remainingPlayers[3]?.id || null;
-
-                if (remainingPlayers.length === 0) {
-                    updateData.status = 'cancelled';
-                    console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
-                } else {
-                    // ゲーム開始前（カウントダウン中）に4人から3人以下になった場合
-                    if (game.gamePhase === GAME_PHASES.WAITING_TO_START && initialPlayerCount === 4 && remainingPlayers.length < 4) {
-                        updateData.status = 'waiting'; // DBのステータスを 'waiting' に戻す
-                        // game オブジェクトの状態もリセット
-                        game.isGameReady = false;
-                        game.hasGameStarted = false;
-                        game.dealerIndex = null;
-                        game.currentTurnPlayerId = null;
-                        console.log(`Game ${gameId} is returning to matchmaking state due to disconnection.`);
-                    } else if (game.gamePhase === GAME_PHASES.WAITING_TO_START) {
-                        // 4人揃う前のマッチング中に誰かが抜けた場合
-                        updateData.status = 'waiting';
-                        console.log(`Game ${gameId} still has players in matchmaking. Setting status to 'waiting'.`);
-                    }
-                    // ゲーム進行中に抜けた場合は、status は 'in_progress' のまま
-                }
-
-                const { error } = await supabase
-                    .from('game_states')
-                    .update(updateData)
-                    .eq('id', gameId);
-
-                if (error) {
-                    console.error(`Error updating game state for game ${gameId}:`, error);
-                } else {
-                    if (remainingPlayers.length === 0) {
-                        // メモリからもゲーム状態を削除
-                        delete gameStates[gameId];
-                        console.log(`Game ${gameId} removed from memory.`);
-                    } else {
-                        // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-                        io.to(gameId).emit('game-state-update', game);
-                    }
-                }
-                gameFoundAndUpdated = true;
-                break; // 該当ゲームを見つけたらループを抜ける
-            }
+        if (error) {
+          console.error(`Error fetching matchmaking games for disconnected user ${disconnectedUserId}:`, error);
+          return;
         }
 
-        // 2. メモリ上のゲームに見つからなかった場合、Supabaseからマッチメイキング中のゲームを探す
-        if (!gameFoundAndUpdated) {
-            console.log(`Player ${disconnectedUserId} not found in active games. Checking Supabase for matchmaking games.`);
-            const { data: matchmakingGames, error: fetchError } = await supabase
-                .from('game_states')
-                .select('id, player_1_id, player_2_id, player_3_id, player_4_id, game_data, status')
-                .or(`player_1_id.eq.${disconnectedUserId},player_2_id.eq.${disconnectedUserId},player_3_id.eq.${disconnectedUserId},player_4_id.eq.${disconnectedUserId}`)
-                .eq('status', 'waiting'); // マッチメイキング中のゲームのみを対象
-
-            if (fetchError) {
-                console.error(`Error fetching matchmaking games for disconnected user ${disconnectedUserId}:`, fetchError);
-                return;
-            }
-
-            for (const dbGame of matchmakingGames) {
-                // game_data 内の players 配列からも切断したプレイヤーを削除
-                const updatedGameDataPlayers = dbGame.game_data.players.filter(p => p.id !== disconnectedUserId);
-                dbGame.game_data.players = updatedGameDataPlayers;
-
-                const updateData = { updated_at: new Date(), game_data: dbGame.game_data };
-
-                // ★★★ 修正: 堅牢な切断処理ロジック ★★★
-                const remainingPlayerIds = [];
-                if (dbGame.player_1_id && dbGame.player_1_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_1_id);
-                if (dbGame.player_2_id && dbGame.player_2_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_2_id);
-                if (dbGame.player_3_id && dbGame.player_3_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_3_id);
-                if (dbGame.player_4_id && dbGame.player_4_id !== disconnectedUserId) remainingPlayerIds.push(dbGame.player_4_id);
-
-                // 新しいプレイヤーリストに基づいてplayer_idを再割り当て（圧縮）
-                updateData.player_1_id = remainingPlayerIds[0] || null;
-                updateData.player_2_id = remainingPlayerIds[1] || null;
-                updateData.player_3_id = remainingPlayerIds[2] || null;
-                updateData.player_4_id = remainingPlayerIds[3] || null;
-
-                // 残りのプレイヤー数に応じてstatusを更新
-                if (remainingPlayerIds.length === 0) {
-                    updateData.status = 'cancelled';
-                    console.log(`Matchmaking game ${dbGame.id} has no players left. Setting status to 'cancelled'.`);
-                } else {
-                    updateData.status = 'waiting';
-                    console.log(`Matchmaking game ${dbGame.id} still has players. Setting status to 'waiting'.`);
-                }
-
-                const { error: updateError } = await supabase
-                    .from('game_states')
-                    .update(updateData)
-                    .eq('id', dbGame.id);
-
-                if (updateError) {
-                    console.error(`Error updating matchmaking game state for game ${dbGame.id}:`, updateError);
-                } else {
-                    console.log(`Matchmaking game ${dbGame.id} updated in Supabase.`);
-                    // 他のプレイヤーに状態更新をブロードキャスト (もしいる場合)
-                    if (remainingPlayerIds.length > 0) {
-                        // ★★★ 修正: 'matchmaking-update' イベントを正しいペイロードで送信する ★★★
-                        // 残りのプレイヤーの完全なプロフィール情報を取得
-                        const { data: remainingProfiles, error: profileError } = await supabase
-                            .from('users')
-                            .select('id, username, avatar_url, rating, class, cat_coins, total_games_played, sum_of_ranks')
-                            .in('id', remainingPlayerIds);
-
-                        if (profileError) {
-                            console.error(`Error fetching remaining player profiles for game ${dbGame.id}:`, profileError);
-                        } else {
-                            // ★★★ 修正: クライアントが期待する形式にプレイヤーデータを整形する ★★★
-                            const formattedPlayers = remainingProfiles.map(p => ({
-                                id: p.id,
-                                name: p.username,
-                                username: p.username,
-                                avatar_url: p.avatar_url,
-                                rating: p.rating,
-                                class: p.class, // user_rank_classではなくclassを使用
-                                cat_coins: p.cat_coins,
-                                total_games_played: p.total_games_played,
-                                sum_of_ranks: p.sum_of_ranks,
-                                score: 50000, // マッチング画面で表示される初期スコア
-                                isAi: false
-                            }));
-
-                            // マッチング画面が期待する 'matchmaking-update' イベントを送信
-                            io.to(dbGame.id).emit('matchmaking-update', {
-                                gameId: dbGame.id,
-                                players: formattedPlayers
-                            });
-                            console.log(`Sent 'matchmaking-update' to remaining players in game ${dbGame.id}.`);
-                        }
-                    }
-                }
-                break; // 該当ゲームを見つけたらループを抜ける
-            }
+        if (matchmakingGames && matchmakingGames.length > 0) {
+          const dbGame = matchmakingGames[0];
+          // DBのゲーム情報をメモリに一時的にロードして処理
+          gameStates[dbGame.id] = dbGame.game_data;
+          await handlePlayerLeave(dbGame.id, disconnectedUserId);
         }
+      }
     }
   });
+
+  // クライアントがゲームから意図的に退出する
+  socket.on('leaveGame', async ({ gameId, userId }) => {
+    console.log(`Player ${userId} is intentionally leaving game ${gameId}`);
+    await handlePlayerLeave(gameId, userId);
+  });
+
 
   // クライアントがゲームに参加する
   socket.on('joinGame', async ({ gameId, userId }) => {

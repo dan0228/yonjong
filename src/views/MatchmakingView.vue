@@ -305,9 +305,15 @@ watch(() => gameStore.matchmakingPlayers?.length, (newLength, oldLength) => {
 });
 
 // gameStore.isGameReady の変更を監視
-watch(() => gameStore.isGameReady, (newVal) => {
+watch(() => gameStore.isGameReady, (newVal, oldVal) => {
   if (newVal) {
     startFinalSequence();
+  } else if (oldVal && !newVal) {
+    // ゲーム準備完了状態が解除された場合 (例: 誰かが退出した)
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    showCountdown.value = false;
+    countdown.value = 3; // カウントダウンをリセット
   }
 });
 
