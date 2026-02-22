@@ -1660,16 +1660,31 @@ io.on('connection', (socket) => {
                         // 残りのプレイヤーの完全なプロフィール情報を取得
                         const { data: remainingProfiles, error: profileError } = await supabase
                             .from('users')
-                            .select('id, username, avatar_url, rating, user_rank_class:class')
+                            .select('id, username, avatar_url, rating, class, cat_coins, total_games_played, sum_of_ranks')
                             .in('id', remainingPlayerIds);
 
                         if (profileError) {
                             console.error(`Error fetching remaining player profiles for game ${dbGame.id}:`, profileError);
                         } else {
+                            // ★★★ 修正: クライアントが期��する形式にプレイヤーデータを整形する ★★★
+                            const formattedPlayers = remainingProfiles.map(p => ({
+                                id: p.id,
+                                name: p.username,
+                                username: p.username,
+                                avatar_url: p.avatar_url,
+                                rating: p.rating,
+                                user_rank_class: p.class, // クライアント側の命名規則に合わせる
+                                cat_coins: p.cat_coins,
+                                total_games_played: p.total_games_played,
+                                sum_of_ranks: p.sum_of_ranks,
+                                score: 50000, // マッチング画面で表示される初期スコア
+                                isAi: false
+                            }));
+
                             // マッチング画面が期待する 'matchmaking-update' イベントを送信
                             io.to(dbGame.id).emit('matchmaking-update', {
                                 gameId: dbGame.id,
-                                players: remainingProfiles
+                                players: formattedPlayers
                             });
                             console.log(`Sent 'matchmaking-update' to remaining players in game ${dbGame.id}.`);
                         }
