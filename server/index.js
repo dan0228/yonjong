@@ -1551,13 +1551,12 @@ async function handlePlayerLeave(gameId, userId) {
     updateData.status = 'cancelled';
     console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
   } else {
-    // ゲーム開始前（カウントダウン中を含む）に4人から3人以下になった場合
-    if (!game.hasGameStarted && initialPlayerCount === 4 && remainingPlayers.length < 4) {
+    // ★★★ 修正点 ★★★
+    // ゲーム開始前（isGameReadyがtrueだがhasGameStartedがfalse）にプレイヤーが抜けた場合
+    if (game.isGameReady && !game.hasGameStarted) {
       updateData.status = 'waiting';
       game.isGameReady = false; // isGameReadyをfalseに戻す
-      console.log(`Game ${gameId} is returning to matchmaking state. Notifying remaining players.`);
-      // ★★★ 修正点: マッチングキャンセルを通知 ★★★
-      io.to(gameId).emit('matchmaking-cancelled');
+      console.log(`Game ${gameId} is returning to matchmaking state due to player leaving during countdown.`);
     } else if (!game.hasGameStarted) {
       updateData.status = 'waiting';
     }
@@ -1573,23 +1572,7 @@ async function handlePlayerLeave(gameId, userId) {
     console.log(`Game ${gameId} removed from memory.`);
   } else {
     // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-    // 'matchmaking-update' を送信してプレイヤーリストを更新させる
-    const { data: remainingProfiles, error: profileError } = await supabase
-        .from('users')
-        .select('id, username, avatar_url, rating, class, cat_coins, total_games_played, sum_of_ranks')
-        .in('id', remainingPlayers.map(p => p.id));
-    
-    if (profileError) {
-        console.error(`Error fetching remaining profiles for game ${gameId}:`, profileError);
-    } else {
-        const formattedPlayers = remainingProfiles.map(p => ({
-            id: p.id, name: p.username, username: p.username, avatar_url: p.avatar_url,
-            rating: p.rating, class: p.class, cat_coins: p.cat_coins,
-            total_games_played: p.total_games_played, sum_of_ranks: p.sum_of_ranks,
-            score: 50000, isAi: false
-        }));
-        io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: formattedPlayers });
-    }
+    io.to(gameId).emit('game-state-update', game);
   }
 }
 
@@ -1628,7 +1611,7 @@ io.on('connection', (socket) => {
           .from('game_states')
           .select('id, player_1_id, player_2_id, player_3_id, player_4_id, game_data')
           .or(`player_1_id.eq.${disconnectedUserId},player_2_id.eq.${disconnectedUserId},player_3_id.eq.${disconnectedUserId},player_4_id.eq.${disconnectedUserId}`)
-          .eq('status', 'waiting');
+          .in('status', ['waiting', 'ready']); // waitingとreadyの両方を検索対象に
 
         if (error) {
           console.error(`Error fetching matchmaking games for disconnected user ${disconnectedUserId}:`, error);

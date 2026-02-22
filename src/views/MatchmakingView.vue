@@ -291,7 +291,12 @@ const startFinalSequence = () => {
       countdown.value--;
       if (countdown.value === 0) {
         clearInterval(countdownInterval);
-        router.push('/game');
+        // ★★★ 修正: 画面遷移の直前に、再度 isGameReady をチェックする
+        if (gameStore.isGameReady) {
+          router.push('/game');
+        } else {
+          console.log("ゲーム開始がキャンセルされました。");
+        }
       }
     }, 1000);
   }, 1000); // 1秒の遅延
