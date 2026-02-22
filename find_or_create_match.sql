@@ -25,7 +25,7 @@ BEGIN
     FROM public.users
     WHERE id = p_user_id;
 
-    -- ===第一段階:レーティングが近い参加可能なゲ��ムを探す===
+    -- ===第一段階:レーティングが近い参加可能なゲームを探す===
     SELECT gs.id, gs.player_1_id, gs.player_2_id,
            gs.player_3_id, gs.player_4_id,
            gs.avg_rating, gs.game_data

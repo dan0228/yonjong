@@ -1666,14 +1666,14 @@ io.on('connection', (socket) => {
                         if (profileError) {
                             console.error(`Error fetching remaining player profiles for game ${dbGame.id}:`, profileError);
                         } else {
-                            // ★★★ 修正: クライアントが期��する形式にプレイヤーデータを整形する ★★★
+                            // ★★★ 修正: クライアントが期待する形式にプレイヤーデータを整形する ★★★
                             const formattedPlayers = remainingProfiles.map(p => ({
                                 id: p.id,
                                 name: p.username,
                                 username: p.username,
                                 avatar_url: p.avatar_url,
                                 rating: p.rating,
-                                user_rank_class: p.class, // クライアント側の命名規則に合わせる
+                                class: p.class, // user_rank_classではなくclassを使用
                                 cat_coins: p.cat_coins,
                                 total_games_played: p.total_games_played,
                                 sum_of_ranks: p.sum_of_ranks,
