@@ -1656,7 +1656,23 @@ io.on('connection', (socket) => {
                     console.log(`Matchmaking game ${dbGame.id} updated in Supabase.`);
                     // 他のプレイヤーに状態更新をブロードキャスト (もしいる場合)
                     if (remainingPlayerIds.length > 0) {
-                        io.to(dbGame.id).emit('game-state-update', dbGame.game_data);
+                        // ★★★ 修正: 'matchmaking-update' イベントを正しいペイロードで送信する ★★★
+                        // 残りのプレイヤーの完全なプロフィール情報を取得
+                        const { data: remainingProfiles, error: profileError } = await supabase
+                            .from('users')
+                            .select('id, username, avatar_url, rating, user_rank_class:class')
+                            .in('id', remainingPlayerIds);
+
+                        if (profileError) {
+                            console.error(`Error fetching remaining player profiles for game ${dbGame.id}:`, profileError);
+                        } else {
+                            // マッチング画面が期待する 'matchmaking-update' イベントを送信
+                            io.to(dbGame.id).emit('matchmaking-update', {
+                                gameId: dbGame.id,
+                                players: remainingProfiles
+                            });
+                            console.log(`Sent 'matchmaking-update' to remaining players in game ${dbGame.id}.`);
+                        }
                     }
                 }
                 break; // 該当ゲームを見つけたらループを抜ける
