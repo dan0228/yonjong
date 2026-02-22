@@ -1785,7 +1785,8 @@ io.on('connection', (socket) => {
         }
 
         const { out_game_id, out_is_full, out_players } = matchData[0]; // out_game_id, out_is_full, out_players を取得
-        const players = JSON.parse(out_players); // JSON文字列をパース
+        // out_players が文字列であればパースし、そうでなければそのまま使用
+        const players = typeof out_players === 'string' ? JSON.parse(out_players) : out_players;
 
         console.log(`[5/5] Processing match result. Game ID: ${out_game_id}, Is Full: ${out_is_full}`);
 
