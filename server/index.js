@@ -1803,9 +1803,9 @@ io.on('connection', (socket) => {
                             playerSocket.emit('matchmaking-update', { gameId: out_game_id, players: players });
                         }
                     }
+                } else { // Socket IDが見つからない場合
+                    console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
                 }
-            } else { // Socket IDが見つからない場合
-                console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
             }
         } else {
             console.error('[ERROR] RPC returned invalid players data:', out_players);
