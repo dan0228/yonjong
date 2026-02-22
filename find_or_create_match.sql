@@ -81,7 +81,7 @@ BEGIN
             'cat_coins', v_user_profile.cat_coins,
             'total_games_played', v_user_profile.total_games_played,
             'sum_of_ranks', v_user_profile.sum_of_ranks,
-            'class', v_user_profile.user_class,
+            'user_rank_class', v_user_profile.user_class,
             'score', 50000,
             'isAi', false
         );
@@ -126,7 +126,7 @@ BEGIN
                         'cat_coins', v_user_profile.cat_coins,
                         'total_games_played', v_user_profile.total_games_played,
                         'sum_of_ranks', v_user_profile.sum_of_ranks,
-                        'class', v_user_profile.user_class,
+                        'user_rank_class', v_user_profile.user_class,
                         'score', 50000,
                         'isAi', false
                     )

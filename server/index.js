@@ -1840,7 +1840,7 @@ io.on('connection', (socket) => {
               avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
-              class: profile?.class || 1,
+              user_rank_class: profile?.class || 1,
               total_games_played: profile?.total_games_played || 0,
               sum_of_ranks: profile?.sum_of_ranks || 0,
               hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null,
