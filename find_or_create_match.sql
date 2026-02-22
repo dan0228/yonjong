@@ -4,9 +4,9 @@ CREATE OR REPLACE FUNCTION public.find_or_create_match(
     p_username text,
     p_avatar_url text
 )
-RETURNS TABLE(game_id uuid, is_full boolean, players jsonb)
+RETURNS TABLE(out_game_id uuid, out_is_full boolean, out_players jsonb)
 LANGUAGE plpgsql
-AS $$
+AS $function$
 DECLARE
     v_game_record RECORD;
     v_player_count integer;
@@ -15,6 +15,8 @@ DECLARE
     v_current_game_data jsonb;
     v_new_game_id uuid;
     v_user_profile RECORD; -- ユーザー情報を格納する変数をRECORD型に変更
+    v_game_id uuid; -- 内部で使用するゲームID
+    
 BEGIN
     -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
     PERFORM pg_advisory_xact_lock(1);
@@ -95,8 +97,8 @@ BEGIN
         WHERE id = v_game_record.id;
 
         SELECT game_data INTO v_current_game_data FROM public.games WHERE id = v_game_record.id;
-        game_id := v_game_record.id;
-        is_full := (v_player_count + 1) = 4;
+        v_game_id := v_game_record.id;
+        out_is_full := (v_player_count + 1) = 4;
 
     -- ゲームが見つからなかった場合
     ELSE
@@ -134,13 +136,13 @@ BEGIN
                 'playersReadyForNextRound', '[]'::jsonb
             )
         )
-        RETURNING id, game_data INTO game_id, v_current_game_data;
+        RETURNING id, game_data INTO v_game_id, v_current_game_data;
 
         -- 新しいゲームに最初のプレイヤーを追加
         INSERT INTO public.game_players (game_id, user_id, seat_index, status)
-        VALUES (game_id, p_user_id, 0, 'joined');
+        VALUES (v_game_id, p_user_id, 0, 'joined');
 
-        is_full := false;
+        out_is_full := false;
     END IF;
 
     -- 最終的なプレイヤーリストを game_players と users から取得して返す
@@ -160,11 +162,12 @@ BEGIN
             'seat_index', gp.seat_index -- seat_index を追加
         ) ORDER BY gp.seat_index
     )
-    INTO players
+    INTO out_players
     FROM public.game_players gp
     JOIN public.users u ON gp.user_id = u.id
-    WHERE gp.game_id = game_id;
+    WHERE gp.game_id = v_game_id;
 
+    out_game_id := v_game_id; -- 戻り値の game_id に内部変数の値を明示的に割り当てる
     RETURN NEXT;
 END;
-$$;
+$function$;

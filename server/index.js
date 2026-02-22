@@ -1784,25 +1784,32 @@ io.on('connection', (socket) => {
             throw new Error('マッチングに失敗しました。RPCからデータが返されませんでした。');
         }
 
-        const { game_id, is_full, players } = matchData[0];
-        console.log(`[5/5] Processing match result. Game ID: ${game_id}, Is Full: ${is_full}`);
+        const { out_game_id, out_is_full, out_players } = matchData[0]; // out_game_id, out_is_full, out_players を取得
+        const players = JSON.parse(out_players); // JSON文字列をパース
+
+        console.log(`[5/5] Processing match result. Game ID: ${out_game_id}, Is Full: ${out_is_full}`);
 
         // 参加している全プレイヤーに通知
-        for (const player of players) {
-            const playerSocketId = userSocketMap.get(player.id);
-            if (playerSocketId) {
-                const playerSocket = io.sockets.sockets.get(playerSocketId);
-                if (playerSocket) {
-                    // イベント送信
-                    if (is_full) {
-                        playerSocket.emit('game-found', { gameId: game_id, players: players });
-                    } else {
-                        playerSocket.emit('matchmaking-update', { gameId: game_id, players: players });
+        if (players && Array.isArray(players)) { // players が配列であることを確認
+            for (const player of players) {
+                const playerSocketId = userSocketMap.get(player.id);
+                if (playerSocketId) {
+                    const playerSocket = io.sockets.sockets.get(playerSocketId);
+                    if (playerSocket) {
+                        // イベント送信
+                        if (out_is_full) {
+                            playerSocket.emit('game-found', { gameId: out_game_id, players: players });
+                        } else {
+                            playerSocket.emit('matchmaking-update', { gameId: out_game_id, players: players });
+                        }
                     }
                 }
             } else { // Socket IDが見つからない場合
                 console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
             }
+        } else {
+            console.error('[ERROR] RPC returned invalid players data:', out_players);
+            socket.emit('gameError', { message: 'マッチング処理中にエラーが発生しました: プレイヤーデータが不正です。' });
         }
 
     } catch (error) {
