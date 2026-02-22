@@ -141,7 +141,7 @@ app.get('/', (req, res) => {
 // ゲームの状態をSupabaseに保存するヘルパー関数
 async function saveGameState(gameId, gameState) {
   const { error } = await supabase
-    .from('game_states')
+    .from('games') // game_states から games に変更
     .update({
       game_data: gameState,
       updated_at: new Date(),
@@ -1005,7 +1005,7 @@ async function handleGameEnd(gameId) {
     // オンライン対戦の場合のみレートを計算
     if (gameState.gameMode === 'online') {
       // 1. 基礎点の計算
-      const rankName = getRankName(player.class);
+      const rankName = getRankName(player.user_rank_class);
       const basePoint = baseRatingChanges[rankName]?.[player.rank] || 0;
 
       // 2. 補正値の計算
@@ -1078,15 +1078,10 @@ async function _initializeGameCore(gameId) {
       gameStates[gameId] = createDefaultGameState();
   }
 
-  // ★★★ 修正: gameStates[gameId] のディープコピーを作成し、ローカルで操作する
-  // JSON.parse(JSON.stringify()) はシンプルだが、Dateオブジェクトや関数などを失う点に注意。
-  // このゲームの状態では問題ないと判断。
+  // gameStates[gameId] のディープコピーを作成し、ローカルで操作する
   let localGameState = JSON.parse(JSON.stringify(gameStates[gameId]));
 
-  // 以前のガードは不要になるため削除
-  // if (!gameState) return;
-
-  // ... my previous initialization block for player-specific objects ...
+  // プレイヤー固有のオブジェクトの初期化
   localGameState.playerTurnCount = localGameState.playerTurnCount || {};
   localGameState.isIppatsuChance = localGameState.isIppatsuChance || {};
   localGameState.isFuriTen = localGameState.isFuriTen || {};
@@ -1102,7 +1097,7 @@ async function _initializeGameCore(gameId) {
   localGameState.canDeclareKakan = localGameState.canDeclareKakan || {};
   localGameState.playerResponses = localGameState.playerResponses || {};
 
-  localGameState.playersReadyForNextRound = []; // ★局の初期化時に、必ず準備完了リストをリセット
+  localGameState.playersReadyForNextRound = []; // 局の初期化時に、必ず準備完了リストをリセット
 
   localGameState.turnCount = 0;
   localGameState.players.forEach(player => {
@@ -1133,15 +1128,8 @@ async function _initializeGameCore(gameId) {
   localGameState.lastActionPlayerId = null;
   localGameState.shouldEndGameAfterRound = false;
 
-  // ★★★ 修正: 不正なプレイヤーデータ(null, undefinedなど)を除外して配列をクリーンにする
-  const validPlayers = localGameState.players.filter(p => p && typeof p === 'object');
-  if (validPlayers.length !== localGameState.players.length) {
-      console.warn(`[GameCore] Invalid player entries found and removed for game ${gameId}. Original count: ${localGameState.players.length}, Valid count: ${validPlayers.length}`);
-      localGameState.players = validPlayers;
-  }
-
   const playerCount = localGameState.players.length;
-  // ★★★ 修正: dealerIndexがプレイヤー数を超えていた場合に補正する
+  // dealerIndexがプレイヤー数を超えていた場合に補正する
   const currentDealerIndex = localGameState.dealerIndex % playerCount;
   localGameState.dealerIndex = currentDealerIndex; // 補正した値をgameStateにも反映
 
@@ -1198,9 +1186,8 @@ async function _initializeGameCore(gameId) {
   localGameState.isGameReady = true; // ゲームの準備が完了
   localGameState.hasGameStarted = true;
 
-  // ★★★ 修正: グローバルな gameStates オブジェクトを更新してからブロードキャストする
+  // グローバルな gameStates オブジェクトを更新
   gameStates[gameId] = localGameState;
-  // await updateAndBroadcastGameState(gameId, localGameState);
 }
 
 // 次のラウンドの準備を行うヘルパー関数
@@ -1535,41 +1522,126 @@ async function handlePlayerLeave(gameId, userId) {
     return;
   }
 
-  const initialPlayerCount = game.players.length;
-  console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}. Initial count: ${initialPlayerCount}`);
+  console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}.`);
 
-  const remainingPlayers = game.players.filter(p => p.id !== userId);
-  game.players = remainingPlayers;
+  // game_players テーブルからプレイヤーを削除
+  const { error: deletePlayerError } = await supabase
+    .from('game_players')
+    .delete()
+    .eq('game_id', gameId)
+    .eq('user_id', userId);
 
-  const updateData = { updated_at: new Date(), game_data: game };
-  updateData.player_1_id = remainingPlayers[0]?.id || null;
-  updateData.player_2_id = remainingPlayers[1]?.id || null;
-  updateData.player_3_id = remainingPlayers[2]?.id || null;
-  updateData.player_4_id = remainingPlayers[3]?.id || null;
+  if (deletePlayerError) {
+    console.error(`Error deleting player ${userId} from game_players for game ${gameId}:`, deletePlayerError);
+    return;
+  }
 
-  if (remainingPlayers.length === 0) {
-    updateData.status = 'cancelled';
+  // 残りのプレイヤー数を取得
+  const { count: remainingPlayerCount, error: countError } = await supabase
+    .from('game_players')
+    .select('id', { count: 'exact' })
+    .eq('game_id', gameId);
+
+  if (countError) {
+    console.error(`Error counting remaining players for game ${gameId}:`, countError);
+    return;
+  }
+
+  let newGameStatus = 'waiting';
+  if (remainingPlayerCount === 0) {
+    newGameStatus = 'cancelled';
     console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
+  } else if (remainingPlayerCount === 4) { // 念のため、4人揃っている場合はready
+    newGameStatus = 'ready';
   } else {
-    // ★★★ 修正点 ★★★
-    // ゲーム開始前（isGameReadyがtrueだがhasGameStartedがfalse）にプレイヤーが抜けた場合
-    if (game.isGameReady && !game.hasGameStarted) {
-      updateData.status = 'waiting';
-      game.isGameReady = false; // isGameReadyをfalseに戻す
-      console.log(`Game ${gameId} is returning to matchmaking state due to player leaving during countdown.`);
-    } else if (!game.hasGameStarted) {
-      updateData.status = 'waiting';
+    newGameStatus = 'waiting';
+  }
+
+  // games テーブルの status と updated_at を更新
+  const { error: updateGameError } = await supabase
+    .from('games')
+    .update({
+      status: newGameStatus,
+      updated_at: new Date(),
+      // game_data 内の players 配列も更新する必要がある
+      // これは後でまとめて取得して更新する
+    })
+    .eq('id', gameId);
+
+  if (updateGameError) {
+    console.error(`Error updating game status for game ${gameId} after player left:`, updateGameError);
+    return;
+  }
+
+  // メモリ上のゲーム状態からプレイヤーを削除
+  game.players = game.players.filter(p => p.id !== userId);
+
+  // game_data 内の players 配列を更新するために、最新のプレイヤーリストを再構築
+  const { data: currentPlayersInDb, error: fetchPlayersError } = await supabase
+    .from('game_players')
+    .select('user_id, seat_index')
+    .eq('game_id', gameId)
+    .order('seat_index', { ascending: true });
+
+  if (fetchPlayersError) {
+    console.error(`Error fetching current players for game_data update for game ${gameId}:`, fetchPlayersError);
+    return;
+  }
+
+  const playerProfiles = await Promise.all(currentPlayersInDb.map(async (gp) => {
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('users')
+      .select('id, username, avatar_url, rating, cat_coins, total_games_played, sum_of_ranks, class')
+      .eq('id', gp.user_id)
+      .single();
+
+    if (userProfileError) {
+      console.error(`Error fetching user profile for ${gp.user_id}:`, userProfileError);
+      return null;
     }
+
+    return {
+      id: userProfile.id,
+      name: userProfile.username,
+      username: userProfile.username,
+      avatar_url: userProfile.avatar_url || '/assets/images/info/hito_icon_1.png',
+      rating: userProfile.rating,
+      cat_coins: userProfile.cat_coins,
+      total_games_played: userProfile.total_games_played,
+      sum_of_ranks: userProfile.sum_of_ranks,
+      user_rank_class: userProfile.class,
+      score: 50000, // 初期スコア
+      isAi: false,
+      seat_index: gp.seat_index, // seat_index を追加
+    };
+  }));
+
+  // nullを除外してフィルタリング
+  game.players = playerProfiles.filter(Boolean);
+
+  // game_data を更新
+  const { error: updateGameDataError } = await supabase
+    .from('games')
+    .update({ game_data: game })
+    .eq('id', gameId);
+
+  if (updateGameDataError) {
+    console.error(`Error updating game_data for game ${gameId} after player left:`, updateGameDataError);
+    return;
   }
 
-  const { error } = await supabase.from('game_states').update(updateData).eq('id', gameId);
-  if (error) {
-    console.error(`Error updating game state for game ${gameId} after player left:`, error);
-  }
+  if (remainingPlayerCount === 0) {
+    // game_players が空になったら games テーブルからも削除
+    const { error: deleteGameError } = await supabase
+      .from('games')
+      .delete()
+      .eq('id', gameId);
 
-  if (remainingPlayers.length === 0) {
+    if (deleteGameError) {
+      console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
+    }
     delete gameStates[gameId];
-    console.log(`Game ${gameId} removed from memory.`);
+    console.log(`Game ${gameId} removed from memory and DB.`);
   } else {
     // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
     io.to(gameId).emit('game-state-update', game);
@@ -1606,23 +1678,33 @@ io.on('connection', (socket) => {
       if (gameIdToUpdate) {
         await handlePlayerLeave(gameIdToUpdate, disconnectedUserId);
       } else {
-        // メモリになければDBのマッチング中のゲームから探す (元のロジックを簡略化)
-        const { data: matchmakingGames, error } = await supabase
-          .from('game_states')
-          .select('id, player_1_id, player_2_id, player_3_id, player_4_id, game_data')
-          .or(`player_1_id.eq.${disconnectedUserId},player_2_id.eq.${disconnectedUserId},player_3_id.eq.${disconnectedUserId},player_4_id.eq.${disconnectedUserId}`)
-          .in('status', ['waiting', 'ready']); // waitingとreadyの両方を検索対象に
+        // メモリになければDBのマッチング中のゲームから探す
+        const { data: gamePlayers, error } = await supabase
+          .from('game_players')
+          .select('game_id')
+          .eq('user_id', disconnectedUserId)
+          .in('status', ['joined']); // 'joined' 状態のプレイヤーを探す
 
         if (error) {
-          console.error(`Error fetching matchmaking games for disconnected user ${disconnectedUserId}:`, error);
+          console.error(`Error fetching game_players for disconnected user ${disconnectedUserId}:`, error);
           return;
         }
 
-        if (matchmakingGames && matchmakingGames.length > 0) {
-          const dbGame = matchmakingGames[0];
-          // DBのゲーム情報をメモリに一時的にロードして処理
-          gameStates[dbGame.id] = dbGame.game_data;
-          await handlePlayerLeave(dbGame.id, disconnectedUserId);
+        if (gamePlayers && gamePlayers.length > 0) {
+          gameIdToUpdate = gamePlayers[0].game_id;
+          // DBからゲームデータをロードしてメモリに一時的に保存し、handlePlayerLeaveを呼び出す
+          const { data: gameDataFromDb, error: fetchGameError } = await supabase
+            .from('games')
+            .select('game_data')
+            .eq('id', gameIdToUpdate)
+            .single();
+
+          if (fetchGameError || !gameDataFromDb) {
+            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message);
+            return;
+          }
+          gameStates[gameIdToUpdate] = gameDataFromDb.game_data;
+          await handlePlayerLeave(gameIdToUpdate, disconnectedUserId);
         }
       }
     }
@@ -1644,13 +1726,28 @@ io.on('connection', (socket) => {
     console.log(`Player ${userId} (socket ${socket.id}) joined game ${gameId}`);
 
     // メモリ上にゲーム状態が存在すれば、それを参加者本人に送信する
-    const currentState = gameStates[gameId];
+    let currentState = gameStates[gameId];
     if (currentState) {
         socket.emit('game-state-update', currentState);
         console.log(`Sent existing game state of ${gameId} to player ${userId}`);
     } else {
-        // メモリにゲーム状態がなければ、initializeGameイベントによって作成されるのを待つ
-        console.log(`No game state in memory for ${gameId}. Waiting for initialization.`);
+        // メモリにゲーム状態がなければ、DBからロードを試みる
+        console.log(`No game state in memory for ${gameId}. Attempting to load from DB.`);
+        const { data, error } = await supabase
+            .from('games') // game_states から games に変更
+            .select('game_data')
+            .eq('id', gameId)
+            .single();
+
+        if (error || !data) {
+            console.error(`Error fetching game state for ${gameId} from DB during joinGame:`, error?.message);
+            // エラーをクライアントに通知することも検討
+            return;
+        }
+        currentState = Object.assign(createDefaultGameState(), data.game_data);
+        gameStates[gameId] = currentState; // メモリにロード
+        socket.emit('game-state-update', currentState);
+        console.log(`Loaded game state of ${gameId} from DB and sent to player ${userId}`);
     }
   });
 
@@ -1658,7 +1755,7 @@ io.on('connection', (socket) => {
   socket.on('requestMatchmaking', async ({ userId, rating, username, avatarUrl }) => {
     console.log(`[1/5] Matchmaking request received from user: ${userId}, rating: ${rating}, socket: ${socket.id}, avatarUrl: ${avatarUrl}`);
 
-    if (!userId || rating === undefined || !username) { // username のチェックを追加
+    if (!userId || rating === undefined || !username) {
         console.error('[ERROR] Invalid request: userId, rating or username is missing.');
         return socket.emit('gameError', { message: 'ユーザー情報、レーティング、またはユーザー名が不足しています。' });
     }
@@ -1673,7 +1770,7 @@ io.on('connection', (socket) => {
             p_user_id: userId,
             p_user_rating: rating,
             p_username: username,
-            p_avatar_url: avatarUrl // 追加
+            p_avatar_url: avatarUrl
         });
 
         if (rpcError) {
@@ -1690,18 +1787,6 @@ io.on('connection', (socket) => {
         const { game_id, is_full, players } = matchData[0];
         console.log(`[5/5] Processing match result. Game ID: ${game_id}, Is Full: ${is_full}`);
 
-        if (!players) {
-            console.log("Waiting for more players...");
-            // プレイヤーが自分しかいない場合、playersはnullになりうるので、自分自身の情報でリストを作成
-            const { data: self, error: userError } = await supabase.from('users').select('id, username, avatar_url, rating').eq('id', userId).single();
-            if (userError) throw userError;
-
-            if (self) {
-                 socket.emit('matchmaking-update', { gameId: game_id, players: [self] });
-            }
-            return;
-        }
-
         // 参加している全プレイヤーに通知
         for (const player of players) {
             const playerSocketId = userSocketMap.get(player.id);
@@ -1715,7 +1800,7 @@ io.on('connection', (socket) => {
                         playerSocket.emit('matchmaking-update', { gameId: game_id, players: players });
                     }
                 }
-            } else {
+            } else { // Socket IDが見つからない場合
                 console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
             }
         }
@@ -1753,8 +1838,8 @@ io.on('connection', (socket) => {
       if (!gameStates[gameId] || Object.keys(gameStates[gameId]).length === 0) {
         console.log(`[Server] Game ${gameId} not found in memory or is empty. Attempting to load from DB.`);
         const { data, error } = await supabase
-            .from('game_states')
-            .select('*')
+            .from('games') // game_states から games に変更
+            .select('game_data, status') // status も取得
             .eq('id', gameId)
             .single();
 
@@ -1764,29 +1849,32 @@ io.on('connection', (socket) => {
             return; // finallyでロックが解放される
         }
         gameStates[gameId] = Object.assign(createDefaultGameState(), data.game_data);
-        console.log(`[Server] Game ${gameId} loaded from DB.`);
+        // DBからロードしたstatusをメモリ上のゲーム状態にも反映
+        gameStates[gameId].status = data.status;
+        console.log(`[Server] Game ${gameId} loaded from DB. Status: ${gameStates[gameId].status}`);
       }
 
       console.log(`Initializing game ${gameId} by user ${userId}`);
 
-      const { data: gameData, error: fetchError } = await supabase
-        .from('game_states')
-        .select('player_1_id, player_2_id, player_3_id, player_4_id')
-        .eq('id', gameId)
-        .single();
+      // game_players テーブルからプレイヤー情報を取得
+      const { data: gamePlayersInDb, error: fetchPlayersError } = await supabase
+        .from('game_players')
+        .select('user_id, seat_index')
+        .eq('game_id', gameId)
+        .order('seat_index', { ascending: true }); // seat_index でソート
 
-      if (fetchError || !gameData) {
-        throw new Error(`オンラインゲームのプレイヤー情報取得に失敗: ${fetchError?.message}`);
+      if (fetchPlayersError || !gamePlayersInDb) {
+        throw new Error(`オンラインゲームのプレイヤー情報取得に失敗: ${fetchPlayersError?.message}`);
       }
 
-      const playerIds = [gameData.player_1_id, gameData.player_2_id, gameData.player_3_id, gameData.player_4_id].filter(Boolean);
+      const playerIds = gamePlayersInDb.map(gp => gp.user_id);
 
       if (playerIds.length < 4) {
         console.error(`[initializeGame] Not enough players to start game ${gameId}. Required 4, found ${playerIds.length}.`);
         gameStates[gameId].gamePhase = GAME_PHASES.WAITING_TO_START;
         gameStates[gameId].isGameReady = false;
         gameStates[gameId].hasGameStarted = false;
-        await supabase.from('game_states').update({ status: 'waiting' }).eq('id', gameId);
+        await supabase.from('games').update({ status: 'waiting' }).eq('id', gameId); // games テーブルを更新
         io.to(gameId).emit('game-state-update', gameStates[gameId]);
         socket.emit('gameError', { message: 'プレイヤーが不足しているため、ゲームを開始できません。' });
         return; // finallyでロックが解放される
@@ -1801,10 +1889,10 @@ io.on('connection', (socket) => {
         throw new Error(`プレイヤーのプロファイル情報取得に失敗: ${profileError?.message}`);
       }
 
-      const initialPlayers = playerIds.map(id => {
-            const profile = profiles.find(p => p.id === id);
+      const initialPlayers = gamePlayersInDb.map(gp => {
+            const profile = profiles.find(p => p.id === gp.user_id);
             return {
-              id: id,
+              id: gp.user_id,
               name: profile?.username || 'プレイヤー',
               username: profile?.username || 'プレイヤー',
               avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
@@ -1816,17 +1904,17 @@ io.on('connection', (socket) => {
               hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null,
               stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false,
               isAi: false,
+              seat_index: gp.seat_index, // seat_index を追加
             };
           });
 
-      gameStates[gameId].players = initialPlayers;
+      // seat_index に基づいてプレイヤーをソート
+      gameStates[gameId].players = initialPlayers.sort((a, b) => a.seat_index - b.seat_index);
 
       if (gameStates[gameId].dealerIndex === null) {
         gameStates[gameId].dealerIndex = Math.floor(Math.random() * initialPlayers.length);
         console.log(`[initializeGame] Dealer index set to: ${gameStates[gameId].dealerIndex}`);
       }
-
-      
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       _initializeGameCore(gameId);
@@ -1839,7 +1927,7 @@ io.on('connection', (socket) => {
         await _executeDrawTile(gameId, dealerId);
         await updateAndBroadcastGameState(gameId, gameStates[gameId]);
 
-        // ポップアップは一度表示したらサーバー側の状態はfalseに戻す
+        // ポ��プアップは一度表示したらサーバー側の状態はfalseに戻す
         if (gameStates[gameId]) {
           gameStates[gameId].showDealerDeterminationPopup = false;
         }

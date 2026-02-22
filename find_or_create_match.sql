@@ -26,50 +26,45 @@ BEGIN
     WHERE id = p_user_id;
 
     -- ===第一段階:レーティングが近い参加可能なゲームを探す===
-    SELECT gs.id, gs.player_1_id, gs.player_2_id,
-           gs.player_3_id, gs.player_4_id,
-           gs.avg_rating, gs.game_data
+    SELECT g.id, g.avg_rating, g.game_data
     INTO v_game_record
-    FROM public.game_states gs
+    FROM public.games g
     WHERE
-        gs.status = 'waiting'
-        AND gs.player_4_id IS NULL
-        AND gs.avg_rating BETWEEN (p_user_rating - 200) AND (p_user_rating + 200)
-        AND (gs.player_1_id IS NULL OR gs.player_1_id <> p_user_id)
-        AND (gs.player_2_id IS NULL OR gs.player_2_id <> p_user_id)
-        AND (gs.player_3_id IS NULL OR gs.player_3_id <> p_user_id)
-        AND (gs.player_4_id IS NULL OR gs.player_4_id <> p_user_id)
-    ORDER BY abs(gs.avg_rating - p_user_rating)
+        g.status = 'waiting'
+        AND g.avg_rating BETWEEN (p_user_rating - 2000) AND (p_user_rating + 2000)
+        AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
+        AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
+    ORDER BY abs(g.avg_rating - p_user_rating)
     LIMIT 1
     FOR UPDATE;
 
     -- ===第二段階:レーティングマッチで見つからなかった場合、空いているゲームを探す ===
     IF NOT FOUND THEN
-        SELECT gs.id, gs.player_1_id, gs.player_2_id,
-               gs.player_3_id, gs.player_4_id,
-               gs.avg_rating, gs.game_data
+        SELECT g.id, g.avg_rating, g.game_data
         INTO v_game_record
-        FROM public.game_states gs
+        FROM public.games g
         WHERE
-            gs.status = 'waiting'
-            AND gs.player_4_id IS NULL
-            AND (gs.player_1_id IS NULL OR gs.player_1_id <> p_user_id)
-            AND (gs.player_2_id IS NULL OR gs.player_2_id <> p_user_id)
-            AND (gs.player_3_id IS NULL OR gs.player_3_id <> p_user_id)
-            AND (gs.player_4_id IS NULL OR gs.player_4_id <> p_user_id)
-        ORDER BY gs.created_at ASC
+            g.status = 'waiting'
+            AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
+            AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
+        ORDER BY g.created_at ASC
         LIMIT 1
         FOR UPDATE;
     END IF;
 
     -- ゲームが見つかった場合 (第一段階 or 第二段階)
     IF FOUND THEN
-        v_player_count := (CASE WHEN v_game_record.player_1_id IS NOT NULL THEN 1 ELSE 0 END) +
-                          (CASE WHEN v_game_record.player_2_id IS NOT NULL THEN 1 ELSE 0 END) +
-                          (CASE WHEN v_game_record.player_3_id IS NOT NULL THEN 1 ELSE 0 END) +
-                          (CASE WHEN v_game_record.player_4_id IS NOT NULL THEN 1 ELSE 0 END);
+        -- 現在のプレイヤー数を取得
+        SELECT count(*)
+        INTO v_player_count
+        FROM public.game_players
+        WHERE game_id = v_game_record.id;
 
         v_new_avg_rating := ((v_game_record.avg_rating * v_player_count) + p_user_rating) / (v_player_count + 1);
+
+        -- 新しいプレイヤーを game_players テーブルに追加
+        INSERT INTO public.game_players (game_id, user_id, seat_index, status)
+        VALUES (v_game_record.id, p_user_id, v_player_count, 'joined'); -- v_player_count を seat_index として使用
 
         -- 参加するプレイヤーのJSONBオブジェクトを作成（新しいカラムを含む）
         v_players_data := jsonb_build_object(
@@ -86,31 +81,31 @@ BEGIN
             'isAi', false
         );
 
-        IF v_game_record.player_2_id IS NULL THEN
-            UPDATE public.game_states
-            SET player_2_id = p_user_id, avg_rating = v_new_avg_rating, game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
-            WHERE id = v_game_record.id;
-        ELSIF v_game_record.player_3_id IS NULL THEN
-            UPDATE public.game_states
-            SET player_3_id = p_user_id, avg_rating = v_new_avg_rating, game_data = jsonb_set(game_data, '{players}', game_data->'players' || v_players_data)
-            WHERE id = v_game_record.id;
-        ELSIF v_game_record.player_4_id IS NULL THEN
-            UPDATE public.game_states
-            SET player_4_id = p_user_id, avg_rating = v_new_avg_rating, status = 'ready', game_data = jsonb_set(jsonb_set(game_data, '{players}', game_data->'players' || v_players_data), '{isGameReady}', 'true'::jsonb)
-            WHERE id = v_game_record.id;
-        END IF;
+        -- games テーブルを更新
+        UPDATE public.games
+        SET
+            avg_rating = v_new_avg_rating,
+            updated_at = now(),
+            status = CASE WHEN (v_player_count + 1) = 4 THEN 'ready' ELSE 'waiting' END,
+            game_data = jsonb_set(
+                v_game_record.game_data,
+                '{players}',
+                v_game_record.game_data->'players' || v_players_data
+            )
+        WHERE id = v_game_record.id;
 
-        SELECT game_data INTO v_current_game_data FROM public.game_states WHERE id = v_game_record.id;
+        SELECT game_data INTO v_current_game_data FROM public.games WHERE id = v_game_record.id;
         game_id := v_game_record.id;
         is_full := (v_player_count + 1) = 4;
 
     -- ゲームが見つからなかった場合
     ELSE
         v_new_game_id := gen_random_uuid();
-        INSERT INTO public.game_states (id, player_1_id, avg_rating, game_data, status)
+        INSERT INTO public.games (id, room_tier, status, avg_rating, game_data)
         VALUES (
             v_new_game_id,
-            p_user_id,
+            'ranked', -- デフォルトで'ranked'を設定
+            'waiting',
             p_user_rating,
             jsonb_build_object(
                 'onlineGameId', v_new_game_id,
@@ -137,26 +132,38 @@ BEGIN
                 'isGameReady', false,
                 'hasGameStarted', false,
                 'playersReadyForNextRound', '[]'::jsonb
-            ),
-            'waiting'
+            )
         )
         RETURNING id, game_data INTO game_id, v_current_game_data;
+
+        -- 新しいゲームに最初のプレイヤーを追加
+        INSERT INTO public.game_players (game_id, user_id, seat_index, status)
+        VALUES (game_id, p_user_id, 0, 'joined');
+
         is_full := false;
     END IF;
 
-    -- 最終的なプレイヤーリストを game_data から取得して返す
-    -- ★★★ 修正: players 配列の各要素に最新のプロフィール情報を反映させる ★★★
+    -- 最終的なプレイヤーリストを game_players と users から取得して返す
     SELECT jsonb_agg(
-        CASE
-            WHEN (p->>'id')::uuid = p_user_id THEN p || jsonb_build_object(
-                'total_games_played', v_user_profile.total_games_played,
-                'sum_of_ranks', v_user_profile.sum_of_ranks
-            )
-            ELSE p
-        END
+        jsonb_build_object(
+            'id', u.id,
+            'name', u.username,
+            'username', u.username,
+            'avatar_url', COALESCE(u.avatar_url, '/assets/images/info/hito_icon_1.png'),
+            'rating', u.rating,
+            'cat_coins', u.cat_coins,
+            'total_games_played', u.total_games_played,
+            'sum_of_ranks', u.sum_of_ranks,
+            'user_rank_class', u.class,
+            'score', 50000, -- ゲーム開始時の初期スコア
+            'isAi', false,
+            'seat_index', gp.seat_index -- seat_index を追加
+        ) ORDER BY gp.seat_index
     )
     INTO players
-    FROM jsonb_array_elements(v_current_game_data->'players') AS p;
+    FROM public.game_players gp
+    JOIN public.users u ON gp.user_id = u.id
+    WHERE gp.game_id = game_id;
 
     RETURN NEXT;
 END;
