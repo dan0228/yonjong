@@ -1133,8 +1133,17 @@ async function _initializeGameCore(gameId) {
   localGameState.lastActionPlayerId = null;
   localGameState.shouldEndGameAfterRound = false;
 
+  // ★★★ 修正: 不正なプレイヤーデータ(null, undefinedなど)を除外して配列をクリーンにする
+  const validPlayers = localGameState.players.filter(p => p && typeof p === 'object');
+  if (validPlayers.length !== localGameState.players.length) {
+      console.warn(`[GameCore] Invalid player entries found and removed for game ${gameId}. Original count: ${localGameState.players.length}, Valid count: ${validPlayers.length}`);
+      localGameState.players = validPlayers;
+  }
+
   const playerCount = localGameState.players.length;
-  const currentDealerIndex = localGameState.dealerIndex;
+  // ★★★ 修正: dealerIndexがプレイヤー数を超えていた場合に補正する
+  const currentDealerIndex = localGameState.dealerIndex % playerCount;
+  localGameState.dealerIndex = currentDealerIndex; // 補正した値をgameStateにも反映
 
   localGameState.players.forEach((player, index) => {
     player.isDealer = (index === currentDealerIndex);
