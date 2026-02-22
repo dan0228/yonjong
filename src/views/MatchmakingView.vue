@@ -150,6 +150,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
 import { useUserStore } from '@/stores/userStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useAudioStore } from '@/stores/audioStore';
@@ -160,6 +161,7 @@ import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 const { t, locale } = useI18n();
 const userStore = useUserStore();
 const gameStore = useGameStore();
+const { matchmakingPlayers } = storeToRefs(gameStore); // ★修正: storeToRefsでリアクティブな参照を作成
 const audioStore = useAudioStore();
 const router = useRouter();
 const { viewportHeight } = useViewportHeight();
@@ -224,19 +226,20 @@ const goToTitle = () => {
 // 4つの表示スロットを管理するためのcomputed property
 const displaySlots = computed(() => {
   const slots = [];
-  const players = gameStore.matchmakingPlayers || [];
+  const players = matchmakingPlayers.value || [];
   const totalSlots = 4;
 
   for (let i = 0; i < totalSlots; i++) {
-    if (i < players.length) {
-      const player = players[i];
+    const player = players[i]; // i番目のプレイヤーを取得 (���在しない場合はundefined)
+    if (player && player.id) { // playerオブジェクトが存在し、idプロパティがあることを確認
+      // プレイヤーが存在する場合
       slots.push({
-        isWaiting: !player.avatar_url, // avatar_url がない場合は待機中とみなす
+        isWaiting: false, // プレイヤーがいるので待機中ではない
         player: player,
         key: player.id
       });
     } else {
-      // 参加者がいない空きスロット
+      // プレイヤーが存在しない場合 (空きスロット)
       slots.push({
         isWaiting: true,
         player: null,
