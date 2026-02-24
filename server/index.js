@@ -1682,6 +1682,9 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     // メモリ上のゲーム状態からもプレイヤーを削除
     game.players = game.players.filter(p => p.id !== userId);
 
+    // ★追加: game_data 内の players 配列も更新
+    game.game_data.players = game.game_data.players.filter(p => p.id !== userId);
+
     // 残りのプレイヤー数を取得
     const { count: remainingPlayerCount, error: countError } = await supabase
       .from('game_players')
