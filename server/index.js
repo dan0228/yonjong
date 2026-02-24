@@ -2006,11 +2006,14 @@ io.on('connection', (socket) => {
             gameStates[out_game_id].hasGameStarted = false;
             gameStates[out_game_id].playersReadyForNextRound = [];
             gameStates[out_game_id].version = 1; // 新しいゲームなのでバージョンは1
-        }
-        // 常に最新のプレイヤーリストで更新
+            // ★修正: game_data.players もここで初期化
+            gameStates[out_game_id].game_data = { players: players };
+        } else {
+            // 常に最新のプレイヤーリストで更新
             gameStates[out_game_id].players = players;
             // ★追加: game_data.players も更新
             gameStates[out_game_id].game_data.players = players;
+        }
 
         // 参加している全プレイヤーに通知
         if (players && Array.isArray(players)) { // players が配列であることを確認
