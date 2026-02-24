@@ -626,6 +626,8 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     pointChanges: {},
     isDraw: false,
     melds: player.melds,
+    isChombo: winResult.isChombo || false, // ★追加: チョンボフラグ
+    chomboPlayerIsParent: winResult.chomboPlayerIsParent || false, // ★追加: チョンボしたのが親かどうかのフラグ
   };
 
   const pointChanges = {};

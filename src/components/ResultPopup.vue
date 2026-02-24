@@ -158,10 +158,10 @@
           </div>
 
           <div
-            v-if="!isDrawResult && !isChomboResult"
+            v-if="!isDrawResult"
             class="result-section yaku-info"
           >
-            <!-- 和了時のみ表示 -->
+            <!-- 和了時またはチョンボ時のみ表示 -->
             <h3>{{ t('resultPopup.yakuList') }}</h3>
             <div :class="['yaku-list-container', yakuListColumnCountClass]">
               <ul>
@@ -169,16 +169,24 @@
                   v-for="(yaku, index) in resultDetails.yakuList"
                   :key="index"
                 >
-                  {{ t(`yaku.${yaku.key}.name`) }}
-                  <span v-if="yaku.power !== undefined"> <!-- 役満の場合 -->
-                    ({{ yaku.power === 1 ? t('resultPopup.yakuman') : t('resultPopup.multipleYakuman', { count: yaku.power }) }})
-                  </span>
-                  <span v-else-if="yaku.fans !== undefined"> ({{ t('resultPopup.han', { count: yaku.fans }) }})</span>
+                  <template v-if="yaku.isChombo">
+                    {{ t('resultPopup.chombo') }} <!-- チョンボの場合の表示 -->
+                  </template>
+                  <template v-else>
+                    {{ t(`yaku.${yaku.key}.name`) }}
+                    <span v-if="yaku.power !== undefined"> <!-- 役満の場合 -->
+                      ({{ yaku.power === 1 ? t('resultPopup.yakuman') : t('resultPopup.multipleYakuman', { count: yaku.power }) }})
+                    </span>
+                    <span v-else-if="yaku.fans !== undefined"> ({{ t('resultPopup.han', { count: yaku.fans }) }})</span>
+                  </template>
                 </li>
               </ul>
             </div>
             <p class="total-score">
-              <span v-if="isYakumanResult">
+              <span v-if="isChomboResult">
+                {{ t('resultPopup.chombo') }}
+              </span>
+              <span v-else-if="isYakumanResult">
                 {{ translatedScoreName }}
               </span>
               <span v-else-if="resultDetails.totalFans > 0">
