@@ -671,6 +671,14 @@ export const useGameStore = defineStore('game', {
       console.log("オンライン対戦サーバーから切断しました。");
     },
 
+    // ★追加: ゲーム終了をサーバーに通知するアクション
+    signalGameFinished() {
+      if (this.isGameOnline && socket && socket.connected && this.onlineGameId && this.localPlayerId) {
+        console.log(`[GameStore] Signaling game finished for game ${this.onlineGameId}, player ${this.localPlayerId}`);
+        socket.emit('playerFinishedGame', { gameId: this.onlineGameId, userId: this.localPlayerId });
+      }
+    },
+
     handleRemoteStateUpdate(newState) {
       this.isActionPending = false; // ★サーバーから応答があったので、アクションロックを解除
       if (!this.isGameOnline || !newState) return;

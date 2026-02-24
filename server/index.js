@@ -166,6 +166,22 @@ async function saveGameState(gameId, gameState, expectedVersion) { // expectedVe
   return true; // 更新成功
 }
 
+// game_players テーブルのプレイヤーのステータスを更新するヘルパー関数
+async function updatePlayerStatus(gameId, userId, status) {
+  const { error } = await supabase
+    .from('game_players')
+    .update({ status: status, updated_at: new Date() })
+    .eq('game_id', gameId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error(`Error updating player ${userId} status to ${status} in game ${gameId}:`, error);
+    return false;
+  }
+  console.log(`Player ${userId} status updated to ${status} in game ${gameId}.`);
+  return true;
+}
+
 // Helper to update game state and broadcast to clients
 async function updateAndBroadcastGameState(gameId, gameState) {
   // 送信直前にツモ牌の状態を最終チェックし、不要なプロパティを削除する
@@ -1544,7 +1560,7 @@ async function _processDiscard(gameId, playerId, tileIdToDiscard, isFromDrawnTil
 }
 
 // プレイヤーの退出・切断を処理する共通関数
-async function handlePlayerLeave(gameId, userId) {
+async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   const game = gameStates[gameId];
   if (!game || !Array.isArray(game.players)) {
     console.warn(`handlePlayerLeave: Game ${gameId} not found or has invalid players array.`);
@@ -1559,15 +1575,15 @@ async function handlePlayerLeave(gameId, userId) {
 
   console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}.`);
 
-  // game_players テーブルからプレイヤーを削除
-  const { error: deletePlayerError } = await supabase
+  // game_players テーブルのプレイヤーのステータスを更新
+  const { error: updatePlayerStatusError } = await supabase
     .from('game_players')
-    .delete()
+    .update({ status: statusToSet, updated_at: new Date() })
     .eq('game_id', gameId)
     .eq('user_id', userId);
 
-  if (deletePlayerError) {
-    console.error(`Error deleting player ${userId} from game_players for game ${gameId}:`, deletePlayerError);
+  if (updatePlayerStatusError) {
+    console.error(`Error updating player ${userId} status to ${statusToSet} for game ${gameId}:`, updatePlayerStatusError);
     return;
   }
 
@@ -1675,7 +1691,7 @@ io.on('connection', (socket) => {
       }
       
       if (gameIdToUpdate) {
-        await handlePlayerLeave(gameIdToUpdate, disconnectedUserId);
+        await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
       } else {
         // メモリになければDBのマッチング中のゲームから探す
         const { data: gamePlayers, error } = await supabase
@@ -1703,7 +1719,7 @@ io.on('connection', (socket) => {
             return;
           }
           gameStates[gameIdToUpdate] = gameDataFromDb.game_data;
-          await handlePlayerLeave(gameIdToUpdate, disconnectedUserId);
+          await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
         }
       }
     }
@@ -1712,7 +1728,7 @@ io.on('connection', (socket) => {
   // クライアントがゲームから意図的に退出する
   socket.on('leaveGame', async ({ gameId, userId }) => {
     console.log(`Player ${userId} is intentionally leaving game ${gameId}`);
-    await handlePlayerLeave(gameId, userId);
+    await handlePlayerLeave(gameId, userId, 'finished');
   });
 
 
@@ -1930,6 +1946,12 @@ io.on('connection', (socket) => {
 
       console.log(`[initializeGame] Calling _initializeGameCore for game ${gameId}...`);
       _initializeGameCore(gameId);
+      // ★追加: 全プレイヤーのステータスを 'active' に更新
+      const updateStatusPromises = gameStates[gameId].players.map(player =>
+        updatePlayerStatus(gameId, player.id, 'active')
+      );
+      await Promise.all(updateStatusPromises);
+
       console.log(`[initializeGame] _initializeGameCore completed for game ${gameId}. Final gamePhase: ${gameStates[gameId].gamePhase}`);
 
       // ★追加: 初期化完了後、親プレイヤーにツモを促す
@@ -1979,6 +2001,12 @@ io.on('connection', (socket) => {
       // 全員が揃っていない場合は、現在の準備状況をブロードキャスト
       io.to(gameId).emit('game-state-update', gameState);
     }
+  });
+
+  // ★追加: クライアントがゲーム終了を通知する
+  socket.on('playerFinishedGame', async ({ gameId, userId }) => {
+    console.log(`[Server] Player ${userId} finished game ${gameId}. Updating status to 'finished'.`);
+    await updatePlayerStatus(gameId, userId, 'finished');
   });
 
   // クライアントが壁から牌を引くことを要求する (通常ツモ)
