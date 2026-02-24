@@ -354,7 +354,8 @@ const resultTitle = computed(() => {
   if (isDrawResult.value) return t('resultPopup.draw');
 
   // 3. 和了の場合 (winnerId を使用)
-  if (props.resultDetails.winnerId) {
+  // チョンボではない場合にのみ和了タイトルを表示
+  if (props.resultDetails.winnerId && !isChomboResult.value) {
     const winner = gameStore.getPlayerById(props.resultDetails.winnerId);
     if (winner) {
       return t('resultPopup.titleWin', { playerName: getTranslatedPlayerName(winner) });
@@ -362,10 +363,11 @@ const resultTitle = computed(() => {
   }
 
   // 4. フォールバック (古いデータ構造や予期せぬエラー用)
+  // チョンボではない場合にのみフォールバックの和了タイトルを表示
   const winnerIdFromPoints = Object.keys(props.resultDetails.pointChanges || {}).find(
     playerId => (props.resultDetails.pointChanges[playerId] || 0) > 0
   );
-  if (winnerIdFromPoints) {
+  if (winnerIdFromPoints && !isChomboResult.value) {
     const winner = gameStore.getPlayerById(winnerIdFromPoints);
     if (winner) return t('resultPopup.titleWin', { playerName: getTranslatedPlayerName(winner) });
   }

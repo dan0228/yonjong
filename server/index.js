@@ -628,6 +628,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     melds: player.melds,
     isChombo: winResult.isChombo || false, // ★追加: チョンボフラグ
     chomboPlayerIsParent: winResult.chomboPlayerIsParent || false, // ★追加: チョンボしたのが親かどうかのフラグ
+    chomboPlayerId: winResult.isChombo ? agariPlayerId : null, // ★追加: チョンボしたプレイヤーのID
   };
 
   const pointChanges = {};
@@ -640,15 +641,32 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     const chomboPlayer = gameState.players.find(p => p.id === agariPlayerId);
 
     if (chomboPlayer) {
-      // チョンボしたプレイヤーから他のプレイヤーへ点数を支払う
-      const paymentPerPlayer = Math.abs(chomboScore) / (gameState.players.length - 1); // チョンボ点数を他のプレイヤー数で割る
-      gameState.players.forEach(p => {
-        if (p.id === chomboPlayer.id) {
-          pointChanges[p.id] += chomboScore; // チョンボしたプレイヤーは点数を失う
-        } else {
-          pointChanges[p.id] += paymentPerPlayer; // 他のプレイヤーは点数を得る
+      // AI対戦と同様に、親は12000点、子は8000点のチョンボ点数
+      const parentChomboPenalty = -12000;
+      const childChomboPenalty = -8000;
+
+      if (chomboPlayer.isDealer) { // 親がチョンボ
+        pointChanges[chomboPlayer.id] += parentChomboPenalty; // 親は12000点失う
+        // 他の子プレイヤーはそれぞれ4000点ずつ得る (12000 / 3 = 4000)
+        gameState.players.forEach(p => {
+          if (p.id !== chomboPlayer.id) {
+            pointChanges[p.id] += 4000;
+          }
+        });
+      } else { // 子がチョンボ
+        pointChanges[chomboPlayer.id] += childChomboPenalty; // 子は8000点失う
+        // 親は4000点得る (8000 / 2 = 4000)
+        const dealer = gameState.players.find(p => p.isDealer);
+        if (dealer) {
+          pointChanges[dealer.id] += 4000;
         }
-      });
+        // 他の子プレイヤーはそれぞれ2000点ずつ得る (8000 / 4 = 2000, 親が4000点取るので残りの4000点を2人で割る)
+        gameState.players.forEach(p => {
+          if (p.id !== chomboPlayer.id && !p.isDealer) {
+            pointChanges[p.id] += 2000;
+          }
+        });
+      }
     }
   } else if (isTsumo) {
     const tsumoPayments = calculateTsumoPayment(score, player.isDealer);
