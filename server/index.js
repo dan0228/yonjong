@@ -1884,7 +1884,8 @@ io.on('connection', (socket) => {
           // DBからゲームデータをロードしてメモリに一時的に保存し、handlePlayerLeaveを呼び出す
           const { data: gameDataFromDb, error: fetchGameError } = await supabase
             .from('games')
-            .select('game_data')
+            // ★修正: game_data だけでなく status と version も取得する
+            .select('game_data, status, version')
             .eq('id', gameIdToUpdate)
             .single();
 
@@ -1892,7 +1893,11 @@ io.on('connection', (socket) => {
             console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message);
             return;
           }
-          gameStates[gameIdToUpdate] = gameDataFromDb.game_data;
+          // ★修正: createDefaultGameState() で初期化し、DBのデータで上書きする
+          gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDataFromDb.game_data);
+          // DBからロードしたstatusとversionも反映
+          gameStates[gameIdToUpdate].status = gameDataFromDb.status;
+          gameStates[gameIdToUpdate].version = gameDataFromDb.version;
           await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
         }
       }
