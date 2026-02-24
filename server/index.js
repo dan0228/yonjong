@@ -630,8 +630,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
   const pointChanges = {};
   gameState.players.forEach(p => pointChanges[p.id] = 0);
-  const honbaPointsPerPlayer = gameState.honba * 100; // 1本場につき100点
-  const totalHonbaPoints = gameState.honba * 300; // 1本場につき300点
+  // 本場は考慮しないため、honbaPointsPerPlayer と totalHonbaPoints の計算は削除
 
   if (isTsumo) {
     const tsumoPayments = calculateTsumoPayment(score, player.isDealer);
@@ -640,13 +639,13 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
     if (player.isDealer) {
       // 親のツモ和了
-      const payment = tsumoPayments.nonDealer + honbaPointsPerPlayer;
+      const payment = tsumoPayments.nonDealer; // 本場点数を削除
       nonDealers.forEach(p => { pointChanges[p.id] -= payment; });
       pointChanges[player.id] += payment * nonDealers.length;
     } else {
       // 子のツモ和了
-      const dealerPayment = tsumoPayments.dealer + honbaPointsPerPlayer;
-      const nonDealerPayment = tsumoPayments.nonDealer + honbaPointsPerPlayer;
+      const dealerPayment = tsumoPayments.dealer; // 本場点数を削除
+      const nonDealerPayment = tsumoPayments.nonDealer; // 本場点数を削除
       pointChanges[dealer.id] -= dealerPayment;
       nonDealers.forEach(p => {
         if (p.id !== player.id) {
@@ -656,7 +655,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
       pointChanges[player.id] += dealerPayment + nonDealerPayment * (nonDealers.length - 1);
     }
   } else { // Ron
-    const payment = score + totalHonbaPoints;
+    const payment = score; // 本場点数を削除
     pointChanges[ronTargetPlayerId] -= payment;
     pointChanges[player.id] += payment;
   }
