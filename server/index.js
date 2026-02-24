@@ -1682,9 +1682,9 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     // メモリ上のゲーム状態からもプレイヤーを削除
     game.players = game.players.filter(p => p.id !== userId);
 
-    // ★修正: game.game_data が存在するかチェックを追加
+    // ★修正: game.game_data.players も明示的に更新する
     if (game.game_data && game.game_data.players) {
-      game.game_data.players = game.game_data.players.filter(p => p.id !== userId);
+      game.game_data.players = game.players; // game.players の最新状態を game_data.players に反映
     } else {
       console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
     }
@@ -1984,6 +1984,25 @@ io.on('connection', (socket) => {
         const players = typeof out_players === 'string' ? JSON.parse(out_players) : out_players;
 
         console.log(`[5/5] Processing match result. Game ID: ${out_game_id}, Is Full: ${out_is_full}`);
+
+        // ★追加: メモリ上の gameStates にもプレイヤー情報を正しく初期化する
+        // 新しいゲーム���作成された場合、または既存のゲームに参加した場合、
+        // RPCから返された最新のプレイヤーリストで gameStates[out_game_id].players を更新する
+        if (!gameStates[out_game_id]) {
+            gameStates[out_game_id] = createDefaultGameState();
+            gameStates[out_game_id].onlineGameId = out_game_id;
+            gameStates[out_game_id].isGameOnline = true;
+            gameStates[out_game_id].localPlayerId = userId; // リクエストしたユーザーがローカルプレイヤー
+            gameStates[out_game_id].gameMode = 'online';
+            gameStates[out_game_id].ruleMode = 'stock';
+            gameStates[out_game_id].gamePhase = 'waitingToStart';
+            gameStates[out_game_id].isGameReady = false;
+            gameStates[out_game_id].hasGameStarted = false;
+            gameStates[out_game_id].playersReadyForNextRound = [];
+            gameStates[out_game_id].version = 1; // 新しいゲームなのでバージョンは1
+        }
+        // 常に最新のプレイヤーリストで更新
+        gameStates[out_game_id].players = players;
 
         // 参加している全プレイヤーに通知
         if (players && Array.isArray(players)) { // players が配列であることを確認

@@ -614,7 +614,7 @@ export const useGameStore = defineStore('game', {
         
           // ★修正: playersが有効な配列の場合のみ更新し、意図しないクリアを防ぐ
           if (players && Array.isArray(players)) {
-            this.matchmakingPlayers.splice(0, this.matchmakingPlayers.length, ...players);
+            this.matchmakingPlayers = players; // 直接代入に修正
           }
         
           // ★修正: マッチング待機中も更新情報を受け取れるように、すぐにゲームチャンネルに参加する
