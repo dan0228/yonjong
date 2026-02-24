@@ -634,7 +634,23 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   gameState.players.forEach(p => pointChanges[p.id] = 0);
   // 本場は考慮しないため、honbaPointsPerPlayer と totalHonbaPoints の計算は削除
 
-  if (isTsumo) {
+  // ★修正: チョンボの場合の点数移動ロジックを追加
+  if (winResult.isChombo) {
+    const chomboScore = winResult.score; // mahjongLogic.checkYonhaiWin で計算されたチョンボ点数
+    const chomboPlayer = gameState.players.find(p => p.id === agariPlayerId);
+
+    if (chomboPlayer) {
+      // チョンボしたプレイヤーから他のプレイヤーへ点数を支払う
+      const paymentPerPlayer = Math.abs(chomboScore) / (gameState.players.length - 1); // チョンボ点数を他のプレイヤー数で割る
+      gameState.players.forEach(p => {
+        if (p.id === chomboPlayer.id) {
+          pointChanges[p.id] += chomboScore; // チョンボしたプレイヤーは点数を失う
+        } else {
+          pointChanges[p.id] += paymentPerPlayer; // 他のプレイヤーは点数を得る
+        }
+      });
+    }
+  } else if (isTsumo) {
     const tsumoPayments = calculateTsumoPayment(score, player.isDealer);
     const dealer = gameState.players.find(p => p.isDealer);
     const nonDealers = gameState.players.filter(p => !p.isDealer);
@@ -662,9 +678,12 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     pointChanges[player.id] += payment;
   }
 
-  // リーチ棒の精算
-  const riichiStickPoints = gameState.riichiSticks * 1000;
-  pointChanges[player.id] += riichiStickPoints;
+  // リーチ棒の精算 (チョンボの場合はリーチ棒は戻らない)
+  if (!winResult.isChombo) {
+    const riichiStickPoints = gameState.riichiSticks * 1000;
+    pointChanges[player.id] += riichiStickPoints;
+  }
+
 
   gameState.agariResultDetails.pointChanges = pointChanges;
 

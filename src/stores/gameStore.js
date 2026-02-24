@@ -669,6 +669,7 @@ export const useGameStore = defineStore('game', {
       this.onlineGameId = null;
       this.isGameReady = false; // ゲーム準備状態をリセット
       this.isMatchmakingRequested = false; // 切断時はリクエストフラグをリセット
+      this.matchmakingPlayers = []; // ★追加: マッチメイキングプレイヤーリストをクリア
       console.log("オンライン対戦サーバーから切断しました。");
     },
 
@@ -1614,6 +1615,7 @@ export const useGameStore = defineStore('game', {
       }
 
       this.isMatchmakingRequested = true; // リクエストフラグを立てる
+      this.matchmakingPlayers = []; // ★追加: マッチメイキング開始時にプレイヤーリストをクリア
 
       console.log('[GameStore] Calling connectToServer()...');
       this.connectToServer(); // サーバーへの接続を開始
