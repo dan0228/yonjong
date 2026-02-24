@@ -2748,6 +2748,11 @@ export const useGameStore = defineStore('game', {
 
     this.showFinalResultPopup = true;
 
+    // ★追加: 最終結果画面が表示されたタイミングでサーバーにゲーム終了を通知
+    if (this.isGameOnline && socket && socket.connected && this.onlineGameId && this.localPlayerId) {
+      this.signalGameFinished();
+    }
+
   },
 
     returnToTitle() {
