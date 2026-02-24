@@ -1651,103 +1651,133 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
 
   console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}.`);
 
-  // game_players テーブルのプレイヤーのステータスを更新
-  const { error: updatePlayerStatusError } = await supabase
-    .from('game_players')
-    .update({ status: statusToSet, updated_at: new Date() })
-    .eq('game_id', gameId)
-    .eq('user_id', userId);
-
-  if (updatePlayerStatusError) {
-    console.error(`Error updating player ${userId} status to ${statusToSet} for game ${gameId}:`, updatePlayerStatusError);
-    return;
-  }
-
-  // 残りのプレイヤー数を取得
-  const { count: remainingPlayerCount, error: countError } = await supabase
-    .from('game_players')
-    .select('id', { count: 'exact' })
-    .eq('game_id', gameId);
-
-  if (countError) {
-    console.error(`Error counting remaining players for game ${gameId}:`, countError);
-    return;
-  }
-
-  let newGameStatus = 'waiting';
-  if (remainingPlayerCount === 0) {
-    newGameStatus = 'cancelled';
-    console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
-  } else if (remainingPlayerCount === 4) { // 念のため、4人揃っている場合はready
-    newGameStatus = 'ready';
-  } else {
-    newGameStatus = 'waiting';
-  }
-
-  // ★修正: games テーブルの status, game_data, updated_at, version をまとめて更新
-  // 現在のゲームのバージョンを取得
-  const { data: currentGameStateFromDb, error: fetchGameError } = await supabase
+  // ★追加: games テーブルの現在のステータスを取得
+  const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
-    .select('version')
+    .select('status')
     .eq('id', gameId)
     .single();
 
-  if (fetchGameError || !currentGameStateFromDb) {
-    console.error(`Error fetching current game version for game ${gameId}:`, fetchGameError?.message);
-    return;
-  }
-  const currentVersion = currentGameStateFromDb.version;
-
-  const { error: updateGameError, count: updateCount } = await supabase
-    .from('games')
-    .update({
-      status: newGameStatus,
-      updated_at: new Date(),
-      game_data: game, // 更新された game.players を含む
-      version: currentVersion + 1 // version をインクリメント
-    })
-    .eq('id', gameId)
-    .eq('version', currentVersion); // 楽観的ロックの条件
-
-  if (updateGameError) {
-    console.error(`Error updating game status and data for game ${gameId} after player left:`, updateGameError);
-    return;
-  }
-  if (updateCount === 0) {
-    console.warn(`Optimistic lock failed for game ${gameId} during player leave. Game state was already updated.`);
-    // ここでリカバリーロジックを検討することも可能
+  if (fetchGameErrorForStatus || !gameData) {
+    console.error(`Error fetching game status for game ${gameId}:`, fetchGameErrorForStatus?.message);
     return;
   }
 
-  // ★修正: 全てのプレイヤーが 'finished' ステータスになったらゲームを削除
-  const { count: finishedPlayerCount, error: finishedCountError } = await supabase
-    .from('game_players')
-    .select('id', { count: 'exact' })
-    .eq('game_id', gameId)
-    .eq('status', 'finished');
+  const currentGameStateInDb = gameData.status;
 
-  if (finishedCountError) {
-    console.error(`Error counting finished players for game ${gameId}:`, finishedCountError);
-    return;
-  }
-
-  if (finishedPlayerCount === game.players.length) { // 全員が finished になったら
-    // games テーブルからも削除
-    const { error: deleteGameError } = await supabase
-      .from('games')
+  if (currentGameStateInDb === 'waiting') {
+    // games の status が 'waiting' の場合、game_players からプレイヤーを削除
+    const { error: deletePlayerError } = await supabase
+      .from('game_players')
       .delete()
-      .eq('id', gameId);
+      .eq('game_id', gameId)
+      .eq('user_id', userId);
 
-    if (deleteGameError) {
-      console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
+    if (deletePlayerError) {
+      console.error(`Error deleting player ${userId} from game_players for game ${gameId}:`, deletePlayerError);
+      return;
     }
-    delete gameStates[gameId];
-    console.log(`Game ${gameId} removed from memory and DB as all players finished.`);
+    console.log(`Player ${userId} deleted from game_players for game ${gameId} (status: waiting).`);
+
+    // メモリ上のゲーム状態からもプレイヤーを削除
+    game.players = game.players.filter(p => p.id !== userId);
+
+    // 残りのプレイヤー数を取得
+    const { count: remainingPlayerCount, error: countError } = await supabase
+      .from('game_players')
+      .select('id', { count: 'exact' })
+      .eq('game_id', gameId);
+
+    if (countError) {
+      console.error(`Error counting remaining players for game ${gameId}:`, countError);
+      return;
+    }
+
+    let newGameStatus = 'waiting';
+    if (remainingPlayerCount === 0) {
+      newGameStatus = 'cancelled'; // プレイヤーがいなくなったらキャンセル
+      console.log(`Game ${gameId} has no players left. Setting status to 'cancelled'.`);
+    } else {
+      newGameStatus = 'waiting'; // プレイヤーが残っていれば引き続き waiting
+    }
+
+    // games テーブルの status, game_data, updated_at, version をまとめて更新
+    const { data: currentGameStateFromDb, error: fetchGameVersionError } = await supabase
+      .from('games')
+      .select('version')
+      .eq('id', gameId)
+      .single();
+
+    if (fetchGameVersionError || !currentGameStateFromDb) {
+      console.error(`Error fetching current game version for game ${gameId}:`, fetchGameVersionError?.message);
+      return;
+    }
+    const currentVersion = currentGameStateFromDb.version;
+
+    const { error: updateGameError, count: updateCount } = await supabase
+      .from('games')
+      .update({
+        status: newGameStatus,
+        updated_at: new Date(),
+        game_data: game, // 更新された game.players を含む
+        version: currentVersion + 1
+      })
+      .eq('id', gameId)
+      .eq('version', currentVersion);
+
+    if (updateGameError) {
+      console.error(`Error updating game status and data for game ${gameId} after player left:`, updateGameError);
+      return;
+    }
+    if (updateCount === 0) {
+      console.warn(`Optimistic lock failed for game ${gameId} during player leave. Game state was already updated.`);
+      return;
+    }
+
+    if (remainingPlayerCount === 0) {
+      // game_players が空になったら games テーブルからも削除
+      const { error: deleteGameError } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', gameId);
+
+      if (deleteGameError) {
+        console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
+      }
+      delete gameStates[gameId];
+      console.log(`Game ${gameId} removed from memory and DB.`);
+    } else {
+      // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
+      game.version = currentVersion + 1;
+      io.to(gameId).emit('game-state-update', game);
+    }
+
+  } else if (currentGameStateInDb === 'in_progress') {
+    // games の status が 'in_progress' の場合、game_players のステータスを 'disconnected' に更新
+    const { error: updatePlayerStatusError } = await supabase
+      .from('game_players')
+      .update({ status: 'disconnected', updated_at: new Date() })
+      .eq('game_id', gameId)
+      .eq('user_id', userId);
+
+    if (updatePlayerStatusError) {
+      console.error(`Error updating player ${userId} status to 'disconnected' for game ${gameId}:`, updatePlayerStatusError);
+      return;
+    }
+    console.log(`Player ${userId} status updated to 'disconnected' in game ${gameId} (status: in_progress).`);
+
+    // メモリ上のゲーム状態のプレイヤーのステータスも更新
+    const playerInGameState = game.players.find(p => p.id === userId);
+    if (playerInGameState) {
+      playerInGameState.status = 'disconnected';
+    }
+
+    // 他のプレイヤーに状態更新をブロードキャスト
+    await updateAndBroadcastGameState(gameId, game);
+
   } else {
-    // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-    // メモリ上のゲーム状態のバージョンも更新
-    game.version = currentVersion + 1;
-    io.to(gameId).emit('game-state-update', game);
+    // その他のステータスの場合（例: finished）、何もしないか、ログを出す
+    console.log(`Player ${userId} left game ${gameId} with status ${currentGameStateInDb}. No specific action taken.`);
   }
 }
 
