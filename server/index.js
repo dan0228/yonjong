@@ -742,6 +742,18 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   gameState.showResultPopup = true;
   gameState.isRiichiBgmActive = false;
 
+  // ★修正: チョンボの場合、親流れ・連荘のメッセージを調整
+  if (gameState.agariResultDetails.isChombo) {
+    const chomboPlayer = gameState.players.find(p => p.id === agariPlayerId);
+    if (chomboPlayer) {
+      gameState.resultMessage = `${chomboPlayer.name} の役なしチョンボ`;
+      // チョンボの場合は親流れ
+      gameState.honba = 0;
+      gameState.nextDealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
+      gameState.shouldAdvanceRound = true;
+    }
+  }
+
   await updateAndBroadcastGameState(gameId, gameState);
 }
 
