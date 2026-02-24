@@ -18,6 +18,7 @@ DECLARE
     v_game_id uuid; -- 内部で使用するゲームID
     v_room_tier text; -- room_tier を格納する変数
     v_adjacent_room_tiers text[]; -- 隣接する room_tier を格納する配列
+    v_existing_player_count integer; -- ★修正: ここに宣言を移動
 BEGIN
     -- トランザクションレベルのアドバイザリロックを取得して競合状態を防ぐ
     PERFORM pg_advisory_xact_lock(1);
@@ -72,17 +73,32 @@ BEGIN
 
     -- ゲームが見つかった場合 (第一段階 or 第二段階)
     IF FOUND THEN
-        -- 現在のプレイヤー数を取得
-        SELECT count(*)
+        -- ★修正: 現在のゲームで空いている最小の seat_index (0, 1, 2, 3) を見つける
+        SELECT s.idx
         INTO v_player_count
+        FROM generate_series(0, 3) AS s(idx)
+        LEFT JOIN public.game_players gp ON gp.game_id = v_game_record.id AND gp.seat_index = s.idx
+        WHERE gp.seat_index IS NULL
+        ORDER BY s.idx
+        LIMIT 1;
+
+        -- もし空いている seat_index が見つからなければエラー (4人部屋なので通常は発生しないはず)
+        IF v_player_count IS NULL THEN
+            RAISE EXCEPTION 'No available seat_index found for game %', v_game_record.id;
+        END IF;
+
+        -- 既存のプレイヤー数を取得 (平均レート計算用)
+        -- DECLARE v_existing_player_count integer; -- ★修正: 宣言を移動したため削除
+        SELECT count(*)
+        INTO v_existing_player_count
         FROM public.game_players
         WHERE game_id = v_game_record.id;
 
-        v_new_avg_rating := ((v_game_record.avg_rating * v_player_count) + p_user_rating) / (v_player_count + 1);
+        v_new_avg_rating := ((v_game_record.avg_rating * v_existing_player_count) + p_user_rating) / (v_existing_player_count + 1);
 
         -- 新しいプレイヤーを game_players テーブルに追加
         INSERT INTO public.game_players (game_id, user_id, seat_index, status)
-        VALUES (v_game_record.id, p_user_id, v_player_count, 'joined'); -- v_player_count を seat_index として使用
+        VALUES (v_game_record.id, p_user_id, v_player_count, 'joined'); -- 新しい v_player_count (seat_index) を使用
 
         -- 参加するプレイヤーのJSONBオブジェクトを作成（新しいカラムを含む）
         v_players_data := jsonb_build_object(
@@ -120,7 +136,7 @@ BEGIN
         v_game_id := v_game_record.id;
         out_is_full := (v_player_count + 1) = 4;
 
-    -- ゲームが見つからなかった場合 (第一���階も第二段階も見つからなかった場合)
+    -- ゲームが見つからなかった場合 (第一段階も第二段階も見つからなかった場合)
     ELSE
         v_new_game_id := gen_random_uuid();
         INSERT INTO public.games (id, room_tier, status, avg_rating, game_data)

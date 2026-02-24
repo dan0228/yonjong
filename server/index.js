@@ -1755,8 +1755,57 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.log(`Game ${gameId} removed from memory and DB.`);
     } else {
       // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-      game.version = currentVersion + 1;
-      io.to(gameId).emit('game-state-update', game);
+      // プレイヤーが残っている場合、他のプレイヤーにマッチング状態更新をブロードキャスト
+            game.version = currentVersion + 1; // メモリ上のバージョンも更新
+
+            // DBから最新のプレイヤーリストを取得してブロードキャスト
+            const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
+                .from('game_players')
+                .select(`
+                    user_id,
+                    seat_index,
+                    users (
+                        id,
+                        username,
+                        avatar_url,
+                        rating,
+                        cat_coins,
+                        total_games_played,
+                        first_place_count,
+                        second_place_count,
+                        third_place_count,
+                        fourth_place_count,
+                        class
+                    )
+                `)
+                .eq('game_id', gameId)
+                .order('seat_index', { ascending: true });
+
+            if (fetchPlayersError) {
+                console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
+                return;
+            }
+
+            const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+                id: gp.users.id,
+                name: gp.users.username,
+                username: gp.users.username,
+                avatar_url: gp.users.avatar_url,
+                rating: gp.users.rating,
+                cat_coins: gp.users.cat_coins,
+                total_games_played: gp.users.total_games_played,
+                first_place_count: gp.users.first_place_count,
+                second_place_count: gp.users.second_place_count,
+                third_place_count: gp.users.third_place_count,
+                fourth_place_count: gp.users.fourth_place_count,
+                user_rank_class: gp.users.class,
+                score: 50000, // マッチング画面では初期スコアを表示
+                isAi: false,
+                seat_index: gp.seat_index
+            }));
+
+            io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
+            console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
     }
 
   } else if (currentGameStateInDb === 'in_progress') {
