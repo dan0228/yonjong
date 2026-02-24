@@ -608,13 +608,14 @@ export const useGameStore = defineStore('game', {
 
         socket.on('matchmaking-update', ({ gameId, players }) => {
           console.log(`マッチング状況更新: ゲームID ${gameId}, プレイヤー:`, players);
+          console.log(`[Client Debug] Received 'matchmaking-update'. Players:`, JSON.stringify(players, null, 2)); // ★追加ログ
           this.onlineGameId = gameId;
           this.isGameOnline = true;
           this.localPlayerId = userStore.profile.id; // 自分のIDを設定
         
           // ★修正: playersが有効な配列の場合のみ更新し、意図しないクリアを防ぐ
           if (players && Array.isArray(players)) {
-            this.matchmakingPlayers = players; // 直接代入に修正
+            this.$patch({ matchmakingPlayers: players }); // Piniaの$patchを使用
           }
         
           // ★修正: マッチング待機中も更新情報を受け取れるように、すぐにゲームチャンネルに参加する

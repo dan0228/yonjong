@@ -1726,7 +1726,8 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       .update({
         status: newGameStatus,
         updated_at: new Date(),
-        game_data: game, // 更新された game.players を含む
+        // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
+        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -1804,6 +1805,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 seat_index: gp.seat_index
             }));
 
+            console.log(`[Server Debug] Emitting 'matchmaking-update' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
             io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
             console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
     }
@@ -1898,6 +1900,10 @@ io.on('connection', (socket) => {
           // DBからロードしたstatusとversionも反映
           gameStates[gameIdToUpdate].status = gameDataFromDb.status;
           gameStates[gameIdToUpdate].version = gameDataFromDb.version;
+          // ★追加: gameStates[gameIdToUpdate].players を gameDataFromDb.game_data.players で明示的に上書き
+          if (gameDataFromDb.game_data && gameDataFromDb.game_data.players) {
+            gameStates[gameIdToUpdate].players = gameDataFromDb.game_data.players;
+          }
           await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
         }
       }
@@ -2002,7 +2008,9 @@ io.on('connection', (socket) => {
             gameStates[out_game_id].version = 1; // 新しいゲームなのでバージョンは1
         }
         // 常に最新のプレイヤーリストで更新
-        gameStates[out_game_id].players = players;
+            gameStates[out_game_id].players = players;
+            // ★追加: game_data.players も更新
+            gameStates[out_game_id].game_data.players = players;
 
         // 参加している全プレイヤーに通知
         if (players && Array.isArray(players)) { // players が配列であることを確認
