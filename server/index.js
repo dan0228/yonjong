@@ -1482,7 +1482,9 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   const eligibility = {};
 
   // ツモ和了
-  const tsumoWinResult = mahjongLogic.checkYonhaiWin([...player.hand, gameState.drawnTile], gameState.drawnTile, true, gameContext);
+  // 鳴きがある場合も考慮して、player.melds を gameContext に含める
+  const gameContextForTsumo = { ...gameContext, melds: player.melds };
+  const tsumoWinResult = mahjongLogic.checkYonhaiWin([...player.hand, gameState.drawnTile], gameState.drawnTile, true, gameContextForTsumo);
   eligibility.canTsumoAgari = tsumoWinResult.isWin;
 
   if (player.isRiichi || player.isDoubleRiichi) {
@@ -1561,7 +1563,9 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
         console.log(`[DEBUG] Checking player ${p.id}: isRiichi=${p.isRiichi}, isFuriTen=${gameState.isFuriTen[p.id]}, isDoujunFuriTen=${gameState.isDoujunFuriTen[p.id]}`);
 
         if (!isPlayerInFuriTen) {
-          const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, gameContext);
+          // 鳴きがある場合も考慮して、p.melds を gameContext に含める
+          const gameContextForRon = { ...gameContext, melds: p.melds };
+          const ronResult = mahjongLogic.checkCanRon(p.hand, discardedTile, gameContextForRon);
           eligibility.canRon = ronResult.isWin;
           // ronResultがオブジェクトの場合、中身もログに出す
           const ronResultLog = typeof ronResult === 'object' ? JSON.stringify(ronResult) : ronResult;
