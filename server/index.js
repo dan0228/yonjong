@@ -779,6 +779,9 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   // 相手の河から牌を削除
   targetPlayer.discards.pop();
 
+  // ★追加: ポンする前の手牌の状態をログ出力
+  console.log(`[declarePon Debug] Player ${playerId} Hand BEFORE Pon:`, JSON.stringify(player.hand));
+
   // 自分の手牌から2枚削除
   const ponTileKey = mahjongLogic.getTileKey(gameState.lastDiscardedTile);
   let removedCount = 0;
@@ -793,7 +796,7 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   player.hand = newHand; // フィルタリングではなく、新しい配列で手牌を更新
 
   // ★追加: ポン後の手牌の状態をログ出力
-  console.log(`[declarePon Debug] Player ${playerId} Hand after Pon:`, JSON.stringify(player.hand));
+  console.log(`[declarePon Debug] Player ${playerId} Hand AFTER Pon:`, JSON.stringify(player.hand));
 
   // UI表示のために誰から鳴いたかを判定
   const currentPlayerIndex = gameState.players.findIndex(p => p.id === playerId);
@@ -810,39 +813,8 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   // 鳴きメンツを追加
   player.melds.push({ type: 'pon', tiles: [tileToPon, tileToPon, tileToPon], from: targetPlayerId, takenTileRelativePosition: takenTileRelativePosition });
   
-  updateFuriTenState(gameId, playerId);
-  
-  gameState.currentTurnPlayerId = playerId;
-  gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
-  gameState.drawnTile = null;
-  gameState.lastDiscardedTile = null;
-  gameState.rinshanKaihouChance = false;
-  gameState.players.forEach(p => {
-    gameState.isDoujunFuriTen[p.id] = false;
-    gameState.isIppatsuChance[p.id] = false;
-    gameState.playerActionEligibility[p.id] = {};
-  });
-  gameState.lastActionPlayerId = playerId;
-  if (gameState.playerTurnCount[playerId] !== undefined) {
-    gameState.playerTurnCount[playerId]++;
-  }
-  if (gameState.turnCount < gameState.players.length) {
-    gameState.anyPlayerMeldInFirstRound = true;
-  }
-
-  gameState.animationState = { type: 'pon', playerId: playerId };
-  
-  await updateAndBroadcastGameState(gameId, gameState);
-
-  // アニメーション表示のために少し待ってからリセット
-  setTimeout(async () => {
-    const currentGameState = gameStates[gameId];
-    if (currentGameState) {
-      currentGameState.animationState = { type: null, playerId: null };
-      await updateAndBroadcastGameState(gameId, currentGameState);
-    }
-  }, 1500);
-}
+  // ★追加: ポン後の鳴きメンツの状態をログ出力
+  console.log(`[declarePon Debug] Player ${playerId} Melds AFTER Pon:`, JSON.stringify(player.melds));
 
 // 明槓を処理するヘルパー関数
 async function declareMinkan(gameId, playerId, targetPlayerId, tileToKan) {
