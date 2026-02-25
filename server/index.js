@@ -418,8 +418,6 @@ async function processPendingActions(gameId) {
             if (currentGameState) {
                 // アニメーション状態をクリアしてから和了処理
                 currentGameState.animationState = { type: null, playerId: null };
-                // ★修正: アニメーション状態クリア後、再度ブロードキャストしてクライアントにアニメーション終了を通知
-                await updateAndBroadcastGameState(gameId, currentGameState); // ここでアニメー��ョン終了をブロードキャスト
                 await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
             }
         }, 1500); // 1.5秒待つ
@@ -575,10 +573,6 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
   // 和了形を構成
   const handForWin = isTsumo ? [...player.hand, gameState.drawnTile] : [...player.hand, agariTile];
-  console.log(`[handleAgari Debug] Player ${agariPlayerId} Hand for Win:`, JSON.stringify(handForWin));
-  console.log(`[handleAgari Debug] Player ${agariPlayerId} Melds:`, JSON.stringify(player.melds));
-  console.log(`[handleAgari Debug] Agari Tile:`, JSON.stringify(agariTile));
-  console.log(`[handleAgari Debug] Is Tsumo: ${isTsumo}`);
   if (handForWin.some(tile => !tile)) {
       console.error('[handleAgari] Invalid tile in handForWin:', handForWin);
       return;
@@ -779,24 +773,15 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   // 相手の河から牌を削除
   targetPlayer.discards.pop();
 
-  // ★追加: ポンする前の手牌の状態をログ出力
-  console.log(`[declarePon Debug] Player ${playerId} Hand BEFORE Pon:`, JSON.stringify(player.hand));
-
   // 自分の手牌から2枚削除
-  const ponTileKey = mahjongLogic.getTileKey(gameState.lastDiscardedTile);
   let removedCount = 0;
-  const newHand = [];
-  for (const tileInHand of player.hand) {
-    if (mahjongLogic.getTileKey(tileInHand) === ponTileKey && removedCount < 2) {
+  player.hand = player.hand.filter(tileInHand => {
+    if (mahjongLogic.getTileKey(tileInHand) === mahjongLogic.getTileKey(gameState.lastDiscardedTile) && removedCount < 2) {
       removedCount++;
-    } else {
-      newHand.push(tileInHand);
+      return false;
     }
-  }
-  player.hand = newHand; // フィルタリングではなく、新しい配列で手牌を更新
-
-  // ★追加: ポン後の手牌の状態をログ出力
-  console.log(`[declarePon Debug] Player ${playerId} Hand AFTER Pon:`, JSON.stringify(player.hand));
+    return true;
+  });
 
   // UI表示のために誰から鳴いたかを判定
   const currentPlayerIndex = gameState.players.findIndex(p => p.id === playerId);
@@ -813,8 +798,39 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   // 鳴きメンツを追加
   player.melds.push({ type: 'pon', tiles: [tileToPon, tileToPon, tileToPon], from: targetPlayerId, takenTileRelativePosition: takenTileRelativePosition });
   
-  // ★追加: ポン後の鳴きメンツの状態をログ出力
-  console.log(`[declarePon Debug] Player ${playerId} Melds AFTER Pon:`, JSON.stringify(player.melds));
+  updateFuriTenState(gameId, playerId);
+  
+  gameState.currentTurnPlayerId = playerId;
+  gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
+  gameState.drawnTile = null;
+  gameState.lastDiscardedTile = null;
+  gameState.rinshanKaihouChance = false;
+  gameState.players.forEach(p => {
+    gameState.isDoujunFuriTen[p.id] = false;
+    gameState.isIppatsuChance[p.id] = false;
+    gameState.playerActionEligibility[p.id] = {};
+  });
+  gameState.lastActionPlayerId = playerId;
+  if (gameState.playerTurnCount[playerId] !== undefined) {
+    gameState.playerTurnCount[playerId]++;
+  }
+  if (gameState.turnCount < gameState.players.length) {
+    gameState.anyPlayerMeldInFirstRound = true;
+  }
+
+  gameState.animationState = { type: 'pon', playerId: playerId };
+  
+  await updateAndBroadcastGameState(gameId, gameState);
+
+  // アニメーション表示のために少し待ってからリセット
+  setTimeout(async () => {
+    const currentGameState = gameStates[gameId];
+    if (currentGameState) {
+      currentGameState.animationState = { type: null, playerId: null };
+      await updateAndBroadcastGameState(gameId, currentGameState);
+    }
+  }, 1500);
+}
 
 // 明槓を処理するヘルパー関数
 async function declareMinkan(gameId, playerId, targetPlayerId, tileToKan) {
