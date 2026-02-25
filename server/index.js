@@ -575,6 +575,10 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
 
   // 和了形を構成
   const handForWin = isTsumo ? [...player.hand, gameState.drawnTile] : [...player.hand, agariTile];
+  console.log(`[handleAgari Debug] Player ${agariPlayerId} Hand for Win:`, JSON.stringify(handForWin));
+  console.log(`[handleAgari Debug] Player ${agariPlayerId} Melds:`, JSON.stringify(player.melds));
+  console.log(`[handleAgari Debug] Agari Tile:`, JSON.stringify(agariTile));
+  console.log(`[handleAgari Debug] Is Tsumo: ${isTsumo}`);
   if (handForWin.some(tile => !tile)) {
       console.error('[handleAgari] Invalid tile in handForWin:', handForWin);
       return;
