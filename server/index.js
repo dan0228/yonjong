@@ -418,6 +418,8 @@ async function processPendingActions(gameId) {
             if (currentGameState) {
                 // アニメーション状態をクリアしてから和了処理
                 currentGameState.animationState = { type: null, playerId: null };
+                // ★修正: アニメーション状態クリア後、再度ブロードキャストしてクライアントにアニメーション終了を通知
+                await updateAndBroadcastGameState(gameId, currentGameState); // ここでアニメー��ョン終了をブロードキャスト
                 await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
             }
         }, 1500); // 1.5秒待つ
