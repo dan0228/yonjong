@@ -586,7 +586,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     handForWin,
     isTsumo ? gameState.drawnTile : agariTile,
     isTsumo,
-    gameCtxForWin
+    { ...gameCtxForWin, melds: player.melds }
   );
 
   if (!winResult.isWin) {
