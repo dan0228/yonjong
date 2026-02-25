@@ -780,14 +780,20 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   targetPlayer.discards.pop();
 
   // 自分の手牌から2枚削除
+  const ponTileKey = mahjongLogic.getTileKey(gameState.lastDiscardedTile);
   let removedCount = 0;
-  player.hand = player.hand.filter(tileInHand => {
-    if (mahjongLogic.getTileKey(tileInHand) === mahjongLogic.getTileKey(gameState.lastDiscardedTile) && removedCount < 2) {
+  const newHand = [];
+  for (const tileInHand of player.hand) {
+    if (mahjongLogic.getTileKey(tileInHand) === ponTileKey && removedCount < 2) {
       removedCount++;
-      return false;
+    } else {
+      newHand.push(tileInHand);
     }
-    return true;
-  });
+  }
+  player.hand = newHand; // フィルタリングではなく、新しい配列で手牌を更新
+
+  // ★追加: ポン後の手牌の状態をログ出力
+  console.log(`[declarePon Debug] Player ${playerId} Hand after Pon:`, JSON.stringify(player.hand));
 
   // UI表示のために誰から鳴いたかを判定
   const currentPlayerIndex = gameState.players.findIndex(p => p.id === playerId);
