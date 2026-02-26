@@ -732,13 +732,11 @@ export const useGameStore = defineStore('game', {
       }
 
       // ★追加: ROUND_END フェーズに入ったときに結果ポップアップの表示を遅延させる
-      if (newState.gamePhase === GAME_PHASES.ROUND_END) {
-        // アニメーションがクリアされた後、結果ポップアップを表示する
-        // ロンアニメーションと同じ1.5秒の遅延を設定
-        setTimeout(() => {
-          this.showResultPopup = true;
-        }, 1500);
-      }
+      // サーバーからの newState.showResultPopup の値を直接反映させる
+      this.showResultPopup = newState.showResultPopup;
+
+      // ゲームオーバー時に最終結果ポップアップを表示
+      this.showFinalResultPopup = newState.showFinalResultPopup;
     },
 
     signalReadyForNextRound(remotePlayerId = null) {

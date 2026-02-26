@@ -420,6 +420,8 @@ async function processPendingActions(gameId) {
                 // アニメーション状態をクリアしてから和了処理
                 currentGameState.animationState = { type: null, playerId: null };
                 await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
+                // handleAgari 処理後、最終的なゲーム状態をブロードキャスト
+                await updateAndBroadcastGameState(gameId, currentGameState);
             }
         }, 1500); // 1.5秒待つ
 
@@ -740,7 +742,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   }
 
   gameState.gamePhase = GAME_PHASES.ROUND_END;
-  // gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
+  gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
   gameState.isRiichiBgmActive = false;
 
   // ★修正: チョンボの場合、親流れ・連荘のメッセージを調整
@@ -1036,7 +1038,7 @@ async function handleRyuukyoku(gameId) {
         }
     }
 
-    gameState.showResultPopup = true;
+    gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
     gameState.isRiichiBgmActive = false;
 
   } catch (error) {
