@@ -283,6 +283,12 @@ function updateFuriTenState(gameId, playerId) {
   const player = gameState.players.find(p => p.id === playerId);
   if (!player) return;
 
+  // ★追加: リーチ中かつ既にフリテン状態であれば、フリテン状態を更新せずに終了する
+  // これにより、リーチ後の見逃しフリテンが永続化される
+  if ((player.isRiichi || player.isDoubleRiichi) && gameState.isFuriTen[playerId] === true) {
+    return;
+  }
+
   const gameContext = createGameContextForPlayer(gameState, player, false);
   const tenpaiResult = mahjongLogic.checkYonhaiTenpai(player.hand, gameContext);
 
