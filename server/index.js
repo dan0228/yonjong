@@ -755,7 +755,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     }
   }
 
-  await updateAndBroadcastGameState(gameId, gameState);
+  // await updateAndBroadcastGameState(gameId, gameState); // 呼び出し元でブロードキャストするため削除
 }
 
 // ポンを処理するヘルパー関数
@@ -1986,6 +1986,8 @@ io.on('connection', (socket) => {
           currentGameState.animationState = { type: null, playerId: null };
           // ツモ和了
           await handleAgari(gameId, playerId, currentGameState.drawnTile, true);
+          // handleAgari 処理後、最終的なゲーム状態をブロードキャスト
+          await updateAndBroadcastGameState(gameId, currentGameState);
         }
       }, 1500); // ロンのアニメーション時間に合わせて1.5秒待つ
 
