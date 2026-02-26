@@ -259,7 +259,7 @@ function createGameContextForPlayer(gameState, player, isTsumo, lastDiscardedTil
     turnCount: gameState.turnCount,
     playerTurnCount: gameState.playerTurnCount[player.id],
     isIppatsuChance: gameState.isIppatsuChance[player.id],
-    isChankanChance: gameState.isChankanChance,
+    isChankanChance: gameState.chankanChance,
     chankanTile: gameState.chankanTile,
     rinshanKaihouChance: gameState.rinshanKaihouChance,
     lastActionPlayerId: gameState.lastActionPlayerId,
@@ -271,6 +271,7 @@ function createGameContextForPlayer(gameState, player, isTsumo, lastDiscardedTil
     isDoujunFuriTen: gameState.isDoujunFuriTen[player.id],
     anyPlayerMeldInFirstRound: gameState.anyPlayerMeldInFirstRound,
     ruleMode: gameState.ruleMode,
+    melds: player.melds, // ★追加: プレイヤーの鳴き牌情報をコンテキストに含める
   };
 }
 
