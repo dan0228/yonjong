@@ -2538,14 +2538,17 @@ export const useGameStore = defineStore('game', {
       }
     },
     handleAgari(agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
-      if (this.isGameOnline) {
         if (isTsumo) {
-          socket.emit('declareTsumoAgari', { gameId: this.onlineGameId, playerId: agariPlayerId });
+          if (socket && socket.connected) {
+            this.isActionPending = true; // ★アクションロック
+            socket.emit('declareTsumoAgari', { gameId: this.onlineGameId, playerId: agariPlayerId });
+          }
+          return;
         } else {
+          // ロンの場合は既存のロジックを使用
           this.playerDeclaresCall(agariPlayerId, 'ron', agariTile);
+          return;
         }
-        return;
-      }
 
       const audioStore = useAudioStore();
       this.actionResponseQueue = [];

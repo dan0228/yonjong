@@ -1965,6 +1965,36 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('declareTsumoAgari', async ({ gameId, playerId }) => {
+    console.log(`Player ${playerId} declares Tsumo in game ${gameId}`);
+    const gameState = gameStates[gameId];
+    if (!gameState) {
+      socket.emit('gameError', { message: 'ゲームが見つかりませんでした。' });
+      return;
+    }
+    try {
+      // サーバー側でツモアニメーションの状態を設定
+      gameState.animationState = { type: 'tsumo', playerId: playerId };
+      // アニメーション状態をクライアントにブロードキャスト
+      await updateAndBroadcastGameState(gameId, gameState);
+
+      // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
+      setTimeout(async () => {
+        const currentGameState = gameStates[gameId];
+        if (currentGameState) {
+          // アニメーション状態をクリアしてから和了処理
+          currentGameState.animationState = { type: null, playerId: null };
+          // ツモ和了
+          await handleAgari(gameId, playerId, currentGameState.drawnTile, true);
+        }
+      }, 1500); // ロンのアニメーション時間に合わせて1.5秒待つ
+
+    } catch (error) {
+      console.error(`Error handling Tsumo agari for player ${playerId} in game ${gameId}:`, error);
+      socket.emit('gameError', { message: 'ツモ和了処理中にエラーが発生しました。' });
+    }
+  });
+
   // クライアントがゲームから意図的に退出する
   socket.on('leaveGame', async ({ gameId, userId }) => {
     console.log(`Player ${userId} is intentionally leaving game ${gameId}`);
