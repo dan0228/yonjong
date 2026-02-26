@@ -1638,20 +1638,39 @@ export function checkYonhaiWin(currentHandWithWinTile, winTile, isTsumo, gameCon
     return { isWin: false, yaku: [], score: 0, fans: 0, isYakuman: false, yakumanPower: 0 };
   }
 
-  // --- 鳴き（ポン、カン）がある場合の和了形判定 ---
+  // --- 鳴きがある場合の和了形判定 ---
   if (melds.length > 0) {
     // 鳴きがある場合、残りの手牌が雀頭を形成できるか判定する。
-    // 手牌は和了牌を含めてちょうど2枚で、それらが対子になっている必要がある。
-    if (currentHandWithWinTile.length !== 2 || getTileKey(currentHandWithWinTile[0]) !== getTileKey(currentHandWithWinTile[1])) {
-      // isWin は false のまま
-    } else {
-      basicWinInfo = {
-        isWin: true,
-        mentsuType: 'koutsu', // 鳴きは刻子扱い
-        jantou: currentHandWithWinTile,
-        mentsu: melds[0].tiles // 代表として最初の鳴き牌を面子とする
-      };
+    // ロン和了の場合、手牌は2枚で、それらが雀頭になる。
+    // ツモ和了の場合、手牌は3枚（元の2枚+ツモ牌）で、そのうち2枚が雀頭になれば良い。
+    const handCounts = {};
+    currentHandWithWinTile.forEach(tile => {
+        const key = getTileKey(tile);
+        handCounts[key] = (handCounts[key] || 0) + 1;
+    });
+
+    let hasPair = false;
+    for (const key in handCounts) {
+        if (handCounts[key] >= 2) {
+            hasPair = true;
+            break;
+        }
     }
+
+    if (hasPair) {
+        // 和了形成立。basicWinInfoを構築する。
+        // 擬似的に雀頭と面子を特定する。
+        const jantouKey = Object.keys(handCounts).find(key => handCounts[key] >= 2);
+        const jantou = currentHandWithWinTile.filter(t => getTileKey(t) === getTileKey(jantouKey)).slice(0, 2);
+        
+        basicWinInfo = {
+            isWin: true,
+            mentsuType: 'koutsu', // 鳴きは刻子扱い
+            jantou: jantou,
+            mentsu: melds[0].tiles // 代表として最初の鳴き牌を面子とする
+        };
+    }
+    // hasPairがfalseなら、basicWinInfo.isWinはfalseのまま。
   } else {
     // --- 鳴きがない場合（門前）の和了形判定 ---
     // 5枚の手牌全体で和了形を判定します。
