@@ -1640,16 +1640,44 @@ export function checkYonhaiWin(currentHandWithWinTile, winTile, isTsumo, gameCon
 
   // --- 鳴き（ポン、カン）がある場合の和了形判定 ---
   if (melds.length > 0) {
-    // 鳴きがある場合、手牌は和了牌を含めてちょうど2枚で、それらが対子（同じ牌）になっている必要がある。
-    if (currentHandWithWinTile.length === 2 && getTileKey(currentHandWithWinTile[0]) === getTileKey(currentHandWithWinTile[1])) {
+    // 手牌から鳴き牌を除外し、残りの2枚が雀頭を形成するかどうかを判定します。
+    // 暗槓も他の鳴きと同様に、手牌から除外して雀頭判定を行います。
+
+    // currentHandWithWinTile の牌の出現回数をカウント
+    const handCounts = {};
+    currentHandWithWinTile.forEach(tile => {
+      const key = getTileKey(tile);
+      handCounts[key] = (handCounts[key] || 0) + 1;
+    });
+
+    const meldToExclude = melds[0]; // 四牌麻雀では鳴きは一つのみと仮定
+
+    // 鳴き牌の出現回数を手牌のカウントから減算
+    meldToExclude.tiles.forEach(meldTile => {
+      const key = getTileKey(meldTile);
+      if (handCounts[key] && handCounts[key] > 0) {
+        handCounts[key]--;
+      }
+    });
+
+    // 残りの牌を再構築
+    const remainingTiles = [];
+    for (const key in handCounts) {
+      for (let i = 0; i < handCounts[key]; i++) {
+        // 新しい牌オブジェクトを作成して追加 (IDは不要なため、suitとrankのみで構成)
+        remainingTiles.push({ suit: key.charAt(0), rank: parseInt(key.substring(1)) });
+      }
+    }
+
+    // 残りの牌が2枚で雀頭を形成しているかチェック
+    if (remainingTiles.length === 2 && getTileKey(remainingTiles[0]) === getTileKey(remainingTiles[1])) {
       basicWinInfo = {
         isWin: true,
-        mentsuType: 'koutsu', // 鳴きは刻子扱い
-        jantou: currentHandWithWinTile, // 残りの2枚が雀頭
-        mentsu: melds[0].tiles // 鳴き牌を面子として記録
+        mentsuType: 'koutsu', // 鳴き（ポン、カン）は全て刻子とみなす
+        jantou: remainingTiles, // 雀頭
+        mentsu: meldToExclude.tiles // 鳴き牌を面子として記録
       };
     }
-    // 上記の条件を満たさなければ、isWinはfalseのまま。
   } else {
     // --- 鳴きがない場合（門前）の和了形判定 ---
     // 5枚の手牌全体で和了形を判定します。
