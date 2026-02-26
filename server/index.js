@@ -1486,6 +1486,10 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
   gameState.lastActionPlayerId = playerId;
 
+  // ★追加: ツモ牌が手牌に入った状態を一度ブロードキャストし、クライアントがレンダリングする時間を確保
+  await updateAndBroadcastGameState(gameId, gameState);
+  await new Promise(resolve => setTimeout(resolve, 200)); // 200msの視覚的な遅延
+
   if (!isRinshan) {
     if (gameState.playerTurnCount[playerId] !== undefined) {
       gameState.playerTurnCount[playerId]++;
