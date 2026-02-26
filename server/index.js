@@ -740,7 +740,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   }
 
   gameState.gamePhase = GAME_PHASES.ROUND_END;
-  gameState.showResultPopup = true;
+  // gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
   gameState.isRiichiBgmActive = false;
 
   // ★修正: チョンボの場合、親流れ・連荘のメッセージを調整

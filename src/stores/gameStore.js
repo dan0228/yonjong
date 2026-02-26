@@ -725,11 +725,19 @@ export const useGameStore = defineStore('game', {
         }
       }
 
-      // ★★★ 修正: ストック選択タイマーを開始する処理を追加 ★★★
       // 新しいフェーズがストック選択待ちで、かつ自分のターンの場合
       if (newState.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER &&
           newState.currentTurnPlayerId === this.localPlayerId) {
         this.startStockSelectionCountdown(this.localPlayerId);
+      }
+
+      // ★追加: ROUND_END フェーズに入ったときに結果ポップアップの表示を遅延させる
+      if (newState.gamePhase === GAME_PHASES.ROUND_END) {
+        // アニメーションがクリアされた後、結果ポップアップを表示する
+        // ロンアニメーションと同じ1.5秒の遅延を設定
+        setTimeout(() => {
+          this.showResultPopup = true;
+        }, 1500);
       }
     },
 
