@@ -755,7 +755,20 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     }
   }
 
-  await updateAndBroadcastGameState(gameId, gameState);
+  // ★ツモ和了の場合、アニメーション表示のための遅延を設ける
+  if (isTsumo) {
+    await updateAndBroadcastGameState(gameId, gameState); // アニメーション状態をブロードキャスト
+    setTimeout(async () => {
+      const currentGameState = gameStates[gameId];
+      if (currentGameState) {
+        currentGameState.animationState = { type: null, playerId: null }; // アニメーション状態をリセット
+        await updateAndBroadcastGameState(gameId, currentGameState); // リセットされた状態をブロードキャスト
+      }
+    }, 1500); // 1.5秒待つ (クライアントのアニメーション時間に合わせて調整)
+  } else {
+    // ロン和了の場合は既存の処理をそのまま
+    await updateAndBroadcastGameState(gameId, gameState);
+  }
 }
 
 // ポンを処理するヘルパー関数
