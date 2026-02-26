@@ -11,6 +11,9 @@ import { io } from 'socket.io-client'; // Socket.ioクライアントをイン�
 const GAME_SERVER_URL = import.meta.env.VITE_APP_GAME_SERVER_URL;
 let socket = null; // Socket.ioクライアントインスタンス
 
+// ★追加: デバッグログ
+console.log(`[GameStore Debug] VITE_APP_GAME_SERVER_URL: ${GAME_SERVER_URL}`);
+
 // AIプレイヤーの候補リスト
 const allAiPlayers = [
   { name: 'くろ', originalId: 'kuro' },
