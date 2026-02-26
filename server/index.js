@@ -745,8 +745,12 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   }
 
   gameState.gamePhase = GAME_PHASES.ROUND_END;
-  gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
   gameState.isRiichiBgmActive = false;
+
+  // ★追加: アニメーション表示のために少し待ってから、最終状態をブロードキャストする
+  await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5秒待つ
+
+  gameState.showResultPopup = true; // 遅延後に表示フラグをtrueにする
 
   // ★修正: チョンボの場合、親流れ・連荘のメッセージを調整
   if (gameState.agariResultDetails.isChombo) {
@@ -760,7 +764,7 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
     }
   }
 
-  // await updateAndBroadcastGameState(gameId, gameState); // 呼び出し元でブロードキャストするため削除
+  await updateAndBroadcastGameState(gameId, gameState); // 最終的なゲーム状態をブロードキャスト
 }
 
 // ポンを処理するヘルパー関数
@@ -1984,20 +1988,12 @@ io.on('connection', (socket) => {
       console.log(`[Server DEBUG][Tsumo] Before 1st broadcast. GameId: ${gameId}, AnimationType: ${gameState.animationState.type}, ShowResultPopup: ${gameState.showResultPopup}`);
       await updateAndBroadcastGameState(gameId, gameState);
 
-      // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
-      console.log(`[Server DEBUG][Tsumo] SetTimeout started for gameId: ${gameId}`);
-      setTimeout(async () => {
-        const currentGameState = gameStates[gameId];
-        if (currentGameState) {
-          // アニメーション状態をクリアしてから和了処理
-          currentGameState.animationState = { type: null, playerId: null };
-          // ツモ和了
-          await handleAgari(gameId, playerId, currentGameState.drawnTile, true);
-          // handleAgari 処理後、最終的なゲーム状態をブロードキャスト
-          console.log(`[Server DEBUG][Tsumo] Before 2nd broadcast. GameId: ${gameId}, AnimationType: ${currentGameState.animationState.type}, ShowResultPopup: ${currentGameState.showResultPopup}`);
-          await updateAndBroadcastGameState(gameId, currentGameState);
-        }
-      }, 1500); // ロンのアニメーション時間に合わせて1.5秒待つ
+      // 和了処理は直接 handleAgari を呼び出す
+      await handleAgari(gameId, playerId, gameState.drawnTile, true);
+      
+      // handleAgari の中で最終的なゲーム状態をブロードキャストするはずなので、ここでは不要
+      // console.log(`[Server DEBUG][Tsumo] After handleAgari. GameId: ${gameId}, AnimationType: ${gameState.animationState.type}, ShowResultPopup: ${gameState.showResultPopup}`);
+      // await updateAndBroadcastGameState(gameId, gameState);
 
     } catch (error) {
       console.error(`Error handling Tsumo agari for player ${playerId} in game ${gameId}:`, error);

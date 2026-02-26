@@ -731,19 +731,8 @@ export const useGameStore = defineStore('game', {
         this.startStockSelectionCountdown(this.localPlayerId);
       }
 
-      // デバッグログ
-      console.log('[gameStore.handleRemoteStateUpdate] DEBUG: showResultPopup update check.');
-      console.log(`  isGameOnline: ${this.isGameOnline}, animationState.type: ${this.animationState.type}, newState.gamePhase: ${newState.gamePhase}, newState.showResultPopup: ${newState.showResultPopup}`);
-
-      // ROUND_ENDフェーズでツモアニメーション中なら、クライアント側で表示を制御するため、showResultPopupの更新をスキップ
-      if (this.isGameOnline && this.animationState.type === 'tsumo' && newState.gamePhase === GAME_PHASES.ROUND_END) {
-        console.log('[gameStore] ツモアニメーション中のため、showResultPopupの更新をスキップします。');
-        // showResultPopup は更新しない
-      } else {
-        this.showResultPopup = newState.showResultPopup;
-        console.log(`[gameStore] showResultPopup を ${newState.showResultPopup} に更新しました。`);
-      }
-
+      // サーバーからの newState.showResultPopup の値を直接反映させる
+      this.showResultPopup = newState.showResultPopup;
 
       // ゲームオーバー時に最終結果ポップアップを表示
       this.showFinalResultPopup = newState.showFinalResultPopup;
