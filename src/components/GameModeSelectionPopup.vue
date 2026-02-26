@@ -16,23 +16,23 @@
       </button>
       <div class="popup-content">
         <!-- ボタンをループ処理 -->
-                  <div
-                    v-for="button in buttons"
-                    :key="button.id"
-                    class="mode-option"
-                    :class="[button.customClass, { 'clickable': !button.isForm }]"
-                    @click="!button.isForm && selectOption(button.id, null)"
-                  >
-                    <!-- 通常の選択肢 -->
-                    <div v-if="!button.isForm">
-                      <!-- @clickイベントは親要素に移動 -->
-                      <div class="mode-title">
-                        {{ button.title }}
-                      </div>
-                      <div class="mode-description">
-                        {{ button.description }}
-                      </div>
-                    </div>
+        <div
+          v-for="button in buttons"
+          :key="button.id"
+          class="mode-option"
+          :class="[button.customClass, { 'clickable': !button.isForm }]"
+          @click="!button.isForm && selectOption(button.id, null)"
+        >
+          <!-- 通常の選択肢 -->
+          <div v-if="!button.isForm">
+            <!-- @clickイベントは親要素に移動 -->
+            <div class="mode-title">
+              {{ button.title }}
+            </div>
+            <div class="mode-description">
+              {{ button.description }}
+            </div>
+          </div>
           <!-- 友人対戦フォーム -->
           <div v-if="button.isForm">
             <div class="mode-title form-title">
