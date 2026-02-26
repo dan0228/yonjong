@@ -31,3 +31,8 @@ img {
   -o-user-drag: none;      /* Opera */
   pointer-events: none;    /* クリックイベントなども無効化 */
 }
+
+html, body {
+  overscroll-behavior: none; /* iOS Safariの弾むようなスクロール効果を無効化 */
+  touch-action: none; /* すべてのタッチジェスチャーを無効化 */
+}
