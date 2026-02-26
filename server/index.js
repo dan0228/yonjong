@@ -1970,6 +1970,47 @@ io.on('connection', (socket) => {
     await handlePlayerLeave(gameId, userId, 'finished');
   });
 
+  // ★追加: クライアントからの和了宣言を処理する
+  socket.on('declareAgari', async ({ gameId, playerId, agariTile, isTsumo, ronTargetPlayerId }) => {
+    try {
+      const gameState = gameStates[gameId];
+
+      // ゲーム状態の存在チェック
+      if (!gameState) {
+        console.warn(`[declareAgari] Invalid agari: Game state not found for game ${gameId}.`);
+        socket.emit('gameError', { message: 'ゲームが見つかりません。' });
+        return;
+      }
+
+      // ツモ和了の場合の検証
+      if (isTsumo) {
+        // 自分のターンであるか
+        if (gameState.currentTurnPlayerId !== playerId) {
+          console.warn(`[declareAgari] Invalid tsumo agari: Not player's turn. Game: ${gameId}, Player: ${playerId}, Current Turn: ${gameState.currentTurnPlayerId}.`);
+          socket.emit('gameError', { message: 'ツモ和了の条件を満たしていません。' });
+          return;
+        }
+        // サーバー側でツモ牌が管理されているか
+        if (!gameState.drawnTile) {
+          console.warn(`[declareAgari] Invalid tsumo agari: No drawn tile. Game: ${gameId}, Player: ${playerId}.`);
+          socket.emit('gameError', { message: 'ツモ和了の条件を満たしていません。' });
+          return;
+        }
+
+        // サーバーが管理しているツモ牌を使って和了処理を実行
+        await handleAgari(gameId, playerId, gameState.drawnTile, true, null);
+
+      } else {
+        // ロン和了の場合 (現状の実装では 'playerAction' イベントで処理される)
+        console.warn(`[declareAgari] Ron declaration received via 'declareAgari' event. This should be handled by 'playerAction'. Game: ${gameId}, Player: ${playerId}.`);
+        socket.emit('gameError', { message: 'ロン宣言の処理方法が正しくありません。' });
+      }
+    } catch (error) {
+      console.error(`[declareAgari] Error processing agari for game ${gameId}:`, error);
+      socket.emit('gameError', { message: '和了処理中にサーバーエラーが発生しました。' });
+    }
+  });
+
 
   // クライアントがゲームに参加する
   socket.on('joinGame', async ({ gameId, userId }) => {
