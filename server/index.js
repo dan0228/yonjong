@@ -411,9 +411,11 @@ async function processPendingActions(gameId) {
         gameState.highlightedDiscardTileId = gameState.lastDiscardedTile.id;
         
         // アニメーションとハイライトの状態をブロードキャスト
+        console.log(`[Server DEBUG][Ron] Before 1st broadcast. GameId: ${gameId}, AnimationType: ${gameState.animationState.type}, ShowResultPopup: ${gameState.showResultPopup}`);
         await updateAndBroadcastGameState(gameId, gameState);
 
         // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
+        console.log(`[Server DEBUG][Ron] SetTimeout started for gameId: ${gameId}`);
         setTimeout(async () => {
             const currentGameState = gameStates[gameId];
             if (currentGameState) {
@@ -421,6 +423,7 @@ async function processPendingActions(gameId) {
                 currentGameState.animationState = { type: null, playerId: null };
                 await handleAgari(gameId, winningRonAction.playerId, currentGameState.lastDiscardedTile, false, currentGameState.lastActionPlayerId);
                 // handleAgari 処理後、最終的なゲーム状態をブロードキャスト
+                console.log(`[Server DEBUG][Ron] Before 2nd broadcast. GameId: ${gameId}, AnimationType: ${currentGameState.animationState.type}, ShowResultPopup: ${currentGameState.showResultPopup}`);
                 await updateAndBroadcastGameState(gameId, currentGameState);
             }
         }, 1500); // 1.5秒待つ
@@ -1978,9 +1981,11 @@ io.on('connection', (socket) => {
       // サーバー側でツモアニメーションの状態を設定
       gameState.animationState = { type: 'tsumo', playerId: playerId };
       // アニメーション状態をクライアントにブロードキャスト
+      console.log(`[Server DEBUG][Tsumo] Before 1st broadcast. GameId: ${gameId}, AnimationType: ${gameState.animationState.type}, ShowResultPopup: ${gameState.showResultPopup}`);
       await updateAndBroadcastGameState(gameId, gameState);
 
       // アニメーション表示のために少し待ってから、和了処理と結果ポップアップ表示を行う
+      console.log(`[Server DEBUG][Tsumo] SetTimeout started for gameId: ${gameId}`);
       setTimeout(async () => {
         const currentGameState = gameStates[gameId];
         if (currentGameState) {
@@ -1989,6 +1994,7 @@ io.on('connection', (socket) => {
           // ツモ和了
           await handleAgari(gameId, playerId, currentGameState.drawnTile, true);
           // handleAgari 処理後、最終的なゲーム状態をブロードキャスト
+          console.log(`[Server DEBUG][Tsumo] Before 2nd broadcast. GameId: ${gameId}, AnimationType: ${currentGameState.animationState.type}, ShowResultPopup: ${currentGameState.showResultPopup}`);
           await updateAndBroadcastGameState(gameId, currentGameState);
         }
       }, 1500); // ロンのアニメーション時間に合わせて1.5秒待つ

@@ -731,9 +731,19 @@ export const useGameStore = defineStore('game', {
         this.startStockSelectionCountdown(this.localPlayerId);
       }
 
-      // ★追加: ROUND_END フェーズに入ったときに結果ポップアップの表示を遅延させる
-      // サーバーからの newState.showResultPopup の値を直接反映させる
-      this.showResultPopup = newState.showResultPopup;
+      // デバッグログ
+      console.log('[gameStore.handleRemoteStateUpdate] DEBUG: showResultPopup update check.');
+      console.log(`  isGameOnline: ${this.isGameOnline}, animationState.type: ${this.animationState.type}, newState.gamePhase: ${newState.gamePhase}, newState.showResultPopup: ${newState.showResultPopup}`);
+
+      // ROUND_ENDフェーズでツモアニメーション中なら、クライアント側で表示を制御するため、showResultPopupの更新をスキップ
+      if (this.isGameOnline && this.animationState.type === 'tsumo' && newState.gamePhase === GAME_PHASES.ROUND_END) {
+        console.log('[gameStore] ツモアニメーション中のため、showResultPopupの更新をスキップします。');
+        // showResultPopup は更新しない
+      } else {
+        this.showResultPopup = newState.showResultPopup;
+        console.log(`[gameStore] showResultPopup を ${newState.showResultPopup} に更新しました。`);
+      }
+
 
       // ゲームオーバー時に最終結果ポップアップを表示
       this.showFinalResultPopup = newState.showFinalResultPopup;
@@ -2544,18 +2554,28 @@ export const useGameStore = defineStore('game', {
       }
     },
     handleAgari(agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
-        if (isTsumo) {
+        if (isTsumo && this.isGameOnline) {
           if (socket && socket.connected) {
             this.isActionPending = true; // ★アクションロック
             socket.emit('declareTsumoAgari', { gameId: this.onlineGameId, playerId: agariPlayerId });
           }
-          return;
-        } else {
-          // ロンの場合は既存のロジックを使用
-          this.playerDeclaresCall(agariPlayerId, 'ron', agariTile);
-          return;
-        }
-
+                  // オンラインの場合でも、ローカルでアニメーションと結果表示の遅延を処理
+                  // サーバーからの状態更新は後から来るが、UIの反応性を高める
+                  const audioStore = useAudioStore();
+                  const player = this.players.find(p => p.id === agariPlayerId);
+                  if (player) {
+                    this.animationState = { type: 'tsumo', playerId: agariPlayerId };
+                    audioStore.playSound('Multi_Accent01-3(Dry).mp3');
+          
+                    // サーバーからの最終的な状態更新は引き続き handleRemoteStateUpdate で処理される
+                    // ここではUIの即時的な反応を向上させる
+                  }
+                  return;
+                } else if (!isTsumo && this.isGameOnline) {
+                  // ロンの場合は既存のロジックを使用 (オンラインの場合)
+                  this.playerDeclaresCall(agariPlayerId, 'ron', agariTile);
+                  return;
+                }
       const audioStore = useAudioStore();
       this.actionResponseQueue = [];
       const player = this.players.find(p => p.id === agariPlayerId);
@@ -2597,13 +2617,23 @@ export const useGameStore = defineStore('game', {
         this.highlightedDiscardTileId = this.lastDiscardedTile.id;
       }
 
-      this.animationState = { type: winResult.isChombo ? 'ron' : (isTsumo ? 'tsumo' : 'ron'), playerId: agariPlayerId };
-      if (winResult.isChombo) {
-        audioStore.playSound('Single_Accent17-2(Dry).mp3');
-      } else if (isTsumo) {
-        audioStore.playSound('Multi_Accent01-3(Dry).mp3');
-      } else {
-        audioStore.playSound('Single_Accent17-2(Dry).mp3');
+      // ツモアニメーション表示とリザルトポップアップ表示のロジック
+      // オンラインの場合はサーバーからの状態更新を待つため、ここではローカルでのUI更新を行わない
+      if (!this.isGameOnline) {
+        this.animationState = { type: winResult.isChombo ? 'ron' : (isTsumo ? 'tsumo' : 'ron'), playerId: agariPlayerId };
+        if (winResult.isChombo) {
+          audioStore.playSound('Single_Accent17-2(Dry).mp3');
+        } else if (isTsumo) {
+          audioStore.playSound('Multi_Accent01-3(Dry).mp3');
+          // ツモアニメーション表示後、リザルトポップアップを表示するための遅延
+          setTimeout(() => {
+            this.animationState = { type: null, playerId: null }; // アニメーションをリセット
+            this.showResultPopup = true; // リザルトポップアップを表示
+            this.stopRiichiBgm();
+          }, 1800); // ロンと同じ1.8秒の遅延
+        } else {
+          audioStore.playSound('Single_Accent17-2(Dry).mp3');
+        }
       }
 
       const pointChanges = {};
