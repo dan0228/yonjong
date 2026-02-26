@@ -344,6 +344,7 @@ onBeforeUnmount(() => {
   transition: all 0.2s ease;
   z-index: 10;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1));
+  color: #4a2c1a; /* 明示的に色を設定 */
 }
 
 .omikuji-button .coin-text {
