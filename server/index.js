@@ -1552,9 +1552,14 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
     // 和了もカンもできない場合は、即座にツモ切り処理を実行する
     // setTimeoutによる非同期処理をやめ、一連の処理として実行することで状態の不整合を防ぐ
     console.log(`[Server] Riichi player ${playerId} cannot win or kan. Auto-discarding.`);
-    // _processDiscardを直接呼び出し、その後のブロードキャストもこの中で行われる
-    await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
-    // この後のブロードキャストは_processDiscardに任せるため、ここでは何もしない
+    
+    // ★追加: AI対戦と同様に、ツモ切り動作に遅延を追加
+    await new Promise(resolve => setTimeout(async () => {
+        // _processDiscardを直接呼び出し、その後のブロードキャストもこの中で行われる
+        await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
+        resolve(); // Promiseを解決して遅延を終了
+    }, 500)); // 500ミリ秒待つ
+
     return; // 処理が完了したので関数を抜ける
   }
 
