@@ -80,6 +80,20 @@
   });
 
   /**
+   * 手牌を公開すべきかどうかを判定する算出プロパティ。
+   * 流局時（ROUND_END）で、かつそのプレイヤーがテンパイしている場合にtrueとなります。
+   */
+  const shouldShowAllTiles = computed(() => {
+    if (!props.player) return false;
+    // 流局時（ROUND_ENDフェーズかつ和了者がいない場合、またはisDrawがtrueの場合）にテンパイ者の手牌を公開
+    const isRoundEnd = gameStore.gamePhase === GAME_PHASES.ROUND_END;
+    const isDraw = gameStore.agariResultDetails?.isDraw;
+    const isTenpai = gameStore.isTenpaiDisplay[props.player.id];
+    
+    return isRoundEnd && isDraw && isTenpai;
+  });
+
+  /**
    * 指定された牌が選択可能かどうかを判定します。
    * リーチ中のプレイヤーはツモ牌しか選択できません。
    * @param {Object} tile - 判定する牌オブジェクト。
