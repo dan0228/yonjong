@@ -11,8 +11,8 @@
         @click="selectTile(tile, false)"
       >
         <img
-          :src="getTileImageUrl(isMyHand || tile.isPublic ? tile : null)"
-          :alt="isMyHand ? tileToString(tile) : '裏向きの牌'"
+          :src="getTileImageUrl(isMyHand || tile.isPublic || shouldShowAllTiles ? tile : null)"
+          :alt="isMyHand || shouldShowAllTiles ? tileToString(tile) : '裏向きの牌'"
         >
       </div>
     </div>
@@ -25,8 +25,8 @@
         @click="selectTile(drawnTileDisplay, true)"
       >
         <img
-          :src="getTileImageUrl(isMyHand || drawnTileDisplay.isPublic ? drawnTileDisplay : null)"
-          :alt="isMyHand ? tileToString(drawnTileDisplay) : '裏向きの牌'"
+          :src="getTileImageUrl(isMyHand || drawnTileDisplay.isPublic || shouldShowAllTiles ? drawnTileDisplay : null)"
+          :alt="isMyHand || shouldShowAllTiles ? tileToString(drawnTileDisplay) : '裏向きの牌'"
         >
       </div>
     </div>
