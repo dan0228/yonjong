@@ -125,6 +125,8 @@ function createDefaultGameState() {
     highlightedDiscardTileId: null,
     isTenpaiDisplay: {},
     playersReadyForNextRound: [],
+    disconnectedPlayers: [], // 切断されたプレイヤーのIDを格納
+
     isGameReady: false,
     hasGameStarted: false,
     chatBubbles: {},
@@ -1734,6 +1736,19 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     return;
   }
 
+  // disconnectedPlayers に追加
+  if (!game.disconnectedPlayers.includes(userId)) {
+    game.disconnectedPlayers.push(userId);
+    console.log(`Player ${userId} added to disconnectedPlayers for game ${gameId}`);
+  }
+
+  // もしプレイヤーが playersReadyForNextRound にいた場合、そこから削除
+  const readyIndex = game.playersReadyForNextRound.indexOf(userId);
+  if (readyIndex > -1) {
+    game.playersReadyForNextRound.splice(readyIndex, 1);
+    console.log(`Player ${userId} removed from playersReadyForNextRound for game ${gameId}`);
+  }
+
   console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}.`);
 
   // ★追加: games テーブルの現在のステータスを取得
@@ -2362,8 +2377,11 @@ io.on('connection', (socket) => {
       gameState.playersReadyForNextRound.push(playerId);
     }
 
-    // 全員の準備が完了した場合
-    if (gameState.playersReadyForNextRound.length >= gameState.players.length) {
+    // アクティブなプレイヤー（切断されていないプレイヤー）の数を取得
+    const activePlayers = gameState.players.filter(p => !gameState.disconnectedPlayers.includes(p.id));
+
+    // すべてのアクティブなプレイヤーが準備完了した場合、次のラウンドを開始
+    if (gameState.playersReadyForNextRound.length === activePlayers.length) {
       await prepareNextRound(gameId); // prepareNextRoundを呼び出す
     } else {
       // 全員が揃っていない場合は、現在の準備状況をブロードキャスト
