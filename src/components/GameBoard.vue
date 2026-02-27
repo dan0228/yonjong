@@ -846,7 +846,7 @@
 
 .ron-indicator.pon-animation {
   /* 他のインジケーターのアニメーションを上書き */
-  animation: pon-bounce-effect 1.5s ease-in-out;
+  animation: pon-bounce-effect 1.5s ease-in-out forwards;
 }
 
 @keyframes pon-bounce-effect {
@@ -878,7 +878,7 @@
 }
 
 .ron-indicator.kan-animation {
-  animation: kan-bounce-effect 1.7s ease-in-out;
+  animation: kan-bounce-effect 1.7s ease-in-out forwards;
 }
 
 @keyframes kan-bounce-effect {
@@ -1402,7 +1402,7 @@
   z-index: 50;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  animation: stock-fade-effect 0.6s ease-in-out;
+  animation: stock-fade-effect 0.6s ease-in-out forwards;
 }
 
 .stock-indicator-bottom {
