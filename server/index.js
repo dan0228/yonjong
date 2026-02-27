@@ -328,7 +328,7 @@ async function moveToNextPlayer(gameId) {
   }
 
   // クライアント側でストック選択のUIをトリガーするためにフェーズを設定
-  if (gameState.ruleMode === 'stock' && nextPlayer && !nextPlayer.isAi) {
+  if (gameState.ruleMode === 'stock' && nextPlayer && !nextPlayer.isAi && nextPlayer.status !== 'disconnected') {
     if (nextPlayer.stockedTile && !nextPlayer.isRiichi && !nextPlayer.isDoubleRiichi) {
       gameState.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER; // クライアントにストック選択を促す
     }
@@ -1551,11 +1551,11 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   gameState.playerActionEligibility[playerId] = eligibility;
   updateFuriTenState(gameId, playerId);
 
-  // リーチ後の自動ツモ切り処理
-  if ((player.isRiichi || player.isDoubleRiichi) && !eligibility.canTsumoAgari && !eligibility.canAnkan) {
-    // 和了もカンもできない場合は、即座にツモ切り処理を実行する
+  // リーチ後、または切断中の自動ツモ切り処理
+  if (player.status === 'disconnected' || ((player.isRiichi || player.isDoubleRiichi) && !eligibility.canTsumoAgari && !eligibility.canAnkan)) {
+    // 和了もカンもできない場合、または切断中の場合は、即座にツモ切り処理を実行する
     // setTimeoutによる非同期処理をやめ、一連の処理として実行することで状態の不整合を防ぐ
-    console.log(`[Server] Riichi player ${playerId} cannot win or kan. Auto-discarding.`);
+    console.log(`[Server] Player ${playerId} (Riichi: ${player.isRiichi}, Disconnected: ${player.status === 'disconnected'}) cannot win or kan, or is disconnected. Auto-discarding.`);
     
     // ★追加: AI対戦と同様に、ツモ切り動作に遅延を追加
     await new Promise(resolve => setTimeout(async () => {
@@ -1592,6 +1592,12 @@ function _checkForPlayerActions(gameId, discarderId, discardedTile) {
             canMinkan: null
         };
         const eligibility = gameState.playerActionEligibility[p.id]; // ショートカット
+
+        // 切断中のプレイヤーはアクション不可としてスキップ
+        if (p.status === 'disconnected') {
+           console.log(`[DEBUG] Player ${p.id} is disconnected. Skipping action check.`);
+           return;
+        }
 
         const gameContext = createGameContextForPlayer(gameState, p, false, discardedTile);
         const isPlayerInFuriTen = gameState.isFuriTen[p.id] || gameState.isDoujunFuriTen[p.id];
@@ -1911,6 +1917,40 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
 
     // 他のプレイヤーに状態更新をブロードキャスト
     await updateAndBroadcastGameState(gameId, game);
+
+    // ★追加: 切断したプレイヤーが現在アクションを求められている場合、自動で処理を進める
+    if (game.waitingForPlayerResponses && game.waitingForPlayerResponses.includes(userId) && !game.playerResponses[userId]) {
+      console.log(`[Server] Player ${userId} disconnected while in waitingForPlayerResponses. Auto-passing.`);
+      game.playerResponses[userId] = 'skip';
+      game.playerActionEligibility[userId] = {};
+      
+      // もし現在アクティブな応答者であれば、次へ進める
+      if (game.activeActionPlayerId === userId) {
+         setTimeout(async () => {
+            await setNextActiveResponder(gameId);
+            await updateAndBroadcastGameState(gameId, game);
+         }, 500);
+      }
+    } else if ((game.gamePhase === GAME_PHASES.AWAITING_DISCARD || game.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) && game.currentTurnPlayerId === userId) {
+      if (game.drawnTile) {
+        console.log(`[Server] Player ${userId} disconnected during their turn. Auto-discarding drawn tile.`);
+        setTimeout(async () => {
+          await _processDiscard(gameId, userId, game.drawnTile.id, true);
+        }, 500);
+      } else if (playerInGameState && playerInGameState.hand.length > 0) {
+        const rightmostTile = playerInGameState.hand[playerInGameState.hand.length - 1];
+        console.log(`[Server] Player ${userId} disconnected during their turn without drawnTile. Auto-discarding rightmost tile.`);
+        setTimeout(async () => {
+          await _processDiscard(gameId, userId, rightmostTile.id, false);
+        }, 500);
+      }
+    } else if (game.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && game.currentTurnPlayerId === userId) {
+       console.log(`[Server] Player ${userId} disconnected during stock selection. Auto-drawing from wall.`);
+       setTimeout(async () => {
+           game.gamePhase = GAME_PHASES.PLAYER_TURN;
+           await _executeDrawTile(gameId, userId);
+       }, 500);
+    }
 
   } else {
     // その他のステータスの場合（例: finished）、何もしないか、ログを出す
