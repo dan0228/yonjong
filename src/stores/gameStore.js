@@ -1659,6 +1659,7 @@ export const useGameStore = defineStore('game', {
 
       this.gamePhase = GAME_PHASES.PLAYER_TURN;
 
+      const nextPlayer = this.players.find(p => p.id === this.currentTurnPlayerId); 
       if (nextPlayer) {
         nextPlayer.isUsingStockedTile = false;
       }
