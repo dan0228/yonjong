@@ -115,6 +115,18 @@
     }
     // リーチ中の通常のツモ
     if (props.player.isRiichi || props.player.isDoubleRiichi) {
+      // ツモやカンのアクションが可能な時以外は、牌を選択（手動でツモ切り等）できないようにする
+      const eligibility = gameStore.playerActionEligibility[props.player.id];
+      const hasAction = eligibility && (
+        eligibility.canTsumoAgari || 
+        (eligibility.canAnkan && eligibility.canAnkan.length > 0) || 
+        (eligibility.canKakan && eligibility.canKakan.length > 0)
+      );
+      
+      if (!hasAction) {
+        return false;
+      }
+      
       // リーチ後はツモった牌しか捨てられない
       return isFromDrawnTile;
     }
