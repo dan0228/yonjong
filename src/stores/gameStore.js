@@ -714,6 +714,9 @@ export const useGameStore = defineStore('game', {
         this.playerActionEligibility = playerActionEligibility;
       }
 
+      // サーバーからの状態更新が来たので、保留中のアクションがないとみなす
+      this.isActionPending = false;
+
       // 保持しておいたプロパティを再設定
       if (localId) {
         this.localPlayerId = localId;

@@ -94,28 +94,28 @@
         v-if="canDeclareTsumoAgari"
         :src="t('playerArea.tsumoButtonImg')"
         :alt="t('playerArea.tsumo')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('tsumoAgari')"
       >
       <img
         v-if="canDeclareRiichi && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.riichiButtonImg')"
         :alt="t('playerArea.riichi')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('riichi')"
       >
       <img
         v-if="canDeclareAnkan"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.ankan')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('ankan')"
       >
       <img
         v-if="canDeclareKakan && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.kakan')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('kakan')"
       >
       <!-- ストックアクション -->
@@ -123,7 +123,7 @@
         v-if="canStockAction"
         :src="t('playerArea.stockButtonImg')"
         :alt="t('playerArea.stock')"
-        class="action-image-button stock-button"
+        :class="['action-image-button', 'stock-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('stock')"
       >
       <!-- 他家の打牌/加槓に対するアクション -->
@@ -131,21 +131,21 @@
         v-if="canDeclareRon"
         :src="t('playerArea.ronButtonImg')"
         :alt="t('playerArea.ron')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('ron')"
       >
       <img
         v-if="canDeclarePon && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.ponButtonImg')"
         :alt="t('playerArea.pon')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('pon')"
       >
       <img
         v-if="canDeclareMinkan && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.kan')"
-        class="action-image-button"
+        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('minkan')"
       >
       <!-- スキップボタン -->
@@ -153,7 +153,7 @@
         v-if="showSkipButton"
         :src="t('playerArea.skipButtonImg')"
         :alt="t('playerArea.skip')"
-        class="action-image-button skip-button"
+        :class="['action-image-button', 'skip-button', { 'disabled': gameStore.isActionPending }]"
         @click="emitAction('skip')"
       >
     </div>
@@ -387,8 +387,11 @@ const hasMelds = computed(() => {
  * @param {string} actionType - 宣言されたアクションのタイプ（例: 'tsumoAgari', 'riichi', 'pon'）。
  */
 function emitAction(actionType) {
-    // ボタンが押されたら、すぐに非表示にする
-    actionInProgress.value = true;
+    // アクションが保留中の場合は何もしない
+    if (gameStore.isActionPending) return;
+
+    // ボタンが押されたら、すぐにアクション保留状態にする
+    gameStore.isActionPending = true;
     
     let tileData = null;
     if (actionType === 'pon') tileData = playerEligibility.value.canPon;
@@ -417,7 +420,7 @@ function emitAction(actionType) {
     } else if (actionType === 'stock') {
         // ストックアクションの場合、牌の選択はPlayerHandで行うため、ここではフェーズ変更のみ
         gameStore.gamePhase = GAME_PHASES.AWAITING_STOCK_TILE_SELECTION;
-        actionInProgress.value = false; // 牌選択フェーズに移行するので、ボタンは再度有効にする
+        gameStore.isActionPending = false; // 牌選択フェーズに移行するので、ボタンは再度有効にする
         return; // emitActionは行わない
     }
     emit('action-declared', { playerId: props.player.id, actionType, tile: tileData });
