@@ -2018,6 +2018,59 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       }
     }
 
+    // ★追加: 4人全員が切断した場合、ゲームのステータスを'disconnected'にし、履歴テーブルに移動させる
+    if (game.disconnectedPlayers.length === 4) {
+      console.log(`[Server] All 4 players disconnected from game ${gameId}. Moving to history.`);
+      try {
+        const { data: gameDataToMove, error: fetchGameError } = await supabase
+          .from('games')
+          .select('*')
+          .eq('id', gameId)
+          .single();
+          
+        if (fetchGameError) throw fetchGameError;
+        
+        if (gameDataToMove) {
+          gameDataToMove.status = 'disconnected';
+          gameDataToMove.updated_at = new Date().toISOString();
+          
+          // games_historyに挿入
+          const { error: insertGameHistoryError } = await supabase
+            .from('games_history')
+            .insert([gameDataToMove]);
+            
+          if (insertGameHistoryError) throw insertGameHistoryError;
+          
+          // 現在のプレイヤー情報を取得
+          const { data: gamePlayersToMove, error: fetchPlayersError } = await supabase
+            .from('game_players')
+            .select('*')
+            .eq('game_id', gameId);
+            
+          if (fetchPlayersError) throw fetchPlayersError;
+          
+          // game_players_historyに挿入
+          if (gamePlayersToMove && gamePlayersToMove.length > 0) {
+            const { error: insertPlayersHistoryError } = await supabase
+              .from('game_players_history')
+              .insert(gamePlayersToMove);
+              
+            if (insertPlayersHistoryError) throw insertPlayersHistoryError;
+          }
+          
+          // 元のテーブルから削除
+          await supabase.from('game_players').delete().eq('game_id', gameId);
+          await supabase.from('games').delete().eq('id', gameId);
+          
+          // メモリからゲーム状態を削除
+          delete gameStates[gameId];
+          console.log(`[Server] Game ${gameId} successfully moved to history as disconnected.`);
+        }
+      } catch (e) {
+        console.error(`[Server] Error moving game ${gameId} to history:`, e);
+      }
+    }
+
   } else {
     // その他のステータスの場合（例: finished）、何もしないか、ログを出す
     console.log(`Player ${userId} left game ${gameId} with status ${currentGameStateInDb}. No specific action taken.`);
