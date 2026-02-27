@@ -215,6 +215,7 @@ function onTileSelected(payload) {
  * @param {Object} payload - 選択された牌の情報を含むペイロード。
  */
 function onTileToStockSelected(payload) {
+  if (gameStore.isActionPending) return;
   gameStore.executeStock(props.player.id, payload.tile.id, payload.isFromDrawnTile);
 }
 
@@ -427,6 +428,9 @@ function emitAction(actionType) {
         // ストックアクションの場合、牌の選択はPlayerHandで行うため、ここではフェーズ変更のみ
         gameStore.gamePhase = GAME_PHASES.AWAITING_STOCK_TILE_SELECTION;
         gameStore.isActionPending = false; // 牌選択フェーズに移行するので、ボタンは再度有効にする
+        if (gameStore.isGameOnline) {
+          gameStore.startTurnCountdown(); // ストックする牌を選ぶためのカウントダウンを再開
+        }
         return; // emitActionは行わない
     }
     emit('action-declared', { playerId: props.player.id, actionType, tile: tileData });

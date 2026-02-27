@@ -2102,6 +2102,22 @@ export const useGameStore = defineStore('game', {
             }
           } else if (this.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE || this.gamePhase === GAME_PHASES.AWAITING_KAKAN_RESPONSE) {
              this.playerSkipsCall(this.localPlayerId);
+          } else if (this.gamePhase === GAME_PHASES.AWAITING_STOCK_TILE_SELECTION) {
+            // ストック牌選択のタイムアウト時は一番右端の牌をストックする
+            const player = this.players.find(p => p.id === this.localPlayerId);
+            if (player) {
+              let tileToStock;
+              let isFromDrawnTile = false;
+              if (this.drawnTile) {
+                tileToStock = this.drawnTile;
+                isFromDrawnTile = true;
+              } else if (player.hand.length > 0) {
+                tileToStock = player.hand[player.hand.length - 1];
+              }
+              if (tileToStock) {
+                this.executeStock(this.localPlayerId, tileToStock.id, isFromDrawnTile);
+              }
+            }
           }
         }
       }, interval);
