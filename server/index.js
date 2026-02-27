@@ -1220,6 +1220,10 @@ async function handleGameEnd(gameId) {
     if (fetchGameError) {
       console.error(`Error fetching game ${gameId} for archiving:`, fetchGameError);
     } else if (gameDataToArchive) {
+      // ステータスを finished に更新して履歴に保存
+      gameDataToArchive.status = 'finished';
+      gameDataToArchive.updated_at = new Date().toISOString();
+
       const { error: insertGameHistoryError } = await supabase
         .from('games_history')
         .insert([gameDataToArchive]);
