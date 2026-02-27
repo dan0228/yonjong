@@ -257,6 +257,8 @@ export function createDefaultGameState() {
     highlightedDiscardTileId: null,
     stockSelectionCountdown: 1.3,
     stockSelectionTimerId: null,
+    turnCountdown: 5.0,
+    turnTimerId: null,
     stockAnimationPlayerId: null,
     isTenpaiDisplay: {},
     isFadingToFinalResult: false, // フェードアウトの状態を追加
@@ -779,6 +781,28 @@ export const useGameStore = defineStore('game', {
         this.stopStockSelectionCountdown();
       }
 
+      // ターンタイムアウト用カウントダウンの開始/停止ロジック
+      if (
+        (newState.gamePhase === GAME_PHASES.AWAITING_DISCARD || newState.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) &&
+        newState.currentTurnPlayerId === this.localPlayerId
+      ) {
+        // ストックを使用後、すでに discardTile 等が呼ばれている状態での重複実行を避ける
+        if (!this.turnTimerId) {
+           this.startTurnCountdown();
+        }
+      } else if (
+        (newState.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE || newState.gamePhase === GAME_PHASES.AWAITING_KAKAN_RESPONSE) &&
+        newState.waitingForPlayerResponses &&
+        newState.waitingForPlayerResponses.includes(this.localPlayerId) &&
+        (!newState.playerResponses || !newState.playerResponses[this.localPlayerId])
+      ) {
+        if (!this.turnTimerId) {
+           this.startTurnCountdown();
+        }
+      } else {
+        this.stopTurnCountdown();
+      }
+
       // サーバーからの newState.showResultPopup の値を直接反映させる
       this.showResultPopup = newState.showResultPopup;
 
@@ -1229,6 +1253,7 @@ export const useGameStore = defineStore('game', {
     },
 
     useStockedTile(playerId) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -1276,6 +1301,7 @@ export const useGameStore = defineStore('game', {
     },
 
     drawFromWall(playerId) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -1409,6 +1435,8 @@ export const useGameStore = defineStore('game', {
     },
 
     discardTile(playerId, tileIdToDiscard, isFromDrawnTile, isStocking = false) {
+      if (this.isActionPending) return;
+
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
 
@@ -2038,6 +2066,55 @@ export const useGameStore = defineStore('game', {
       this.stockSelectionCountdown = 1.3; // カウントダウンをリセット
     },
 
+    startTurnCountdown() {
+      if (!this.isGameOnline) return;
+
+      this.stopTurnCountdown();
+
+      const duration = 5000; // 5秒
+      let currentProgress = duration;
+      const interval = 50;
+      this.turnCountdown = parseFloat((currentProgress / 1000).toFixed(2));
+
+      this.turnTimerId = setInterval(() => {
+        currentProgress = Math.max(0, currentProgress - interval);
+        this.turnCountdown = parseFloat((currentProgress / 1000).toFixed(2));
+
+        if (currentProgress === 0) {
+          this.stopTurnCountdown();
+
+          if (this.isActionPending) return;
+
+          if (this.gamePhase === GAME_PHASES.AWAITING_DISCARD || this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) {
+            if (this.currentTurnPlayerId === this.localPlayerId) {
+              const player = this.players.find(p => p.id === this.localPlayerId);
+              if (player) {
+                let tileToDiscard;
+                if (this.drawnTile) {
+                  tileToDiscard = this.drawnTile;
+                } else if (player.hand.length > 0) {
+                  tileToDiscard = player.hand[player.hand.length - 1];
+                }
+                if (tileToDiscard) {
+                  this.discardTile(this.localPlayerId, tileToDiscard.id, !!this.drawnTile);
+                }
+              }
+            }
+          } else if (this.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE || this.gamePhase === GAME_PHASES.AWAITING_KAKAN_RESPONSE) {
+             this.playerSkipsCall(this.localPlayerId);
+          }
+        }
+      }, interval);
+    },
+
+    stopTurnCountdown() {
+      if (this.turnTimerId) {
+        clearInterval(this.turnTimerId);
+        this.turnTimerId = null;
+      }
+      this.turnCountdown = 5.0;
+    },
+
     setRiichiAnimationState(playerId) {
       this.animationState = { type: 'riichi', playerId: playerId };
       setTimeout(() => {
@@ -2058,6 +2135,7 @@ export const useGameStore = defineStore('game', {
     },
 
     declareRiichi(playerId) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2102,6 +2180,7 @@ export const useGameStore = defineStore('game', {
     },
 
     playerSkipsCall(playerId) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2132,6 +2211,7 @@ export const useGameStore = defineStore('game', {
     },
 
     playerDeclaresCall(playerId, actionType, tile) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2266,6 +2346,7 @@ export const useGameStore = defineStore('game', {
     },
 
     declarePon(playerId, targetPlayerId, tileToPon) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2357,6 +2438,7 @@ export const useGameStore = defineStore('game', {
     },
 
     declareMinkan(playerId, targetPlayerId, tileToKan) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2445,6 +2527,7 @@ export const useGameStore = defineStore('game', {
     },
 
     declareAnkan(playerId, tileToAnkan) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2526,6 +2609,7 @@ export const useGameStore = defineStore('game', {
     },
 
     declareKakan(playerId, tileToKakan) {
+      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2626,6 +2710,7 @@ export const useGameStore = defineStore('game', {
       }
     },
     handleAgari(agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
+        if (this.isActionPending) return;
         if (isTsumo && this.isGameOnline) {
           if (socket && socket.connected) {
             this.isActionPending = true; // ★アクションロック

@@ -89,6 +89,11 @@
       v-if="isMyHand || gameStore.gameMode === 'allManual'"
       :class="['player-actions', `player-actions-${position}`]"
     >
+      <!-- ターンカウントダウン表示 -->
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending" class="turn-countdown">
+        {{ Math.ceil(gameStore.turnCountdown) }}
+      </div>
+
       <!-- ツモ番のアクション -->
       <img
         v-if="canDeclareTsumoAgari"
@@ -768,6 +773,18 @@ function getMeldTileAlt(meld, tile, tileIndex) {
     z-index: 30; /* 他の要素より手前に表示 */
     padding: 5px;
     border-radius: 4px;
+}
+
+.turn-countdown {
+  font-size: 32px;
+  font-weight: bold;
+  color: #ff3333;
+  text-shadow: 2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
 }
 
 /* 各ポジションごとのアクションボタンの位置調整 */
