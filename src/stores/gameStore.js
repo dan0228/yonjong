@@ -692,8 +692,47 @@ export const useGameStore = defineStore('game', {
       const localId = this.localPlayerId;
       const isOnline = this.isGameOnline; // ★★★ isGameOnlineの値を保持
 
-      // playerActionEligibility とそれ以外のプロパティを分割
-      const { playerActionEligibility, ...restOfState } = newState;
+      // ---- SE再生ロジック追加 ----
+      const audioStore = useAudioStore();
+
+      // 打牌音
+      if (newState.lastDiscardedTile && (!this.lastDiscardedTile || this.lastDiscardedTile.id !== newState.lastDiscardedTile.id)) {
+        audioStore.playSound('dahai.mp3');
+      }
+
+      // リーチBGM
+      const wasAnyRiichi = this.players.some(p => p.isRiichi || p.isDoubleRiichi);
+      const isAnyRiichi = newState.players?.some(p => p.isRiichi || p.isDoubleRiichi);
+      if (!wasAnyRiichi && isAnyRiichi) {
+        this.startRiichiBgm();
+      } else if (wasAnyRiichi && !isAnyRiichi) {
+        this.stopRiichiBgm();
+      }
+
+      // アニメーション (ポン、カン、ロン、ツモ、リーチ宣言)
+      if (newState.animationState && newState.animationState.type && (!this.animationState || this.animationState.type !== newState.animationState.type)) {
+        const type = newState.animationState.type;
+        if (type === 'ron') {
+          audioStore.playSound('Single_Accent17-2(Dry).mp3');
+        } else if (type === 'pon') {
+          audioStore.playSound('Percussive_Accent03-1(Dry).mp3');
+        } else if (type === 'kan') {
+          audioStore.playSound('Hyoshigi01-1.mp3');
+        } else if (type === 'tsumo') {
+          audioStore.playSound('Multi_Accent01-3(Dry).mp3');
+        } else if (type === 'riichi') {
+          audioStore.playSound('Kagura_Suzu03-1.mp3');
+        }
+      }
+
+      // ストック音
+      if (newState.stockAnimationPlayerId && this.stockAnimationPlayerId !== newState.stockAnimationPlayerId) {
+        audioStore.playSound('Percussive_Accent04-3(High).mp3');
+      }
+      // ---- SE再生ロジック終了 ----
+
+      // playerActionEligibility と isRiichiBgmActive を除外してそれ以外のプロパティを分割
+      const { playerActionEligibility, isRiichiBgmActive, ...restOfState } = newState;
 
       // ★★★ 最終防衛ライン: クライアント側でツモ牌の状態を検証・浄化する ★★★
       if (restOfState.drawnTile) {
