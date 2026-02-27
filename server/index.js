@@ -1064,13 +1064,23 @@ async function handleRyuukyoku(gameId) {
         }
     }
 
-    gameState.showResultPopup = true; // クライアント側で表示を制御するため、ここでは設定しない
+    gameState.showResultPopup = false; // まずはポップアップを表示せずに状態をブロードキャストする
     gameState.isRiichiBgmActive = false;
+
+    // テンパイ表示のために一度ブロードキャスト
+    await updateAndBroadcastGameState(gameId, gameState);
+
+    // 2秒待機
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // その後、ポップアップを表示して再度ブロードキャスト
+    if (gameStates[gameId]) {
+      gameStates[gameId].showResultPopup = true;
+      await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+    }
 
   } catch (error) {
     console.error(`Error during Ryuukyoku for game ${gameId}:`, error);
-  } finally {
-    await updateAndBroadcastGameState(gameId, gameState);
   }
 }
 
