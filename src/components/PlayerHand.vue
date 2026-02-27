@@ -110,8 +110,8 @@
       return false;
     }
 
-    // 通常の打牌時は常に選択可能だが、ホストからの応答待ち中は選択不可
-    return !gameStore.isWaitingForHost;
+    // 通常の打牌時は常に選択可能だが、サーバーからの応答待ち中は選択不可
+    return !gameStore.isActionPending;
   }
 
   /**

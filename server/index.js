@@ -1978,6 +1978,15 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
        }, 500);
     }
 
+    // ★追加: リザルト画面で切断された場合、残りのアクティブプレイヤーが全員準備完了していれば次のラウンドへ進む
+    if (game.gamePhase === GAME_PHASES.ROUND_END) {
+      const activePlayers = game.players.filter(p => !game.disconnectedPlayers.includes(p.id));
+      if (activePlayers.length > 0 && game.playersReadyForNextRound.length === activePlayers.length) {
+        console.log(`[Server] All remaining active players are ready for next round after player ${userId} disconnected. Proceeding.`);
+        await prepareNextRound(gameId);
+      }
+    }
+
   } else {
     // その他のステータスの場合（例: finished）、何もしないか、ログを出す
     console.log(`Player ${userId} left game ${gameId} with status ${currentGameStateInDb}. No specific action taken.`);
