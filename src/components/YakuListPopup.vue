@@ -321,7 +321,7 @@ h2 {
   background-color: #f0e68c; /* 達成済みの役の背景色を少し明るい黄色に */
 }
 .example-column {
-  width: 100px;
+  width: 98px;
 }
 .yaku-example {
   display: flex;

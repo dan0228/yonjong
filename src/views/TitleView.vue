@@ -530,7 +530,7 @@ onBeforeUnmount(() => {
   background-repeat: no-repeat;
   background-position: center;
   background-image: url('/assets/images/back/title_back.png');
-  margin-top: 30px;
+  margin-top: 40px;
 }
 
 /* レイアウトブロック */
@@ -572,7 +572,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 340px;
   height: auto;
-  margin-top: 50px;
+  margin-top: 70px;
 }
 
 .title-buttons-container {
@@ -591,7 +591,7 @@ onBeforeUnmount(() => {
 }
 
 .main-group {
-  margin-top: 70px;
+  margin-top: 50px;
   margin-bottom: 5px;
 }
 

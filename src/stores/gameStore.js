@@ -479,21 +479,21 @@ export const useGameStore = defineStore('game', {
         '/assets/images/tiles/z7.png',
       ];
       const audioPaths = [
-        '/assets/sounds/Kagura_Suzu01-7.mp3',
-        '/assets/sounds/NES-JP-A03-2(Stage2-Loop140).mp3',
-        '/assets/sounds/GB-JP-A02-2(Menu-Loop105).mp3',
-        '/assets/sounds/dahai.mp3',
-        '/assets/sounds/NES-JP-A04-2(Stage3-Loop125).mp3',
-        '/assets/sounds/Percussive_Accent03-1(Dry).mp3',
-        '/assets/sounds/Hyoshigi01-1.mp3',
-        '/assets/sounds/Multi_Accent01-3(Dry).mp3',
-        '/assets/sounds/Single_Accent17-2(Dry).mp3',
-        '/assets/sounds/Kagura_Suzu03-1.mp3',
-        '/assets/sounds/Percussive_Accent04-3(High).mp3',
-        '/assets/sounds/Flyer02-1(Take).mp3',
-        '/assets/sounds/Hit-Slap01-3(Dry).mp3',
-        '/assets/sounds/takibi.mp3',
-        '/assets/sounds/NES-JP-A02-2(Stage1-Loop110).mp3',
+        '/assets/sounds/Kagura_Suzu01-7.mp3', // おみくじ
+        '/assets/sounds/NES-JP-A03-2(Stage2-Loop140).mp3', // 対戦BGM
+        '/assets/sounds/GB-JP-A02-2(Menu-Loop105).mp3', // ランキング、神社BGM
+        '/assets/sounds/dahai.mp3', // 打牌
+        '/assets/sounds/NES-JP-A04-2(Stage3-Loop125).mp3', // リーチBGM
+        '/assets/sounds/Percussive_Accent03-1(Dry).mp3', // ポン
+        '/assets/sounds/Hyoshigi01-1.mp3',  // カン
+        '/assets/sounds/Multi_Accent01-3(Dry).mp3', // ツモ
+        '/assets/sounds/Single_Accent17-2(Dry).mp3', // ロン
+        '/assets/sounds/Kagura_Suzu03-1.mp3', // リーチ
+        '/assets/sounds/Percussive_Accent04-3(High).mp3', // ストック
+        '/assets/sounds/Flyer02-1(Take).mp3', // 遊び方、ルール、役一覧
+        '/assets/sounds/Hit-Slap01-3(Dry).mp3', // ゲームモード選択ポップアップ
+        '/assets/sounds/takibi.mp3', // 焚火
+        '/assets/sounds/NES-JP-A02-2(Stage1-Loop110).mp3', // マッチング画面
       ];
 
       try {
@@ -1590,7 +1590,8 @@ export const useGameStore = defineStore('game', {
       player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
 
       this.stockAnimationPlayerId = playerId;
-    
+      const audioStore = useAudioStore(); 
+      audioStore.playSound('Percussive_Accent04-3(High).mp3');
 
       // アニメーションを一定時間後に非表示にするタイマーをセット。
       // AIの思考時間(約600ms)と衝突しないよう、表示時間を少し短めに取る。
@@ -1851,6 +1852,9 @@ export const useGameStore = defineStore('game', {
         return;
       }
       this.initializeGame();
+      if (!this.isGameOnline) { // AI対戦の場合のみstartGameFlowを呼び出す
+        this.startGameFlow();
+      }
     },
 
     startGameFlow() {
