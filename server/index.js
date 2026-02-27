@@ -54,6 +54,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 現在アクティブなゲームの状態を保持するオブジェクト
 const gameStates = {};
+const stockSelectionTimerIds = {}; // 各ゲームのストック選択タイマーIDを保持
 
 // ユーザーIDとソケットIDをマッピングするMap
 const userSocketMap = new Map();
@@ -330,9 +331,19 @@ async function moveToNextPlayer(gameId) {
   }
 
   // クライアント側でストック選択のUIをトリガーするためにフェーズを設定
-  if (gameState.ruleMode === 'stock' && nextPlayer && !nextPlayer.isAi && nextPlayer.status !== 'disconnected') {
+  if (gameState.ruleMode === 'stock' && nextPlayer) {
     if (nextPlayer.stockedTile && !nextPlayer.isRiichi && !nextPlayer.isDoubleRiichi) {
       gameState.gamePhase = GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER; // クライアントにストック選択を促す
+      // サーバー側でストック選択タイマーを開始
+      stockSelectionTimerIds[gameId] = setTimeout(async () => {
+        console.log(`[Server] Stock selection timed out for player ${gameState.currentTurnPlayerId}. Auto-drawing from wall.`);
+        // タイムアウトした場合、自動的に山から牌を引く
+        const timedOutPlayerId = gameState.currentTurnPlayerId;
+        gameState.gamePhase = GAME_PHASES.PLAYER_TURN;
+        await _executeDrawTile(gameId, timedOutPlayerId);
+        await updateAndBroadcastGameState(gameId, gameState);
+        delete stockSelectionTimerIds[gameId]; // タイマーをクリア
+      }, 1500); // 1.5秒のタイムアウト
     }
   }
 
@@ -2421,6 +2432,12 @@ io.on('connection', (socket) => {
         player.isUsingStockedTile = false;
     }
 
+    // サーバー側のストック選択タイマーをクリア
+    if (stockSelectionTimerIds[gameId]) {
+        clearTimeout(stockSelectionTimerIds[gameId]);
+        delete stockSelectionTimerIds[gameId];
+    }
+
     await _executeDrawTile(gameId, playerId);
     // _executeDrawTile が内部でブロードキャストするため、ここでは不要
   });
@@ -2439,6 +2456,12 @@ io.on('connection', (socket) => {
     
     const player = gameState.players.find(p => p.id === playerId);
     if (!player || !player.stockedTile) return socket.emit('gameError', { message: 'ストックした牌がありません。' });
+
+    // サーバー側のストック選択タイマーをクリア
+    if (stockSelectionTimerIds[gameId]) {
+        clearTimeout(stockSelectionTimerIds[gameId]);
+        delete stockSelectionTimerIds[gameId];
+    }
 
     gameState.drawnTile = player.stockedTile;
     player.stockedTile = null;
