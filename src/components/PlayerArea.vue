@@ -345,8 +345,8 @@ const canStockAction = computed(() => {
 const showStockCountdown = computed(() => {
   const currentPlayer = gameStore.players.find(p => p.id === gameStore.currentTurnPlayerId);
   return gameStore.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER &&
-         gameStore.currentTurnPlayerId === props.player.id && // 自分のターンのみ表示
-         currentPlayer && !currentPlayer.isRiichi && !currentPlayer.isDoubleRiichi; // リーチ中は表示しない
+         gameStore.currentTurnPlayerId === props.player.id &&
+         currentPlayer && !currentPlayer.isRiichi && !currentPlayer.isDoubleRiichi;
 });
 
 const isDrawFromWallActive = computed(() => {

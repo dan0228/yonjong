@@ -1659,18 +1659,19 @@ export const useGameStore = defineStore('game', {
 
       this.gamePhase = GAME_PHASES.PLAYER_TURN;
 
-      const nextPlayer = this.players.find(p => p.id === this.currentTurnPlayerId);
       if (nextPlayer) {
         nextPlayer.isUsingStockedTile = false;
       }
-      if (this.ruleMode === 'stock' && nextPlayer && !nextPlayer.isAi) {
+      if (this.ruleMode === 'stock' && nextPlayer) {
         if (nextPlayer.stockedTile && !nextPlayer.isRiichi && !nextPlayer.isDoubleRiichi) {
+          // ストック牌があり、リーチ中でない場合はストック選択カウントダウンを開始
           this.startStockSelectionCountdown(nextPlayer.id);
         } else {
+          // ストック牌がないか、リーチ中の場合は通常通り牌を引く
           this.drawTile();
         }
-      }
-      else {
+      } else {
+        // ストックルールが有効でない、または次のプレイヤーがいない場合、通常通り牌を引く
         this.drawTile();
       }
       this.waitingForPlayerResponses = [];
@@ -1919,7 +1920,7 @@ export const useGameStore = defineStore('game', {
 
     startStockSelectionCountdown(playerId) {
       const player = this.players.find(p => p.id === playerId);
-      if (!player || player.isAi) return;
+      if (!player) return; // プレイヤーが見つからない場合は処理を中止
 
       if (this.stockSelectionTimerId) {
         return;
@@ -1930,6 +1931,41 @@ export const useGameStore = defineStore('game', {
       
       const duration = 1300; // 1.3秒 (ミリ秒)
       let startTime = null;
+
+      if (player.isAi) {
+        // UI表示のためのカウントダウンタイマーを設定 (setInterval)
+        let currentProgress = duration; // ミリ秒で開始
+        const interval = 50; // 50msごとに更新
+        this.stockSelectionCountdown = parseFloat((currentProgress / 1000).toFixed(2)); // 初期値をセット
+        // console.log(`[GameStore] stockSelectionCountdown updated: ${this.stockSelectionCountdown} for player ${playerId}`); // ログは非同期行動後に集中
+
+        const uiUpdateTimerId = setInterval(() => {
+          currentProgress = Math.max(0, currentProgress - interval);
+          this.stockSelectionCountdown = parseFloat((currentProgress / 1000).toFixed(2));
+
+          if (currentProgress === 0) {
+            clearInterval(uiUpdateTimerId); // ゲージが0になったらタイマーを停止
+            this.stockSelectionTimerId = null; // storeのタイマーIDもリセット
+          }
+        }, interval);
+        this.stockSelectionTimerId = uiUpdateTimerId; // storeにタイマーIDを保存
+
+        // AIの行動を決定するタイマー (setTimeout)
+        const aiActionDelay = Math.random() * (1200 - 500) + 500; // AIの思考時間を模倣
+        setTimeout(() => {
+          clearInterval(uiUpdateTimerId); // AIが行動したらUIタイマーも停止
+          this.stockSelectionTimerId = null; // storeのタイマーIDもリセット
+
+          const useStocked = Math.random() < 0.3;
+          if (useStocked && player.stockedTile) {
+            this.useStockedTile(playerId);
+          } else {
+            this.chooseToDrawFromWall(playerId);
+          }
+        }, aiActionDelay);
+
+        return; // AIプレイヤーの場合はここで終了
+      }
 
       const animate = (timestamp) => {
         if (!startTime) {
