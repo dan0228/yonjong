@@ -390,11 +390,12 @@ function emitAction(actionType) {
     // アクションが保留中の場合は何もしない
     if (gameStore.isActionPending) return;
 
-    // ボタンが押されたら、すぐにアクション保留状態にする
-    gameStore.isActionPending = true;
-    
-    let tileData = null;
-    if (actionType === 'pon') tileData = playerEligibility.value.canPon;
+    // ボタンが押されたら、オンライン時のみすぐにアクション保留状態にする（オフラインでは即時処理されるため不要）
+    if (gameStore.isGameOnline) {
+      gameStore.isActionPending = true;
+    }
+
+    let tileData = null;    if (actionType === 'pon') tileData = playerEligibility.value.canPon;
     else if (actionType === 'minkan') tileData = playerEligibility.value.canMinkan;
     // 暗槓・加槓の場合、UIで選択された牌を渡す必要がある。
     // ここでは仮に、ストアが単一の牌オブジェクトを返しているか、

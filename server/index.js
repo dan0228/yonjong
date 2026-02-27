@@ -1070,8 +1070,8 @@ async function handleRyuukyoku(gameId) {
     // テンパイ表示のために一度ブロードキャスト
     await updateAndBroadcastGameState(gameId, gameState);
 
-    // 2秒待機
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // 3秒待機
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // その後、ポップアップを表示して再度ブロードキャスト
     if (gameStates[gameId]) {

@@ -2875,6 +2875,7 @@ export const useGameStore = defineStore('game', {
     },
 
     resetGameForNewSession() {
+      this.isActionPending = false; // ★ アクションロックを解除
       this.playersReadyForNextRound = []; // ★ 強制的にリセット
 
       const userStore = useUserStore();
