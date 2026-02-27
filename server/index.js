@@ -1571,9 +1571,21 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
     console.log(`[Server] Player ${playerId} (Riichi: ${player.isRiichi}, Disconnected: ${player.status === 'disconnected'}) cannot win or kan, or is disconnected. Auto-discarding.`);
     
     // ★追加: AI対戦と同様に、ツモ切り動作に遅延を追加
+    const drawnTileIdToDiscard = gameState.drawnTile ? gameState.drawnTile.id : null;
     await new Promise(resolve => setTimeout(async () => {
-        // _processDiscardを直接呼び出し、その後のブロードキャストもこの中で行われる
-        await _processDiscard(gameId, playerId, gameState.drawnTile.id, true);
+        try {
+            const currentGameState = gameStates[gameId];
+            if (currentGameState) {
+                if (drawnTileIdToDiscard) {
+                    await _processDiscard(gameId, playerId, drawnTileIdToDiscard, true);
+                } else if (player.hand && player.hand.length > 0) {
+                    const rightmostTile = player.hand[player.hand.length - 1];
+                    await _processDiscard(gameId, playerId, rightmostTile.id, false);
+                }
+            }
+        } catch (e) {
+            console.error(`[Server] Auto-discard failed for player ${playerId}:`, e);
+        }
         resolve(); // Promiseを解決して遅延を終了
     }, 500)); // 500ミリ秒待つ
 
@@ -1958,19 +1970,28 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
          }, 500);
       }
     } else if ((game.gamePhase === GAME_PHASES.AWAITING_DISCARD || game.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) && game.currentTurnPlayerId === userId) {
-      if (game.drawnTile) {
-        console.log(`[Server] Player ${userId} disconnected during their turn. Auto-discarding drawn tile.`);
-        setTimeout(async () => {
-          await _processDiscard(gameId, userId, game.drawnTile.id, true);
-        }, 500);
-      } else if (playerInGameState && playerInGameState.hand.length > 0) {
-        const rightmostTile = playerInGameState.hand[playerInGameState.hand.length - 1];
-        console.log(`[Server] Player ${userId} disconnected during their turn without drawnTile. Auto-discarding rightmost tile.`);
-        setTimeout(async () => {
-          await _processDiscard(gameId, userId, rightmostTile.id, false);
-        }, 500);
-      }
-    } else if (game.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && game.currentTurnPlayerId === userId) {
+              if (game.drawnTile) {
+                console.log(`[Server] Player ${userId} disconnected during their turn. Auto-discarding drawn tile.`);
+                const drawnTileIdToDiscard = game.drawnTile.id;
+                setTimeout(async () => {
+                  try {
+                      if (gameStates[gameId]) {
+                          await _processDiscard(gameId, userId, drawnTileIdToDiscard, true);
+                      }
+                  } catch(e) { console.error(`[Server] Auto-discard failed for player ${userId}:`, e); }
+                }, 500);
+              } else if (playerInGameState && playerInGameState.hand.length > 0) {
+                const rightmostTile = playerInGameState.hand[playerInGameState.hand.length - 1];
+                console.log(`[Server] Player ${userId} disconnected during their turn without drawnTile. Auto-discarding rightmost tile.`);
+                const rightmostTileId = rightmostTile.id;
+                setTimeout(async () => {
+                  try {
+                      if (gameStates[gameId]) {
+                          await _processDiscard(gameId, userId, rightmostTileId, false);
+                      }
+                  } catch(e) { console.error(`[Server] Auto-discard failed for player ${userId}:`, e); }
+                }, 500);
+              }    } else if (game.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER && game.currentTurnPlayerId === userId) {
        console.log(`[Server] Player ${userId} disconnected during stock selection. Auto-drawing from wall.`);
        setTimeout(async () => {
            game.gamePhase = GAME_PHASES.PLAYER_TURN;
