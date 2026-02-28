@@ -802,6 +802,10 @@ export const useGameStore = defineStore('game', {
         if (!this.turnTimerId) {
            this.startTurnCountdown();
         }
+      } else if (newState.gamePhase === GAME_PHASES.ROUND_END && newState.showResultPopup && !this.playersReadyForNextRound.includes(this.localPlayerId)) {
+        if (!this.turnTimerId) {
+           this.startTurnCountdown();
+        }
       } else {
         this.stopTurnCountdown();
       }
@@ -2163,6 +2167,9 @@ export const useGameStore = defineStore('game', {
                 this.executeStock(this.localPlayerId, tileToStock.id, isFromDrawnTile);
               }
             }
+          } else if (this.gamePhase === GAME_PHASES.ROUND_END) {
+            // リザルト画面でタイムアウトした場合、自動的に「次へ」を実行する
+            this.signalReadyForNextRound();
           }
         }
       }, interval);

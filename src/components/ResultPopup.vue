@@ -229,13 +229,18 @@
             </table>
           </div>
 
-          <button
-            :disabled="isLocalPlayerReady"
-            :class="{ 'waiting': isLocalPlayerReady }"
-            @click="signalReady"
-          >
-            {{ isLocalPlayerReady ? t('resultPopup.waiting') : t('resultPopup.next') }}
-          </button>
+          <div class="next-button-container">
+            <button
+              :disabled="isLocalPlayerReady"
+              :class="{ 'waiting': isLocalPlayerReady }"
+              @click="signalReady"
+            >
+              {{ isLocalPlayerReady ? t('resultPopup.waiting') : t('resultPopup.next') }}
+            </button>
+            <div v-if="gameStore.turnTimerId !== null && gameStore.isGameOnline && !isLocalPlayerReady" class="result-countdown">
+              <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
+            </div>
+          </div>
         </div> <!-- Close popup-inner-content -->
       </div>
     </div>
@@ -291,6 +296,14 @@ const isLocalPlayerReady = computed(() => {
 function signalReady() {
   gameStore.signalReadyForNextRound();
 }
+
+const countdownImageSrc = computed(() => {
+  const countdownValue = Math.ceil(gameStore.turnCountdown);
+  if (countdownValue >= 1 && countdownValue <= 5) {
+    return `/assets/images/number/${countdownValue}b.png`;
+  }
+  return ''; // またはデフォルト画像
+});
 
 const translatedScoreName = computed(() => {
   const scoreName = props.resultDetails.scoreName;
@@ -696,6 +709,31 @@ function getMeldTileClass(meld, tileIndex) {
 .point-increase { color: #00532E; } /* 抹茶色の深緑 */
 .point-decrease { color: #8B0000; } /* えんじ色 (DarkRed) */
 
+.next-button-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.result-countdown {
+  position: absolute;
+  left: calc(45% + 60px); /* ボタンの右側に配置 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+}
+
+.result-countdown .countdown-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgb(255, 255, 255));
+}
+
 .popup-content button {
   background-image: url('/assets/images/button/board_hand.png');
   background-color: transparent;
@@ -713,7 +751,7 @@ function getMeldTileClass(meld, tileIndex) {
   font-size: 1.2em;
   transition: transform 0.2s ease;
   margin-top: -5px;
-  margin-left: 130px;
+  margin-left: 0px;
 }
 .popup-content button:hover {
   transform: scale(1.03);
