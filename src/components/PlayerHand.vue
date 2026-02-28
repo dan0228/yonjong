@@ -28,7 +28,7 @@
         >
       </div>
       <!-- ターンカウントダウン表示 -->
-      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && isMyHand && !isWallDrawButtonVisible" class="turn-countdown-in-hand">
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && isMyHand && !isWallDrawButtonVisible && !gameStore.showResultPopup" class="turn-countdown-in-hand">
         <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
       </div>
     </div>

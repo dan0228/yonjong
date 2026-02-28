@@ -24,7 +24,7 @@
         >
       </div>
       <!-- ターンカウントダウン表示（ボタンの右側、半透明化を防ぐためボタンの外に配置） -->
-      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline" :class="['turn-countdown-wall-button', { 'has-melds': hasMelds }]">
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && !gameStore.showResultPopup" :class="['turn-countdown-wall-button', { 'has-melds': hasMelds }]">
         <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
       </div>
     </div>
