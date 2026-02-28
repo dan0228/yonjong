@@ -14,6 +14,9 @@ let socket = null; // Socket.ioクライアントインスタンス
 // ★追加: デバッグログ
 console.log(`[GameStore Debug] VITE_APP_GAME_SERVER_URL: ${GAME_SERVER_URL}`);
 
+// AI関連の定数
+const AI_TSUMO_AFTER_KAN_DELAY = 2000; // AIがカンをした後にツモ和了するまでの遅延 (ms)
+
 // AIプレイヤーの候補リスト
 const allAiPlayers = [
   { name: 'くろ', originalId: 'kuro' },
@@ -3192,9 +3195,12 @@ export const useGameStore = defineStore('game', {
       eligibility.canTsumoAgari = tsumoWinResult.isWin;
 
       // AIの場合、嶺上牌でツモ和了可能であれば自動で和了する
-      if (player.isAi && eligibility.canTsumoAgari) { 
-          this.handleAgari(playerId, this.drawnTile, true); 
-          return; 
+      if (player.isAi && eligibility.canTsumoAgari) {
+        // カンアニメーションの完了を待ってからツモ和了処理を行う
+        setTimeout(() => {
+          this.handleAgari(playerId, this.drawnTile, true);
+        }, AI_TSUMO_AFTER_KAN_DELAY);
+        return;
       }
 
       if (!player.isRiichi && !player.isDoubleRiichi) {
@@ -3402,7 +3408,7 @@ export const useGameStore = defineStore('game', {
             if (this.isChankanChance) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.chankanTile);
               return;
-            } else if (Math.random() < 0.00) { // 通常のロンの機会は確率で
+            } else if (Math.random() < 0.75) { // 通常のロンの機会は確率で
               this.playerDeclaresCall(aiPlayerId, 'ron', this.lastDiscardedTile);
               return;
             }
