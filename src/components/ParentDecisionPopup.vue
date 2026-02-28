@@ -88,7 +88,6 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const countdown = ref(3); // ポップアップが自動で閉じるまでのカウントダウンの初期値
-let timer = null; // setTimeoutのタイマーID
 let interval = null; // setIntervalのタイマーID
 
 const userStore = useUserStore(); // userStoreのインスタンスを取得
@@ -119,37 +118,23 @@ function getWindIcon(player) {
 watch(() => props.show, (newVal) => {
   if (newVal) {
     countdown.value = 3; // ポップアップ表示時にカウントダウンをリセット
-    startCloseTimer(); // 自動クローズタイマーを開始
     startCountdownInterval(); // カウントダウン表示のインターバルを開始
   } else {
-    clearTimeout(timer); // ポップアップが非表示になったら自動クローズタイマーをクリア
-    clearInterval(interval); // カウントダウン表示のインターバルもクリア
+    clearInterval(interval); // カウントダウン表示のインターバルをクリア
   }
 });
 
 // コンポーネントがマウントされた時に実行
 onMounted(() => {
   if (props.show) {
-    startCloseTimer(); // 自動クローズタイマーを開始
     startCountdownInterval(); // カウントダウン表示のインターバルを開始
   }
 });
 
 // コンポーネントがアンマウントされる時に実行
 onUnmounted(() => {
-  clearTimeout(timer); // タイマーをクリア
   clearInterval(interval); // インターバルをクリア
 });
-
-/**
- * ポップアップを自動で閉じるタイマーを開始します。
- */
-const startCloseTimer = () => {
-  clearTimeout(timer); // 既存のタイマーがあればクリア
-  timer = setTimeout(() => {
-    emit('close'); // 'close'イベントを発行してポップアップを閉じる
-  }, 3000); // 3秒後に自動で閉じる
-};
 
 /**
  * カウントダウン表示を1秒ごとに更新するインターバルを開始します。
@@ -157,10 +142,11 @@ const startCloseTimer = () => {
 const startCountdownInterval = () => {
   clearInterval(interval); // 既存のインターバルがあればクリア
   interval = setInterval(() => {
-    if (countdown.value > 0) {
+    if (countdown.value > 1) {
       countdown.value--; // カウントダウンを減らす
     } else {
       clearInterval(interval); // カウントダウンが0になったらインターバルをクリア
+      emit('close'); // カウントダウンが0になったらポップアップを閉じる
     }
   }, 1000); // 1秒ごとに実行
 };

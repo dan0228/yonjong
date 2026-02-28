@@ -2452,10 +2452,7 @@ io.on('connection', (socket) => {
         await _executeDrawTile(gameId, dealerId);
         await updateAndBroadcastGameState(gameId, gameStates[gameId]);
 
-        // ポ��プアップは一度表示したらサーバー側の状態はfalseに戻す
-        if (gameStates[gameId]) {
-          gameStates[gameId].showDealerDeterminationPopup = false;
-        }
+
       } else {
         throw new Error("親プレイヤーを決定できませんでした。");
       }
