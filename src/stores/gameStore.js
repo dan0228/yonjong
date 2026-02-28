@@ -2086,7 +2086,10 @@ export const useGameStore = defineStore('game', {
         if (currentProgress === 0) {
           this.stopTurnCountdown();
 
-          if (this.isActionPending) return;
+          // アクション保留中でも、リーチ後の打牌待ちフェーズであれば自動打牌を許可
+          // これはオンライン対戦において、プレイヤーがタイムアウトした場合のサーバーからの強制打牌を模倣する
+          const isRiichiDiscardTimeout = this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD && this.currentTurnPlayerId === this.localPlayerId;
+          if (this.isActionPending && !isRiichiDiscardTimeout) return;
 
           if (this.gamePhase === GAME_PHASES.AWAITING_DISCARD || this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) {
             if (this.currentTurnPlayerId === this.localPlayerId) {
@@ -2141,9 +2144,10 @@ export const useGameStore = defineStore('game', {
         if (this.gamePhase === GAME_PHASES.RIICHI_ANIMATION) {
           this.gamePhase = GAME_PHASES.AWAITING_RIICHI_DISCARD;
 
-          // if (this.isGameOnline) { // サーバー主導なので、クライアントからはブロードキャストしない
-          //   this.broadcastGameState();
-          // }
+          // リーチ後の打牌選択フェーズに入ったらカウントダウンをリセットして開始
+          if (this.isGameOnline) {
+            this.startTurnCountdown();
+          }
 
           const currentPlayer = this.players.find(p => p.id === this.currentTurnPlayerId);
           if (this.gameMode === 'vsCPU' && currentPlayer && currentPlayer.id !== 'player1') {
@@ -2158,6 +2162,7 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+          this.stopTurnCountdown(); // ★追加: リーチ宣言時に既存のカウントダウンを停止
           socket.emit('declareRiichi', { gameId: this.onlineGameId, playerId });
         }
         return; // サーバーからの状態更新を待つ
