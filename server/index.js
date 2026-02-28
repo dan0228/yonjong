@@ -2357,7 +2357,7 @@ io.on('connection', (socket) => {
         // DBからロードしたstatusをメモリ上のゲーム状態にも反映
         gameStates[gameId].status = data.status;
         gameStates[gameId].version = data.version; // ★追加: version をセット
-        console.log(`[Server] Game ${gameId} loaded from DB. Status: ${gameStates[gameId].status}, Version: ${gameStates[gameId].version}`);
+        console.log(`[Server] Server loaded game ${gameId} from DB. Status: ${gameStates[gameId].status}, Version: ${gameStates[gameId].version}`);
       }
 
       console.log(`Initializing game ${gameId} by user ${userId}`);
@@ -2461,12 +2461,21 @@ io.on('connection', (socket) => {
       }
 
     } catch (error) {
-      console.error(`Error initializing game ${gameId}:`, error);
+      console.error(`Error initializing game ${error.message}`);
       socket.emit('gameError', { message: 'ゲームの初期化に失敗しました。' });
     } finally {
       delete gameInitializationLocks[gameId]; // ロックを解放
     }
   });
+
+  socket.on('closeDealerDeterminationPopup', async ({ gameId }) => {
+    const gameState = gameStates[gameId];
+    if (gameState && gameState.showDealerDeterminationPopup) {
+      gameState.showDealerDeterminationPopup = false;
+      await updateAndBroadcastGameState(gameId, gameState);
+    }
+  });
+
 
   // クライアントが次のラウンドの準備完了を通知する
   socket.on('playerReadyForNextRound', async ({ gameId, playerId }) => {

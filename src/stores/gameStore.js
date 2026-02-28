@@ -837,6 +837,13 @@ export const useGameStore = defineStore('game', {
       }
     },
 
+    closeDealerDeterminationPopup() {
+      this.showDealerDeterminationPopup = false;
+      if (this.isGameOnline && socket && socket.connected) {
+        socket.emit('closeDealerDeterminationPopup', { gameId: this.onlineGameId });
+      }
+    },
+
     
 
     async initializeOnlineGame() {

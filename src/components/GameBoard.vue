@@ -694,7 +694,7 @@
    * 親決めポップアップが閉じられた際の処理。
    */
   function handleCloseDealerDeterminationPopup() {
-    gameStore.showDealerDeterminationPopup = false;
+    gameStore.closeDealerDeterminationPopup();
     gameStore.startGameFlow(); // ゲームフローを開始
   }
 
