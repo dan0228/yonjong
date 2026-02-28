@@ -2517,9 +2517,15 @@ io.on('connection', (socket) => {
     const gameState = gameStates[gameId];
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
     if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
-    if (gameState.gamePhase !== GAME_PHASES.PLAYER_TURN && gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) return socket.emit('gameError', { message: '牌を引けるフェーズではありません。' });
+    
+    // タイムアウト処理との競合を防ぐため、フェーズを厳密にチェックし、エラーではなく無視する
+    if (gameState.gamePhase !== GAME_PHASES.PLAYER_TURN && gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+      console.warn(`[Race Condition Guard] Player ${playerId} tried to drawFromWall in wrong phase: ${gameState.gamePhase}. Ignoring.`);
+      return;
+    }
 
     const player = gameState.players.find(p => p.id === playerId);
+
     if (player) player.isUsingStockedTile = false;
 
     await _executeDrawTile(gameId, playerId);
@@ -2531,9 +2537,15 @@ io.on('connection', (socket) => {
     const gameState = gameStates[gameId];
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
     if (gameState.currentTurnPlayerId !== playerId) return socket.emit('gameError', { message: 'あなたのターンではありません。' });
-    if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) return socket.emit('gameError', { message: '牌を引けるフェーズではありません。' });
+    
+    // タイムアウト処理との競合を防ぐため、フェーズを厳密にチェックし、エラーではなく無視する
+    if (gameState.gamePhase !== GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER) {
+      console.warn(`[Race Condition Guard] Player ${playerId} tried to chooseToDrawFromWall in wrong phase: ${gameState.gamePhase}. Ignoring.`);
+      return;
+    }
 
     const player = gameState.players.find(p => p.id === playerId);
+
     if (player) {
         player.isUsingStockedTile = false;
     }
