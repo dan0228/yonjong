@@ -2091,7 +2091,7 @@ export const useGameStore = defineStore('game', {
           const isRiichiDiscardTimeout = this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD && this.currentTurnPlayerId === this.localPlayerId;
           if (this.isActionPending && !isRiichiDiscardTimeout) return;
 
-          if (this.gamePhase === GAME_PHASES.AWAITING_DISCARD || this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) {
+          if (this.gamePhase === GAME_PHASES.AWAITING_DISCARD) {
             if (this.currentTurnPlayerId === this.localPlayerId) {
               const player = this.players.find(p => p.id === this.localPlayerId);
               if (player) {
@@ -2103,6 +2103,38 @@ export const useGameStore = defineStore('game', {
                 }
                 if (tileToDiscard) {
                   this.discardTile(this.localPlayerId, tileToDiscard.id, !!this.drawnTile);
+                }
+              }
+            }
+          } else if (this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) {
+            if (this.currentTurnPlayerId === this.localPlayerId) {
+              const player = this.players.find(p => p.id === this.localPlayerId);
+              if (player && this.riichiDiscardOptions.length > 0) {
+                const fullHand = [...player.hand, this.drawnTile].filter(Boolean);
+                // テンパイを維持できる牌の中から最も右端の牌を選択
+                const tenpaiSafeDiscards = fullHand.filter(tile =>
+                  this.riichiDiscardOptions.includes(tile.id)
+                );
+                // ソートされた手牌の最後（右端）の牌
+                const sortedTenpaiSafeDiscards = mahjongLogic.sortHand(tenpaiSafeDiscards);
+                let tileToDiscard = sortedTenpaiSafeDiscards[sortedTenpaiSafeDiscards.length - 1];
+
+                if (tileToDiscard) {
+                  this.discardTile(this.localPlayerId, tileToDiscard.id, this.drawnTile && tileToDiscard.id === this.drawnTile.id);
+                }
+              } else {
+                // リーチ後に捨てる牌がない場合はエラーだが、念のため通常の自動打牌ロジックにフォールバック
+                const player = this.players.find(p => p.id === this.localPlayerId);
+                if (player) {
+                  let tileToDiscard;
+                  if (this.drawnTile) {
+                    tileToDiscard = this.drawnTile;
+                  } else if (player.hand.length > 0) {
+                    tileToDiscard = player.hand[player.hand.length - 1];
+                  }
+                  if (tileToDiscard) {
+                    this.discardTile(this.localPlayerId, tileToDiscard.id, !!this.drawnTile);
+                  }
                 }
               }
             }
