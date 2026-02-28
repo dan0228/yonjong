@@ -2246,6 +2246,7 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+          this.stopTurnCountdown(); // アクション宣言時にカウントダウンを停止してリセット
           socket.emit('playerSkipsCall', { gameId: this.onlineGameId, playerId });
         }
         return; // サーバーからの状態更新を待つ
@@ -2264,7 +2265,7 @@ export const useGameStore = defineStore('game', {
           this.isDoujunFuriTen[playerId] = true;
         }
       }
-      
+
       this.playerResponses[playerId] = 'skip';
       this.playerActionEligibility[playerId] = {};
 
@@ -2276,11 +2277,11 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+          this.stopTurnCountdown(); // アクション宣言時にカウントダウンを停止してリセット
           socket.emit('playerDeclaresCall', { gameId: this.onlineGameId, playerId, actionType, tile });
         }
         return; // サーバーからの状態更新を待つ
       }
-
       if (this.activeActionPlayerId !== playerId) {
          console.warn(`Player ${playerId} cannot declare ${actionType} now. Active player is ${this.activeActionPlayerId}.`);
          return;
