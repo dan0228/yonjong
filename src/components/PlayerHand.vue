@@ -16,11 +16,9 @@
         >
       </div>
     </div>
-    <div
-      v-if="drawnTileDisplay"
-      class="drawn-tile-area player-hand"
-    >
+    <div class="drawn-tile-area player-hand">
       <div
+        v-if="drawnTileDisplay"
         :class="getTileClasses(drawnTileDisplay, true)"
         @click="selectTile(drawnTileDisplay, true)"
       >
@@ -30,7 +28,7 @@
         >
       </div>
       <!-- ターンカウントダウン表示 -->
-      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && isMyHand" class="turn-countdown-in-hand">
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && isMyHand && !isWallDrawButtonVisible" class="turn-countdown-in-hand">
         <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
       </div>
     </div>
@@ -103,6 +101,15 @@
     const isTenpai = gameStore.isTenpaiDisplay[props.player.id];
     
     return isRoundEnd && isDraw && isTenpai;
+  });
+
+  const isWallDrawButtonVisible = computed(() => {
+    // PlayerArea.vue の shouldRenderDrawFromWallButton と同じ条件
+    const isMyActionPhase = gameStore.gamePhase === GAME_PHASES.AWAITING_DISCARD && gameStore.lastActionPlayerId === props.player.id;
+    return props.position === 'bottom' &&
+           !props.drawnTileDisplay &&
+           !isMyActionPhase &&
+           gameStore.ruleMode === 'stock';
   });
 
   /**
@@ -385,7 +392,7 @@
 
   .turn-countdown-in-hand {
     position: absolute;
-    top: 50%;
+    top: 40%;
     left: 100%; /* ツモ牌の右側に配置 */
     transform: translateY(-50%);
     margin-left: 10px; /* ツモ牌からの距離 */

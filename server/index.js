@@ -343,7 +343,7 @@ async function moveToNextPlayer(gameId) {
         await _executeDrawTile(gameId, timedOutPlayerId);
         await updateAndBroadcastGameState(gameId, gameState);
         delete stockSelectionTimerIds[gameId]; // タイマーをクリア
-      }, 1800); // 0.3秒増やす
+      }, 1700); // 0.2秒増やす
     }
   }
 

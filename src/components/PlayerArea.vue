@@ -12,16 +12,21 @@
       />
     </div>
     <!-- ストック選択中にツモ牌の位置に表示されるクリック領域 -->
-    <div
-      v-if="shouldRenderDrawFromWallButton"
-      :class="['draw-from-wall-area', { 'is-active': isDrawFromWallActive, 'has-melds': hasMelds, 'is-waiting': gameStore.isActionPending }]"
-      @click="isDrawFromWallActive && drawFromWall()"
-    >
-      <img
-        src="/assets/images/button/wall_drow.png"
-        :alt="t('playerArea.drawFromWall')"
-        class="draw-from-wall-image"
+    <div v-if="shouldRenderDrawFromWallButton">
+      <div
+        :class="['draw-from-wall-area', { 'is-active': isDrawFromWallActive, 'has-melds': hasMelds, 'is-waiting': gameStore.isActionPending }]"
+        @click="isDrawFromWallActive && drawFromWall()"
       >
+        <img
+          src="/assets/images/button/wall_drow.png"
+          :alt="t('playerArea.drawFromWall')"
+          class="draw-from-wall-image"
+        >
+      </div>
+      <!-- ターンカウントダウン表示（ボタンの右側、半透明化を防ぐためボタンの外に配置） -->
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline" :class="['turn-countdown-wall-button', { 'has-melds': hasMelds }]">
+        <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
+      </div>
     </div>
     <div
       v-if="player.melds && player.melds.length > 0"
@@ -377,6 +382,14 @@ const isStockTileSelectable = computed(() => {
          gameStore.ruleMode === 'stock' && // ストックルールが有効
          gameStore.gamePhase === GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER &&
          !!props.player.stockedTile;
+});
+
+const countdownImageSrc = computed(() => {
+  const countdownValue = Math.ceil(gameStore.turnCountdown);
+  if (countdownValue >= 1 && countdownValue <= 5) {
+    return `/assets/images/number/${countdownValue}b.png`;
+  }
+  return ''; // またはデフォルト画像
 });
 
 const hasMelds = computed(() => {
@@ -987,6 +1000,29 @@ function getMeldTileAlt(meld, tile, tileIndex) {
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); /* 影を追加 */
 }
 /* .draw-from-wall-text は削除されたので不要 */
+
+.turn-countdown-wall-button {
+  position: absolute;
+  top: 27px; /* ボタンの中央付近 (12px + 60px/2 - 15px) */
+  left: 275px; /* ボタンの右側 (215px + 60px) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  z-index: 31;
+}
+
+.turn-countdown-wall-button.has-melds {
+  left: 200px; /* 鳴きがある場合はボタンが140pxに移動するので (140px + 60px) */
+}
+
+.turn-countdown-wall-button .countdown-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 5px rgb(255, 255, 255));
+}
 
 .fade-gauge-enter-active,
 .fade-gauge-leave-active {
