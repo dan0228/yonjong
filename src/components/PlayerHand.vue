@@ -29,6 +29,10 @@
           :alt="isMyHand || shouldShowAllTiles ? tileToString(drawnTileDisplay) : '裏向きの牌'"
         >
       </div>
+      <!-- ターンカウントダウン表示 -->
+      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending && gameStore.isGameOnline && isMyHand" class="turn-countdown-in-hand">
+        <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
+      </div>
     </div>
     <!-- ストック牌の表示エリアは PlayerArea.vue に移動しました -->
   </div>
@@ -77,6 +81,14 @@
    */
   const playerDisplayHand = computed(() => {
     return props.player?.hand || [];
+  });
+
+  const countdownImageSrc = computed(() => {
+    const countdownValue = Math.ceil(gameStore.turnCountdown);
+    if (countdownValue >= 1 && countdownValue <= 5) {
+      return `/assets/images/number/${countdownValue}b.png`;
+    }
+    return ''; // またはデフォルト画像
   });
 
   /**
@@ -369,5 +381,53 @@
   .is-waiting {
     pointer-events: none;
     opacity: 0.7;
+  }
+
+  .turn-countdown-in-hand {
+    position: absolute;
+    top: 50%;
+    left: 100%; /* ツモ牌の右側に配置 */
+    transform: translateY(-50%);
+    margin-left: 10px; /* ツモ牌からの距離 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px; /* 画像の幅に合わせて調整 */
+    height: 30px; /* 画像の高さに合わせて調整 */
+    z-index: 31; /* ツモ牌より手前に表示 */
+  }
+
+  .turn-countdown-in-hand .countdown-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 5px rgb(255, 255, 255));
+  }
+
+  /* 対面 (top) のツモ牌の左側に表示 */
+  .position-top .turn-countdown-in-hand {
+    left: auto;
+    right: 100%; /* ツモ牌の左側に配置 */
+    margin-right: 10px;
+    margin-left: 0;
+  }
+
+  /* 左家 (left) のツモ牌の下側に表示 */
+  .position-left .turn-countdown-in-hand {
+    top: 100%; /* ツモ牌の下側に配置 */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 10px;
+    margin-left: 0;
+  }
+
+  /* 右家 (right) のツモ牌の上側に表示 */
+  .position-right .turn-countdown-in-hand {
+    top: auto;
+    bottom: 100%; /* ツモ牌の上側に配置 */
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 10px;
+    margin-left: 0;
   }
 </style>

@@ -89,12 +89,7 @@
       v-if="isMyHand || gameStore.gameMode === 'allManual'"
       :class="['player-actions', `player-actions-${position}`]"
     >
-      <!-- ターンカウントダウン表示 -->
-      <div v-if="gameStore.turnTimerId !== null && !gameStore.isActionPending" class="turn-countdown">
-        <img :src="countdownImageSrc" :alt="Math.ceil(gameStore.turnCountdown)" class="countdown-image">
-      </div>
-
-      <!-- ツモ番のアクション -->
+    <!-- ツモ番のアクション -->
       <img
         v-if="canDeclareTsumoAgari"
         :src="t('playerArea.tsumoButtonImg')"
@@ -386,14 +381,6 @@ const isStockTileSelectable = computed(() => {
 
 const hasMelds = computed(() => {
   return props.player.melds && props.player.melds.length > 0;
-});
-
-const countdownImageSrc = computed(() => {
-  const countdownValue = Math.ceil(gameStore.turnCountdown);
-  if (countdownValue >= 1 && countdownValue <= 5) {
-    return `/assets/images/number/${countdownValue}b.png`;
-  }
-  return ''; // またはデフォルト画像
 });
 
 /**
@@ -785,25 +772,6 @@ function getMeldTileAlt(meld, tile, tileIndex) {
     z-index: 30; /* 他の要素より手前に表示 */
     padding: 5px;
     border-radius: 4px;
-}
-
-.turn-countdown {
-  /* Remove text-specific styling */
-  /* font-size: 32px; */
-  /* font-weight: bold; */
-  /* color: #ff3333; */
-  /* text-shadow: 2px 2px 4px #000, -2px -2px 4px #000, 2px -2px 4px #000, -2px 2px 4px #000; */
-  margin-right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  height: 40px; /* 画像の高さに合わせて調整 */
-}
-
-.countdown-image {
-  width: auto; /* 元の画像のアスペクト比を維持 */
-  height: 100%; /* 親要素の高さに合わせる */
 }
 
 /* 各ポジションごとのアクションボタンの位置調整 */
