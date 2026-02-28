@@ -193,7 +193,7 @@
         'drawn-tile': isDrawnTile,
         'selectable': isSelectable,
         'is-stocked-tile': tile?.isStockedTile, // ストック牌の場合にクラスを追加
-        'is-waiting': gameStore.isActionPending, // サーバー応答待ち
+        // 'is-waiting' は見た目が悪くなるため削除。選択のガード自体は canSelectTile 側で行われているため問題ない
         // 自分の手番で、リーチ中で、かつ選択できない牌を無効化する
         'disabled': props.canDiscard && isRiichiPhase && !isSelectable,
       }
@@ -383,11 +383,6 @@
   .is-in-hand.is-stocked-tile {
     border-radius: 20px;
     box-shadow: 0 0 10px 2px rgba(30, 144, 255, 0.8), 0 0 5px rgba(4, 21, 71, 0.6); /* 中央から光るような多層グロー */
-  }
-
-  .is-waiting {
-    pointer-events: none;
-    opacity: 0.7;
   }
 
   .turn-countdown-in-hand {
