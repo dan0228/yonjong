@@ -1400,8 +1400,11 @@ async function _initializeGameCore(gameId) {
     originalId: p.originalId,
   }));
 
-  if (localGameState.currentRound.wind === 'east' && localGameState.currentRound.number === 1 && localGameState.honba === 0) {
+  // 親決めポップアップはゲーム開始時に一度だけ表示
+  if (!localGameState.hasGameStarted && localGameState.currentRound.wind === 'east' && localGameState.currentRound.number === 1 && localGameState.honba === 0) {
     localGameState.showDealerDeterminationPopup = true;
+  } else {
+    localGameState.showDealerDeterminationPopup = false; // それ以外の場合は強制的にfalse
   }
   localGameState.isGameReady = true; // ゲームの準備が完了
   localGameState.hasGameStarted = true;
