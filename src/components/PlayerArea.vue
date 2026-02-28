@@ -99,28 +99,28 @@
         v-if="canDeclareTsumoAgari"
         :src="t('playerArea.tsumoButtonImg')"
         :alt="t('playerArea.tsumo')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('tsumoAgari')"
       >
       <img
         v-if="canDeclareRiichi && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.riichiButtonImg')"
         :alt="t('playerArea.riichi')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('riichi')"
       >
       <img
         v-if="canDeclareAnkan"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.ankan')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('ankan')"
       >
       <img
         v-if="canDeclareKakan && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.kakan')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('kakan')"
       >
       <!-- ストックアクション -->
@@ -128,7 +128,7 @@
         v-if="canStockAction"
         :src="t('playerArea.stockButtonImg')"
         :alt="t('playerArea.stock')"
-        :class="['action-image-button', 'stock-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button', 'stock-button']"
         @click="emitAction('stock')"
       >
       <!-- 他家の打牌/加槓に対するアクション -->
@@ -136,21 +136,21 @@
         v-if="canDeclareRon"
         :src="t('playerArea.ronButtonImg')"
         :alt="t('playerArea.ron')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('ron')"
       >
       <img
         v-if="canDeclarePon && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.ponButtonImg')"
         :alt="t('playerArea.pon')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('pon')"
       >
       <img
         v-if="canDeclareMinkan && !player.isRiichi && !player.isDoubleRiichi"
         :src="t('playerArea.kanButtonImg')"
         :alt="t('playerArea.kan')"
-        :class="['action-image-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button']"
         @click="emitAction('minkan')"
       >
       <!-- スキップボタン -->
@@ -158,7 +158,7 @@
         v-if="showSkipButton"
         :src="t('playerArea.skipButtonImg')"
         :alt="t('playerArea.skip')"
-        :class="['action-image-button', 'skip-button', { 'disabled': gameStore.isActionPending }]"
+        :class="['action-image-button', 'skip-button']"
         @click="emitAction('skip')"
       >
     </div>

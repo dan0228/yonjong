@@ -2151,7 +2151,6 @@ export const useGameStore = defineStore('game', {
     },
 
     declareRiichi(playerId) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2196,7 +2195,6 @@ export const useGameStore = defineStore('game', {
     },
 
     playerSkipsCall(playerId) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) { // isHostチェックを削除
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2227,8 +2225,7 @@ export const useGameStore = defineStore('game', {
     },
 
     playerDeclaresCall(playerId, actionType, tile) {
-      if (this.isActionPending) return;
-      if (this.isGameOnline) { // isHostチェックを削除
+      if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2362,7 +2359,6 @@ export const useGameStore = defineStore('game', {
     },
 
     declarePon(playerId, targetPlayerId, tileToPon) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2454,7 +2450,6 @@ export const useGameStore = defineStore('game', {
     },
 
     declareMinkan(playerId, targetPlayerId, tileToKan) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2543,7 +2538,6 @@ export const useGameStore = defineStore('game', {
     },
 
     declareAnkan(playerId, tileToAnkan) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2625,7 +2619,6 @@ export const useGameStore = defineStore('game', {
     },
 
     declareKakan(playerId, tileToKakan) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
@@ -2726,7 +2719,6 @@ export const useGameStore = defineStore('game', {
       }
     },
     handleAgari(agariPlayerId, agariTile, isTsumo, ronTargetPlayerId = null) {
-        if (this.isActionPending) return;
         if (isTsumo && this.isGameOnline) {
           if (socket && socket.connected) {
             this.isActionPending = true; // ★アクションロック
