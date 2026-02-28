@@ -3191,6 +3191,12 @@ export const useGameStore = defineStore('game', {
       const tsumoWinResult = mahjongLogic.checkYonhaiWin([...player.hand, this.drawnTile], this.drawnTile, true, gameContextForTsumo);
       eligibility.canTsumoAgari = tsumoWinResult.isWin;
 
+      // AIの場合、嶺上牌でツモ和了可能であれば自動で和了する
+      if (player.isAi && eligibility.canTsumoAgari) { 
+          this.handleAgari(playerId, this.drawnTile, true); 
+          return; 
+      }
+
       if (!player.isRiichi && !player.isDoubleRiichi) {
           if (this.wall.length > 0) {
               const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, this.drawnTile);
@@ -3362,8 +3368,8 @@ export const useGameStore = defineStore('game', {
       }
 
       setTimeout(() => {
-        if (this.drawnTile && this.playerActionEligibility[aiPlayerId]?.canTsumoAgari) {
-          this.handleAgari(aiPlayerId, this.drawnTile, true);
+        if (this.drawnTile && this.playerActionEligibility[aiPlayerId]?.canTsumoAgari) { 
+          // this.handleAgari(aiPlayerId, this.drawnTile, true);// ツモ無効化
           return;
         }
 
@@ -3391,9 +3397,15 @@ export const useGameStore = defineStore('game', {
         if (this.activeActionPlayerId === aiPlayerId) {
           const eligibility = this.playerActionEligibility[aiPlayerId];
 
-          if (eligibility?.canRon && Math.random() < 0.75) {
-            this.playerDeclaresCall(aiPlayerId, 'ron', null);
-            return;
+          if (eligibility?.canRon) {
+            // 槍槓の機会であれば100%ロン
+            if (this.isChankanChance) {
+              this.playerDeclaresCall(aiPlayerId, 'ron', this.chankanTile);
+              return;
+            } else if (Math.random() < 0.00) { // 通常のロンの機会は確率で
+              this.playerDeclaresCall(aiPlayerId, 'ron', this.lastDiscardedTile);
+              return;
+            }
           }
 
           if (eligibility?.canMinkan && Math.random() < 1.0) {
