@@ -315,9 +315,16 @@ export const useGameStore = defineStore('game', {
         '/assets/images/back/mode_back.png',
         '/assets/images/back/start_back.png',
         '/assets/images/back/rule.png',
-        '/assets/images/back/mode_back.png',
+        '/assets/images/back/online_back.png',
         '/assets/images/back/matching.png',
         '/assets/images/back/smoke.png',
+        '/assets/images/back/sakura1.png',
+        '/assets/images/back/sakura2.png',
+        '/assets/images/back/sakura3.png',
+        '/assets/images/back/sakura4.png',
+        '/assets/images/back/sakura5.png',
+        '/assets/images/back/sakura6.png',
+        '/assets/images/back/sakura7.png',
         '/assets/images/button/buckToTitle.png',
         '/assets/images/button/kan_button.png',
         '/assets/images/button/pon_button.png',
@@ -3101,6 +3108,9 @@ export const useGameStore = defineStore('game', {
       this.previousBgm = null;
       this.isGameReady = false; // ゲーム準備状態をリセット
       this.hasGameStarted = false; // ゲームが終了したことを示す
+      
+      // ★追加: セッションリセット時にオンライン対戦から切断し、待機状態をクリアする
+      this.disconnectOnlineGame();
     },
 
     updateFuriTenState(playerId) {
