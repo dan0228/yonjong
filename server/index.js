@@ -2361,7 +2361,7 @@ io.on('connection', (socket) => {
             if (rpcError) {
                 console.error('[Friend Matchmaking] RPC call find_friend_match_by_passcode failed:', rpcError);
                 // RPCから返されるエラーメッセージをクライアントに送信
-                return socket.emit('friendMatchmakingError', rpcError.message || '部屋が見つかりません');
+                return socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.notFoundOrFull', params: { passcode } });
             }
         } else if (actionType === 'create') {
             // 新しい友人対戦部屋を作成
@@ -2376,7 +2376,7 @@ io.on('connection', (socket) => {
             if (rpcError) {
                 console.error('[Friend Matchmaking] RPC call create_friend_match_with_passcode failed:', rpcError);
                 // RPCから返されるエラーメッセージをクライアントに送信
-                return socket.emit('friendMatchmakingError', rpcError.message || '部屋の作成に失敗しました');
+                return socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.genericError' });
             }
         } else {
             return socket.emit('gameError', { message: '無効なアクションタイプです。' });
@@ -2432,14 +2432,14 @@ io.on('connection', (socket) => {
             }
         } else {
             console.error('[Friend Matchmaking] RPC returned invalid players data:', out_players);
-            socket.emit('gameError', { message: '友人対戦マッチング処理中にエラーが発生しました: プレイヤーデータが不正です。' });
+            socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.genericError' });
         }
 
         console.log(`[Friend Matchmaking END] Request processed for game: ${out_game_id}`);
 
     } catch (error) {
         console.error('[Friend Matchmaking FATAL] An error occurred:', error);
-        socket.emit('gameError', { message: `友人対戦マッチング処理中にエラーが発生しました: ${error.message || error}` });
+        socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.genericError' });
     }
   });
 

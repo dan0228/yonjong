@@ -634,8 +634,23 @@ export const useGameStore = defineStore('game', {
         });
 
         // ★追加: 友人対戦のマッチメイキングエラーをリッスン
-        socket.on('friendMatchmakingError', (errorMessage) => {
-          this.friendMatchmakingError = errorMessage; // エラーメッセージを設定
+        socket.on('friendMatchmakingError', (errorPayload) => {
+          console.error('[GameStore] Friend matchmaking error:', errorPayload);
+          if (typeof errorPayload === 'object' && errorPayload.key) {
+            // i18nキーとパラメータがある場合
+            const { key, params } = errorPayload;
+            this.friendMatchmakingError = i18n.global.t(key, params);
+          } else if (typeof errorPayload === 'string') {
+            // 従来の文字列エラーメッセージの場合
+            this.friendMatchmakingError = errorPayload;
+            const userStore = useUserStore();
+            userStore.setPenalty(errorPayload, 5000); // 汎用エラーとしてペナルティポップアップを表示
+          } else {
+            // 予期せぬ形式のエラーの場合
+            this.friendMatchmakingError = i18n.global.t('friendMatchmaking.genericError');
+            const userStore = useUserStore();
+            userStore.setPenalty(this.friendMatchmakingError, 5000);
+          }
           this.isActionPending = false; // アクションロックを解除
           this.isMatchmakingRequested = false; // リクエストフラグをリセット
           this.onlineGameId = null; // エラーが発生した場合はゲームIDをリセット
