@@ -115,17 +115,20 @@ const emit = defineEmits(['close', 'select']);
 // --- パスコード入力ロジック ---
 const passcode = ref(['', '', '', '']);
 const inputRefs = ref([]);
-const passcodeError = ref(''); // パスコードエラーメッセージ
 
-// gameStore.friendMatchmakingError を監視し、passcodeError を更新
-watch(() => gameStore.friendMatchmakingError, (newError) => {
-  if (newError) {
-    passcodeError.value = newError;
-  } else {
-    passcodeError.value = '';
+// gameStore.friendMatchmakingError を監視し、表示するエラーメッセージを計算
+const passcodeError = computed(() => {
+  if (gameStore.friendMatchmakingError) {
+    // エラーメッセージからパスコードを抽出するための正規表現を調整
+    const match = gameStore.friendMatchmakingError.match(/Room with passcode (\\d+) not found or is full./);    if (match && match[1]) {
+      return t('friendMatchmaking.notFoundOrFull', { passcode: match[1] });
+    } else {
+      // 予期しないエラーメッセージの場合のフォールバック
+      return t('friendMatchmaking.genericError');
+    }
   }
+  return '';
 });
-
 const isPasscodeValid = computed(() => {
   const fullPasscode = passcode.value.join('');
   return fullPasscode.length === 4; // 4桁であることを確認
@@ -201,7 +204,12 @@ const selectOption = async (action) => {
     passcodeError.value = '';
     
     // 友人対戦リクエストを送信
-    await gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: action === 'enter_room' ? 'join' : 'create' });
+    await gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: action === 'enter_room' ? 'join' : 'create' })
+      .catch(error => {
+        // gameStoreで既にfriendMatchmakingErrorが設定され、UIに表示されるため、
+        // ここではPromiseのunhandled rejectionを防ぐ目的でcatchするのみ。
+        // 追加のロギングは不要。
+      });
 
     // エラーがなければマッチング画面へ遷移
     if (!gameStore.friendMatchmakingError) {

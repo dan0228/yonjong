@@ -635,7 +635,6 @@ export const useGameStore = defineStore('game', {
 
         // ★追加: 友人対戦のマッチメイキングエラーをリッスン
         socket.on('friendMatchmakingError', (errorMessage) => {
-          console.error('Friend matchmaking error:', errorMessage);
           this.friendMatchmakingError = errorMessage; // エラーメッセージを設定
           this.isActionPending = false; // アクションロックを解除
           this.isMatchmakingRequested = false; // リクエストフラグをリセット
@@ -1823,73 +1822,90 @@ export const useGameStore = defineStore('game', {
       this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
 
       return new Promise((resolve, reject) => {
-        const cleanupListeners = () => {
-          socket.off('matchmaking-update-friend', onMatchmakingUpdateFriend);
-          socket.off('friendMatchmakingError', onFriendMatchmakingError);
-          socket.off('game-found', onGameFound);
+        // ソケットが接続されていることを確認するヘルパー関数
+        const ensureSocketConnected = () => {
+            return new Promise(res => {
+                if (!socket || !socket.connected) {
+                    console.log('[GameStore] Socket not connected. Attempting to connect...');
+                    this.connectToServer(); // 接続を開始
+                    // 接続が確立されるまで待機
+                    const onConnect = () => {
+                        socket.off('connect', onConnect);
+                        res();
+                    };
+                    socket.on('connect', onConnect);
+                } else {
+                    res();
+                }
+            });
         };
 
-        const onMatchmakingUpdateFriend = ({ gameId, players, passcode: receivedPasscode }) => {
-          console.log(`[GameStore] Received 'matchmaking-update-friend'. GameID: ${gameId}, Players:`, players);
-          this.onlineGameId = gameId;
-          this.isGameOnline = true;
-          this.localPlayerId = userStore.profile.id; // 自分のIDを設定
+        ensureSocketConnected().then(() => {
+            const cleanupListeners = () => {
+                if (socket) { // socketがnullでないことを確認
+                    socket.off('matchmaking-update-friend', onMatchmakingUpdateFriend);
+                    socket.off('friendMatchmakingError', onFriendMatchmakingError);
+                    socket.off('game-found', onGameFound);
+                }
+            };
 
-          if (players && Array.isArray(players)) {
-            this.$patch({ matchmakingPlayers: players });
-          }
+            const onMatchmakingUpdateFriend = ({ gameId, players, passcode: receivedPasscode }) => {
+                console.log(`[GameStore] Received 'matchmaking-update-friend'. GameID: ${gameId}, Players:`, players);
+                this.onlineGameId = gameId;
+                this.isGameOnline = true;
+                this.localPlayerId = userStore.profile.id; // 自分のIDを設定
 
-          if (socket && socket.connected) {
-            socket.emit('joinGame', { gameId, userId: this.localPlayerId });
-          }
-          cleanupListeners();
-          resolve({ gameId, players });
-        };
+                if (players && Array.isArray(players)) {
+                    this.$patch({ matchmakingPlayers: players });
+                }
 
-        const onFriendMatchmakingError = (errorMessage) => {
-          console.error('[GameStore] Friend matchmaking error:', errorMessage);
-          this.friendMatchmakingError = errorMessage;
-          this.isActionPending = false;
-          this.isMatchmakingRequested = false;
-          this.onlineGameId = null;
-          cleanupListeners();
-          reject(errorMessage);
-        };
+                if (socket && socket.connected) {
+                    socket.emit('joinGame', { gameId, userId: this.localPlayerId });
+                }
+                cleanupListeners();
+                resolve({ gameId, players });
+            };
 
-        const onGameFound = ({ gameId, players }) => {
-          console.log(`[GameStore] Received 'game-found' for friend match. GameID: ${gameId}, Players:`, players);
-          this.matchmakingPlayers.splice(0, this.matchmakingPlayers.length, ...players);
-          this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
-          this.isMatchmakingRequested = false;
-          this.initializeOnlineGame();
-          cleanupListeners();
-          resolve({ gameId, players });
-        };
+            const onFriendMatchmakingError = (errorMessage) => {
+                this.friendMatchmakingError = errorMessage;
+                this.isActionPending = false;
+                this.isMatchmakingRequested = false;
+                this.onlineGameId = null;
+                cleanupListeners();
+                reject(errorMessage);
+            };
 
-        // リスナーを一度だけ登録
-        socket.on('matchmaking-update-friend', onMatchmakingUpdateFriend);
-        socket.on('friendMatchmakingError', onFriendMatchmakingError);
-        socket.on('game-found', onGameFound);
+            const onGameFound = ({ gameId, players }) => {
+                console.log(`[GameStore] Received 'game-found' for friend match. GameID: ${gameId}, Players:`, players);
+                this.matchmakingPlayers.splice(0, this.matchmakingPlayers.length, ...players);
+                this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
+                this.isMatchmakingRequested = false;
+                this.initializeOnlineGame();
+                cleanupListeners();
+                resolve({ gameId, players });
+            };
 
-        // ソケットが未接続の場合、接続を試みてからイベントを送信
-        if (!socket || !socket.connected) {
-          console.log('[GameStore] Socket not connected for friend matchmaking. Attempting to connect...');
-          this.connectToServer();
-          // connectToServer内でrequestFriendMatchmakingが再送されるので、ここではemitしない
-        } else {
-          // ソケットが既に接続済みであれば直接イベントを送信
-          console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
-          socket.emit('requestFriendMatchmaking', {
-            userId: userStore.profile.id,
-            passcode: passcode,
-            username: userStore.profile.username,
-            avatarUrl: userStore.profile.avatar_url,
-            actionType: actionType
-          });
-        }
-      }).finally(() => {
-        // ここではisActionPendingを解除しない。成功または失敗リスナーで解除される。
-        // cleanupListenersはresolve/reject時に呼ばれる
+            // リスナーを一度だけ登録
+            socket.on('matchmaking-update-friend', onMatchmakingUpdateFriend);
+            socket.on('friendMatchmakingError', onFriendMatchmakingError);
+            socket.on('game-found', onGameFound);
+
+            console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
+            socket.emit('requestFriendMatchmaking', {
+                userId: userStore.profile.id,
+                passcode: passcode,
+                username: userStore.profile.username,
+                avatarUrl: userStore.profile.avatar_url,
+                actionType: actionType
+            });
+        }).catch(error => {
+            console.error('[GameStore] Error during friend matchmaking setup (after socket connection):', error);
+            this.friendMatchmakingError = '接続エラーが発生しました。再試行してください。';
+            this.isActionPending = false;
+            this.isMatchmakingRequested = false;
+            this.onlineGameId = null;
+            reject(error);
+        });
       });
     },
 
