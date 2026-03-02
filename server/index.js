@@ -2333,12 +2333,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl }) => {
-    console.log(`[Friend Matchmaking] Request received from user: ${userId}, passcode: ${passcode}`);
+  socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl, actionType }) => {
+    console.log(`[Friend Matchmaking] Request received from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`);
 
-    if (!userId || !passcode || !username) {
-        console.error('[Friend Matchmaking] Invalid request: userId, passcode or username is missing.');
-        return socket.emit('gameError', { message: 'ユーザー情報、パスコード、またはユーザー名が不足しています。' });
+    if (!userId || !passcode || !username || !actionType) {
+        console.error('[Friend Matchmaking] Invalid request: userId, passcode, username or actionType is missing.');
+        return socket.emit('gameError', { message: 'ユーザー情報、パスコード、アクションタイプ、またはユーザー名が不足しています。' });
     }
 
     userSocketMap.set(userId, socket.id);
@@ -2396,7 +2396,12 @@ io.on('connection', (socket) => {
                     .insert([{ game_id: gameId, user_id: userId, seat_index: currentPlayers.length, status: 'joined' }]); // seat_index を追加
                 if (insertPlayerError) throw insertPlayerError;
             }
-        } else {
+        } else { // 既存のゲームが見つからない場合
+            // 「入室」リクエストで部屋が見つからなかった場合
+            if (actionType === 'enter') {
+                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在しません'); // ★修正
+            }
+
             // 新しいゲームを作成
             isNewGame = true;
             const { data: newGame, error: createGameError } = await supabase

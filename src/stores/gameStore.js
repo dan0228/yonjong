@@ -1789,6 +1789,7 @@ export const useGameStore = defineStore('game', {
         // 接続後にリクエストを再試行するロジックは connectToServer 内に記述
         // ここでは単にフラグを立てて終了
         this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
+        this.friendMatchmakingActionType = actionType; // ★追加: 接続後のリトライ用にアクションタイプを保存
         this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
         return;
       }
