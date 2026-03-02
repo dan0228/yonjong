@@ -1280,8 +1280,13 @@ export const useGameStore = defineStore('game', {
     },
 
     useStockedTile(playerId) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot use stocked tile now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
           socket.emit('useStockedTile', { gameId: this.onlineGameId, playerId: this.localPlayerId });
@@ -1328,8 +1333,13 @@ export const useGameStore = defineStore('game', {
     },
 
     drawFromWall(playerId) {
-      if (this.isActionPending) return;
       if (this.isGameOnline) {
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot draw from wall now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
           socket.emit('drawFromWall', { gameId: this.onlineGameId, playerId: this.localPlayerId });
@@ -1462,10 +1472,17 @@ export const useGameStore = defineStore('game', {
     },
 
     discardTile(playerId, tileIdToDiscard, isFromDrawnTile, isStocking = false) {
-      if (this.isActionPending) return;
-
-      if (this.isGameOnline) { // isHostチェックを削除
-        if (playerId !== this.localPlayerId) return;
+      if (this.isGameOnline) {
+        // 自分のターンで、かつ現在のフェーズが打牌待ちであれば常に許可
+        // activeActionPlayersは他家のアクション選択待ちフェーズで関係するため、
+        // 打牌フェーズではcurrentTurnPlayerIdを優先する
+        if (playerId === this.localPlayerId && 
+            (this.gamePhase === GAME_PHASES.AWAITING_DISCARD || this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD)) {
+            // 自分のターンなので続行
+        } else {
+            console.warn(`Player ${this.localPlayerId} cannot discard now. Not current turn or invalid phase for discarding.`);
+            return;
+        }
 
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -1641,7 +1658,12 @@ export const useGameStore = defineStore('game', {
 
     executeStock(playerId, tileIdToStock, isFromDrawnTile) {
       if (this.isGameOnline) {
-        if (playerId !== this.localPlayerId) return;
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot execute stock now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
           socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard: tileIdToStock, isFromDrawnTile, isStocking: true });
@@ -2217,7 +2239,13 @@ export const useGameStore = defineStore('game', {
     },
 
     declareRiichi(playerId) {
-      if (this.isGameOnline) { // isHostチェックを削除
+      if (this.isGameOnline) {
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot declare Riichi now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2262,7 +2290,13 @@ export const useGameStore = defineStore('game', {
     },
 
     playerSkipsCall(playerId) {
-      if (this.isGameOnline) { // isHostチェックを削除
+      if (this.isGameOnline) {
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot skip now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
@@ -2294,6 +2328,12 @@ export const useGameStore = defineStore('game', {
 
     playerDeclaresCall(playerId, actionType, tile) {
       if (this.isGameOnline) {
+        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
+        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
+          console.warn(`Player ${this.localPlayerId} cannot declare ${actionType} now. Not in activeActionPlayers.`);
+          return;
+        }
+
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック

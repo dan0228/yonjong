@@ -2682,7 +2682,7 @@ io.on('connection', (socket) => {
   socket.on('playerSkipsCall', async ({ gameId, playerId }) => {
     const gameState = gameStates[gameId];
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
-    if (gameState.activeActionPlayerId !== playerId) return socket.emit('gameError', { message: 'アクションを選択する番ではありません。' });
+    if (!gameState.activeActionPlayers.includes(playerId)) return socket.emit('gameError', { message: 'アクションを選択する番ではありません。' });
 
     const player = gameState.players.find(p => p.id === playerId);
     if (player && gameState.playerActionEligibility[playerId]?.canRon) {
@@ -2706,7 +2706,7 @@ io.on('connection', (socket) => {
   socket.on('playerDeclaresCall', async ({ gameId, playerId, actionType, tile }) => {
     const gameState = gameStates[gameId];
     if (!gameState) return socket.emit('gameError', { message: 'ゲームが見つかりません。' });
-    if (gameState.activeActionPlayerId !== playerId) return socket.emit('gameError', { message: 'アクションを選択する番ではありません。' });
+    if (!gameState.activeActionPlayers.includes(playerId)) return socket.emit('gameError', { message: 'アクションを選択する番ではありません。' });
 
     // TODO: 宣言が正当かどうかのより詳細なチェック
 
