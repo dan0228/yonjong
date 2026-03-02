@@ -2333,10 +2333,154 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ★追加ログ: initializeGame イベントハンドラが登録されるか確認
-  console.log(`[Server Debug] Registering initializeGame event handler for socket ${socket.id}`);
+  socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl }) => {
+    console.log(`[Friend Matchmaking] Request received from user: ${userId}, passcode: ${passcode}`);
 
-  // クライアントがゲームの初期化を要求する
+    if (!userId || !passcode || !username) {
+        console.error('[Friend Matchmaking] Invalid request: userId, passcode or username is missing.');
+        return socket.emit('gameError', { message: 'ユーザー情報、パスコード、またはユーザー名が不足しています。' });
+    }
+
+    userSocketMap.set(userId, socket.id);
+    socket.join(passcode); // パスコードをルーム名として利用
+
+    try {
+        let gameId = null;
+        let isNewGame = false;
+
+        // 既存のゲームをパスコードで検索
+        const { data: existingGame, error: fetchGameError } = await supabase
+            .from('games')
+            .select('id, game_data, status, version')
+            .eq('passcode', passcode)
+            .single();
+
+        if (fetchGameError && fetchGameError.code !== 'PGRST116') { // PGRST116 は「見つからない」エラー
+            console.error('[Friend Matchmaking] Error fetching existing game by passcode:', fetchGameError);
+            throw fetchGameError;
+        }
+
+        if (existingGame) {
+            gameId = existingGame.id;
+            gameStates[gameId] = Object.assign(createDefaultGameState(), existingGame.game_data);
+            gameStates[gameId].status = existingGame.status;
+            gameStates[gameId].version = existingGame.version;
+            gameStates[gameId].isGameOnline = true;
+            gameStates[gameId].gameMode = 'online'; // 友人対戦もオンラインモード
+            gameStates[gameId].ruleMode = 'stock';
+
+            // 既存のゲームにプレイヤーを参加させる
+            const { data: gamePlayers, error: fetchPlayersError } = await supabase
+                .from('game_players')
+                .select('user_id')
+                .eq('game_id', gameId);
+
+            if (fetchPlayersError) throw fetchPlayersError;
+
+            const currentPlayers = gamePlayers.map(gp => gp.user_id);
+
+            if (currentPlayers.length >= 4) {
+                return socket.emit('gameError', { message: 'この部屋は満員です。' });
+            }
+            if (currentPlayers.includes(userId)) {
+                // 既に部屋にいる場合は何もしない
+                console.log(`[Friend Matchmaking] User ${userId} already in game ${gameId}. Rejoining.`);
+            } else {
+                // プレイヤーをゲームに追加
+                const { error: insertPlayerError } = await supabase
+                    .from('game_players')
+                    .insert([{ game_id: gameId, user_id: userId, seat_index: currentPlayers.length, status: 'joined' }]); // seat_index を追加
+                if (insertPlayerError) throw insertPlayerError;
+            }
+        } else {
+            // 新しいゲームを作成
+            isNewGame = true;
+            const { data: newGame, error: createGameError } = await supabase
+                .from('games')
+                .insert([{ passcode: passcode, room_tier: 'friend', status: 'waiting', game_data: {} }])
+                .select('id, game_data, status, version')
+                .single();
+
+            if (createGameError) throw createGameError;
+
+            gameId = newGame.id;
+            gameStates[gameId] = Object.assign(createDefaultGameState(), newGame.game_data);
+            gameStates[gameId].status = newGame.status;
+            gameStates[gameId].version = newGame.version;
+            gameStates[gameId].isGameOnline = true;
+            gameStates[gameId].gameMode = 'online';
+            gameStates[gameId].ruleMode = 'stock';
+            gameStates[gameId].passcode = passcode; // パスコードをゲーム状態に保存
+
+            // 作成者であるプレイヤーをゲームに参加させる
+            const { error: insertPlayerError } = await supabase
+                .from('game_players')
+                .insert([{ game_id: gameId, user_id: userId, seat_index: 0, status: 'joined' }]); // 最初に参加するプレイヤーは seat_index 0
+            if (insertPlayerError) throw insertPlayerError;
+        }
+
+        // 最新のプレイヤーリストを取得してクライアントにブロードキャスト
+        const { data: updatedGamePlayers, error: fetchUpdatedPlayersError } = await supabase
+            .from('game_players')
+            .select(`
+                user_id,
+                seat_index,
+                users (
+                    id,
+                    username,
+                    avatar_url,
+                    rating,
+                    cat_coins,
+                    total_games_played,
+                    first_place_count,
+                    second_place_count,
+                    third_place_count,
+                    fourth_place_count,
+                    class
+                )
+            `)
+            .eq('game_id', gameId)
+            .order('seat_index', { ascending: true });
+
+        if (fetchUpdatedPlayersError) throw fetchUpdatedPlayersError;
+
+        const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+            id: gp.users.id,
+            name: gp.users.username,
+            username: gp.users.username,
+            avatar_url: gp.users.avatar_url,
+            rating: gp.users.rating,
+            cat_coins: gp.users.cat_coins,
+            total_games_played: gp.users.total_games_played,
+            first_place_count: gp.users.first_place_count,
+            second_place_count: gp.users.second_place_count,
+            third_place_count: gp.users.third_place_count,
+            fourth_place_count: gp.users.fourth_place_count,
+            user_rank_class: gp.users.class,
+            score: 50000,
+            isAi: false,
+            seat_index: gp.seat_index
+        }));
+        
+        gameStates[gameId].players = playersForMatchmaking; // メモリ上のゲーム状態も更新
+        gameStates[gameId].localPlayerId = userId; // ローカルプレイヤーIDも更新
+
+        // 全員が揃ったか確認
+        if (playersForMatchmaking.length === 4) {
+            io.to(gameId).emit('game-found', { gameId: gameId, players: playersForMatchmaking });
+            gameStates[gameId].gamePhase = 'ready'; // ゲーム準備完了状態
+            await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+        } else {
+            io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking, passcode: passcode });
+            await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+        }
+        
+    } catch (error) {
+        console.error('[Friend Matchmaking] An error occurred:', error);
+        socket.emit('gameError', { message: `友人対戦マッチング処理中にエラーが発生しました: ${error.message || error}` });
+    }
+  });
+
   socket.on('initializeGame', async ({ gameId, userId }) => {
     console.log(`[Server] Received initializeGame event for game ${gameId} from user ${userId}`);
 

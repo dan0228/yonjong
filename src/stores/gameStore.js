@@ -1722,9 +1722,6 @@ export const useGameStore = defineStore('game', {
       }, 550);
     },
 
-    /**
-     * オンライン対戦のマッチメイキングをサーバーに要求します。
-     */
     async requestMatchmaking() {
       const userStore = useUserStore();
       if (!userStore.profile || !userStore.profile.id) {
@@ -1760,6 +1757,50 @@ export const useGameStore = defineStore('game', {
         this.isMatchmakingRequested = false; // エラー時はリクエストフラグをリセット
       }
       // ソケットが未接続の場合は、connectToServer内のconnectイベントリスナーで処理される
+    },
+
+    /**
+     * 友人対戦のマッチメイキングをサーバーに要求します。
+     * @param {string} passcode - 友人対戦のパスコード
+     * @param {string} actionType - 'join' または 'create'
+     */
+    async requestFriendMatchmaking({ passcode, actionType }) {
+      const userStore = useUserStore();
+
+      if (!userStore.profile?.id || !userStore.profile?.username || !userStore.profile?.avatar_url) {
+        console.error('[GameStore] Friend matchmaking request failed: User profile is not loaded or incomplete.');
+        // ユーザーにエラーを通知するUIも考慮
+        return;
+      }
+
+      if (!socket || !socket.connected) {
+        console.log('[GameStore] Socket not connected for friend matchmaking. Attempting to connect...');
+        this.connectToServer();
+        // 接続後にリクエストを再試行するロジックは connectToServer 内に記述
+        // ここでは単にフラグを立てて終了
+        this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
+        this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
+        return;
+      }
+
+      if (this.isActionPending) {
+        console.log('[GameStore] Friend matchmaking request already in progress. Skipping.');
+        return;
+      }
+
+      this.isActionPending = true; // アクションロック
+      this.matchmakingPlayers = []; // マッチメイキング開始時にプレイヤーリストをクリア
+      this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
+
+      console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
+
+      socket.emit('requestFriendMatchmaking', {
+        userId: userStore.profile.id,
+        passcode: passcode,
+        username: userStore.profile.username,
+        avatarUrl: userStore.profile.avatar_url,
+        actionType: actionType // サーバー側で利用する可能性も考慮し含める
+      });
     },
 
     moveToNextPlayer() {

@@ -272,13 +272,13 @@ const handlePopupSelect = (payload) => {
     router.push('/game');
   } else if (popupType === 'online') {
     if (action === 'enter_room') {
-      // TODO: 友人対戦（入室）のマッチメイキング処理
       console.log(`Entering friend match with passcode: ${passcode}`);
-      router.push('/matchmaking'); // 仮で同じ画面へ
+      gameStore.requestFriendMatchmaking({ passcode, actionType: 'join' });
+      router.push('/matchmaking');
     } else if (action === 'create_room') {
-      // TODO: 友人対戦（部屋立て）のマッチメイキング処理
       console.log(`Creating friend match with passcode: ${passcode}`);
-      router.push('/matchmaking'); // 仮で同じ画面へ
+      gameStore.requestFriendMatchmaking({ passcode, actionType: 'create' });
+      router.push('/matchmaking');
     } else if (action === 'ranked') {
       // TODO: 全国対戦のマッチメイキング画面へ遷移
       console.log('Ranked match selected, navigating to matchmaking...');
