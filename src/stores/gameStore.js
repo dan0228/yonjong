@@ -1621,7 +1621,7 @@ export const useGameStore = defineStore('game', {
             }
 
             this.playerActionEligibility[p.id] = eligibility;
-
+            console.log(`[DEBUG discardTile] Player ${p.id} eligibility: Ron=${eligibility.canRon}, Pon=${eligibility.canPon}, Minkan=${eligibility.canMinkan}`); // ★追加ログ
             if (eligibility.canRon || eligibility.canPon || eligibility.canMinkan) {
               canAnyoneAct = true;
               this.waitingForPlayerResponses.push(p.id);
@@ -2385,12 +2385,17 @@ export const useGameStore = defineStore('game', {
       if (this.activeActionPlayers.length === 0) {
         // 全てのプレイヤーが応答した場合、収集されたアクションを処理する
         this.processPendingActions();
+      } else if (this.gameMode === 'vsCPU') {
+        // AI対戦の場合、まだ応答していないAIプレイヤーがいれば即座にAI応答をトリガー
+        const aiPlayersNeedingResponse = this.activeActionPlayers.filter(playerId => {
+          const player = this.players.find(p => p.id === playerId);
+          return player && player.isAi;
+        });
+        if (aiPlayersNeedingResponse.length > 0) {
+          console.log(`[DEBUG setNextActiveResponder] Triggering handleAiResponse for AI players: ${JSON.stringify(aiPlayersNeedingResponse)}`);
+          this.handleAiResponse();
+        }
       }
-
-      // ★★★ Crucially, broadcast the state change ★★★
-      // if (this.isGameOnline) { // サーバー主導なので、クライアントからはブロードキャストしない
-      //   this.broadcastGameState();
-      // }
     },
 
     processPendingActions() {
@@ -3497,15 +3502,23 @@ export const useGameStore = defineStore('game', {
     },
 
     handleAiResponse() {
-      // activeActionPlayers に含まれるAIプレイヤーをすべて処理
-      this.activeActionPlayers.forEach(aiPlayerId => {
-        const player = this.players.find(p => p.id === aiPlayerId);
-        if (!player || this.gameMode !== 'vsCPU' || aiPlayerId === 'player1') {
-          return;
-        }
+      let playersToConsider = [];
 
+      if (this.gameMode === 'vsCPU') {
+        // AI対戦の場合、すべてのAIプレイヤーを考慮
+        playersToConsider = this.players.filter(p => p.id !== 'player1' && p.isAi);
+      } else if (this.gameMode === 'online') {
+        // オンライン対戦の場合、activeActionPlayers のAIプレイヤーを考慮
+        playersToConsider = this.activeActionPlayers
+          .map(playerId => this.players.find(p => p.id === playerId))
+          .filter(p => p && p.id !== 'player1' && p.isAi);
+      }
+
+      playersToConsider.forEach(aiPlayer => {
+        const aiPlayerId = aiPlayer.id;
         setTimeout(() => {
           const eligibility = this.playerActionEligibility[aiPlayerId];
+          console.log(`[DEBUG handleAiResponse] AI Player ${aiPlayerId} received eligibility: Ron=${eligibility?.canRon}, Pon=${eligibility?.canPon}, Minkan=${eligibility?.canMinkan}`); // ★追加ログ
 
           if (eligibility?.canRon) {
             if (this.isChankanChance) {
