@@ -1777,6 +1777,24 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     console.log(`Player ${userId} added to disconnectedPlayers for game ${gameId}`);
   }
 
+  // 切断されたプレイヤーの応答をスキップとしてマーク
+  game.playerResponses[userId] = 'skip';
+  console.log(`Player ${userId} marked as skipped for game ${gameId}`);
+
+  // waitingForPlayerResponses から削除
+  const waitingIndex = game.waitingForPlayerResponses.indexOf(userId);
+  if (waitingIndex > -1) {
+    game.waitingForPlayerResponses.splice(waitingIndex, 1);
+    console.log(`Player ${userId} removed from waitingForPlayerResponses for game ${gameId}`);
+  }
+
+  // activeActionPlayers からも削除
+  const activeActionIndex = game.activeActionPlayers.indexOf(userId);
+  if (activeActionIndex > -1) {
+    game.activeActionPlayers.splice(activeActionIndex, 1);
+    console.log(`Player ${userId} removed from activeActionPlayers for game ${gameId}`);
+  }
+
   // もしプレイヤーが playersReadyForNextRound にいた場合、そこから削除
   const readyIndex = game.playersReadyForNextRound.indexOf(userId);
   if (readyIndex > -1) {
@@ -1785,6 +1803,10 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   }
 
   console.log(`Player ${userId} is leaving/disconnecting from game ${gameId}.`);
+
+  // ★追加: 状態変更後、次のアクションを促す
+  await setNextActiveResponder(gameId);
+  await updateAndBroadcastGameState(gameId, game);
 
   // ★追加: games テーブルの現在のステータスを取得
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
