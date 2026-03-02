@@ -173,9 +173,8 @@ const closePopup = () => {
   emit('close');
 };
 
-const selectOption = (action) => {
-  // アクション実行前にストアのエラーをクリア
-  gameStore.friendMatchmakingError = null;
+const selectOption = async (action) => {
+  gameStore.friendMatchmakingError = null; // アクション実行前にストアのエラーをクリア
 
   const fullPasscode = passcode.value.join('');
 
@@ -194,24 +193,21 @@ const selectOption = (action) => {
   } else if (action === 'leader_board') {
     router.push('/leaderboard');
     closePopup();
-  } else if (action === 'enter_room') {
+  } else if (action === 'enter_room' || action === 'create_room') {
     if (!isPasscodeValid.value) {
       passcodeError.value = t('gameModeSelection.passcodeLengthError');
       return;
     }
     passcodeError.value = '';
-    gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: 'join' });
-    router.push('/matchmaking');
-    closePopup();
-  } else if (action === 'create_room') {
-    if (!isPasscodeValid.value) {
-      passcodeError.value = t('gameModeSelection.passcodeLengthError');
-      return;
+    
+    // 友人対戦リクエストを送信
+    await gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: action === 'enter_room' ? 'join' : 'create' });
+
+    // エラーがなければマッチング画面へ遷移
+    if (!gameStore.friendMatchmakingError) {
+      router.push('/matchmaking');
+      closePopup();
     }
-    passcodeError.value = '';
-    gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: 'create' });
-    router.push('/matchmaking');
-    closePopup();
   } else {
     // その他のアクションは親コンポーネントに委譲
     emit('select', { action });

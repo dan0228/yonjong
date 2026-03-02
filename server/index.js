@@ -2423,7 +2423,7 @@ io.on('connection', (socket) => {
                         if (out_is_full) {
                             playerSocket.emit('game-found', { gameId: out_game_id, players: players });
                         } else {
-                            playerSocket.emit('matchmaking-update', { gameId: out_game_id, players: players, passcode: passcode });
+                            playerSocket.emit('matchmaking-update-friend', { gameId: out_game_id, players: players, passcode: passcode });
                         }
                     }
                 } else {

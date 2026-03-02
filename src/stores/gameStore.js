@@ -573,6 +573,7 @@ export const useGameStore = defineStore('game', {
           // 接続成功時にマッチメイキングリクエストが保留されていれば送信
           if (this.isMatchmakingRequested) {
             const userStore = useUserStore();
+            // 友人対戦リクエストが保留中の場合
             if (this.friendMatchmakingActionType && this.friendMatchmakingPasscode) {
               console.log('[GameStore] Emitting "requestFriendMatchmaking" event after connect (reconnect)...');
               socket.emit('requestFriendMatchmaking', {
@@ -583,7 +584,7 @@ export const useGameStore = defineStore('game', {
                 actionType: this.friendMatchmakingActionType,
               });
               console.log(`[GameStore] "requestFriendMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Passcode: ${this.friendMatchmakingPasscode}, ActionType: ${this.friendMatchmakingActionType}`);
-            } else {
+            } else { // ランクマッチメイキングリクエストが保留中の場合
               console.log('[GameStore] Emitting "requestMatchmaking" event after connect (reconnect)...');
               socket.emit('requestMatchmaking', {
                 userId: userStore.profile.id,
@@ -1791,10 +1792,16 @@ export const useGameStore = defineStore('game', {
     async requestFriendMatchmaking({ passcode, actionType }) {
       const userStore = useUserStore();
 
-      if (!userStore.profile?.id || !userStore.profile?.username || !userStore.profile?.avatar_url) {
-        console.error('[GameStore] Friend matchmaking request failed: User profile is not loaded or incomplete.');
-        // ユーザーにエラーを通知するUIも考慮
-        return;
+      // ユーザープロファイルがロードされていない場合はロードを待機
+      if (!userStore.profile?.id) {
+        console.log('[GameStore] User profile not loaded. Attempting to load...');
+        await userStore.loadUserProfile();
+        if (!userStore.profile?.id) {
+          console.error('[GameStore] Friend matchmaking request failed: User profile could not be loaded or is incomplete after attempt.');
+          this.friendMatchmakingError = 'ユーザー情報の読み込みに失敗しました。再試行してください。';
+          return Promise.reject(this.friendMatchmakingError);
+        }
+        console.log('[GameStore] User profile loaded successfully.');
       }
 
       // 友人対戦のパスコードとアクションタイプをストアに一時保存
@@ -1804,31 +1811,85 @@ export const useGameStore = defineStore('game', {
       // 既存のエラーメッセージをクリア
       this.friendMatchmakingError = null;
 
-      if (!socket || !socket.connected) {
-        console.log('[GameStore] Socket not connected for friend matchmaking. Attempting to connect...');
-        this.connectToServer();
-        this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
-        this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
-        return;
-      }
-
+      // 既にリクエストが進行中の場合はスキップ
       if (this.isActionPending) {
         console.log('[GameStore] Friend matchmaking request already in progress. Skipping.');
-        return;
+        return Promise.resolve();
       }
 
       this.isActionPending = true; // アクションロック
       this.matchmakingPlayers = []; // マッチメイキング開始時にプレイヤーリストをクリア
       this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
+      this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
 
-      console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
+      return new Promise((resolve, reject) => {
+        const cleanupListeners = () => {
+          socket.off('matchmaking-update-friend', onMatchmakingUpdateFriend);
+          socket.off('friendMatchmakingError', onFriendMatchmakingError);
+          socket.off('game-found', onGameFound);
+        };
 
-      socket.emit('requestFriendMatchmaking', {
-        userId: userStore.profile.id,
-        passcode: passcode,
-        username: userStore.profile.username,
-        avatarUrl: userStore.profile.avatar_url,
-        actionType: actionType
+        const onMatchmakingUpdateFriend = ({ gameId, players, passcode: receivedPasscode }) => {
+          console.log(`[GameStore] Received 'matchmaking-update-friend'. GameID: ${gameId}, Players:`, players);
+          this.onlineGameId = gameId;
+          this.isGameOnline = true;
+          this.localPlayerId = userStore.profile.id; // 自分のIDを設定
+
+          if (players && Array.isArray(players)) {
+            this.$patch({ matchmakingPlayers: players });
+          }
+
+          if (socket && socket.connected) {
+            socket.emit('joinGame', { gameId, userId: this.localPlayerId });
+          }
+          cleanupListeners();
+          resolve({ gameId, players });
+        };
+
+        const onFriendMatchmakingError = (errorMessage) => {
+          console.error('[GameStore] Friend matchmaking error:', errorMessage);
+          this.friendMatchmakingError = errorMessage;
+          this.isActionPending = false;
+          this.isMatchmakingRequested = false;
+          this.onlineGameId = null;
+          cleanupListeners();
+          reject(errorMessage);
+        };
+
+        const onGameFound = ({ gameId, players }) => {
+          console.log(`[GameStore] Received 'game-found' for friend match. GameID: ${gameId}, Players:`, players);
+          this.matchmakingPlayers.splice(0, this.matchmakingPlayers.length, ...players);
+          this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
+          this.isMatchmakingRequested = false;
+          this.initializeOnlineGame();
+          cleanupListeners();
+          resolve({ gameId, players });
+        };
+
+        // リスナーを一度だけ登録
+        socket.on('matchmaking-update-friend', onMatchmakingUpdateFriend);
+        socket.on('friendMatchmakingError', onFriendMatchmakingError);
+        socket.on('game-found', onGameFound);
+
+        // ソケットが未接続の場合、接続を試みてからイベントを送信
+        if (!socket || !socket.connected) {
+          console.log('[GameStore] Socket not connected for friend matchmaking. Attempting to connect...');
+          this.connectToServer();
+          // connectToServer内でrequestFriendMatchmakingが再送されるので、ここではemitしない
+        } else {
+          // ソケットが既に接続済みであれば直接イベントを送信
+          console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
+          socket.emit('requestFriendMatchmaking', {
+            userId: userStore.profile.id,
+            passcode: passcode,
+            username: userStore.profile.username,
+            avatarUrl: userStore.profile.avatar_url,
+            actionType: actionType
+          });
+        }
+      }).finally(() => {
+        // ここではisActionPendingを解除しない。成功または失敗リスナーで解除される。
+        // cleanupListenersはresolve/reject時に呼ばれる
       });
     },
 
