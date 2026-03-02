@@ -2334,7 +2334,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl, actionType }) => {
-    console.log(`[Friend Matchmaking] Request received from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`);
+    console.log(`[Friend Matchmaking START] Request from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`); // ★DEBUG
 
     if (!userId || !passcode || !username || !actionType) {
         console.error('[Friend Matchmaking] Invalid request: userId, passcode, username or actionType is missing.');
@@ -2349,9 +2349,10 @@ io.on('connection', (socket) => {
         let isNewGame = false;
 
         // 既存のゲームをパスコードで検索
+        console.log(`[Friend Matchmaking DEBUG] Searching for existing game with passcode: ${passcode}`); // ★DEBUG
         const { data: existingGame, error: fetchGameError } = await supabase
             .from('games')
-            .select('id, game_data, status, version')
+            .select('id, game_data, status, version, passcode') // ★修正: passcodeも取得
             .eq('passcode', passcode)
             .single();
 
@@ -2359,11 +2360,14 @@ io.on('connection', (socket) => {
             console.error('[Friend Matchmaking] Error fetching existing game by passcode:', fetchGameError);
             throw fetchGameError;
         }
+        console.log(`[Friend Matchmaking DEBUG] Existing game found: ${!!existingGame}`); // ★DEBUG
 
         if (existingGame) {
+            console.log(`[Friend Matchmaking DEBUG] Existing game found. Action Type: ${actionType}`); // ★DEBUG
             // 「開設」リクエストで既存の部屋が見つかった場合
             if (actionType === 'create') {
-                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在します'); // ★修正
+                console.log('[Friend Matchmaking ERROR] Attempted to create room with existing passcode.'); // ★DEBUG
+                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在します');
             }
             gameId = existingGame.id;
             gameStates[gameId] = Object.assign(createDefaultGameState(), existingGame.game_data);
@@ -2372,6 +2376,7 @@ io.on('connection', (socket) => {
             gameStates[gameId].isGameOnline = true;
             gameStates[gameId].gameMode = 'online'; // 友人対戦もオンラインモード
             gameStates[gameId].ruleMode = 'stock';
+            gameStates[gameId].passcode = existingGame.passcode; // ★追加: 既存のパスコードを設定
 
             // 既存のゲームにプレイヤーを参加させる
             const { data: gamePlayers, error: fetchPlayersError } = await supabase
@@ -2384,6 +2389,7 @@ io.on('connection', (socket) => {
             const currentPlayers = gamePlayers.map(gp => gp.user_id);
 
             if (currentPlayers.length >= 4) {
+                console.log('[Friend Matchmaking ERROR] Room is full.'); // ★DEBUG
                 return socket.emit('gameError', { message: 'この部屋は満員です。' });
             }
             if (currentPlayers.includes(userId)) {
@@ -2395,19 +2401,23 @@ io.on('connection', (socket) => {
                     .from('game_players')
                     .insert([{ game_id: gameId, user_id: userId, seat_index: currentPlayers.length, status: 'joined' }]); // seat_index を追加
                 if (insertPlayerError) throw insertPlayerError;
+                console.log(`[Friend Matchmaking DEBUG] User ${userId} joined existing game ${gameId}.`); // ★DEBUG
             }
         } else { // 既存のゲームが見つからない場合
+            console.log(`[Friend Matchmaking DEBUG] No existing game found. Action Type: ${actionType}`); // ★DEBUG
             // 「入室」リクエストで部屋が見つからなかった場合
             if (actionType === 'enter') {
-                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在しません'); // ★修正
+                console.log('[Friend Matchmaking ERROR] Attempted to enter non-existent room.'); // ★DEBUG
+                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在しません');
             }
 
-            // 新しいゲームを作成
+            // 新しいゲームを作成 (actionType === 'create' の場合)
             isNewGame = true;
+            console.log(`[Friend Matchmaking DEBUG] Creating new game with passcode: ${passcode}`); // ★DEBUG
             const { data: newGame, error: createGameError } = await supabase
                 .from('games')
                 .insert([{ passcode: passcode, room_tier: 'friend', status: 'waiting', game_data: {} }])
-                .select('id, game_data, status, version')
+                .select('id, game_data, status, version, passcode') // ★修正: passcodeも取得
                 .single();
 
             if (createGameError) throw createGameError;
@@ -2419,16 +2429,19 @@ io.on('connection', (socket) => {
             gameStates[gameId].isGameOnline = true;
             gameStates[gameId].gameMode = 'online';
             gameStates[gameId].ruleMode = 'stock';
-            gameStates[gameId].passcode = passcode; // パスコードをゲーム状態に保存
+            gameStates[gameId].passcode = newGame.passcode; // ★追加: 新規ゲームのパスコードを設定
+            console.log(`[Friend Matchmaking DEBUG] New game ${gameId} created with passcode: ${newGame.passcode}`); // ★DEBUG
 
             // 作成者であるプレイヤーをゲームに参加させる
             const { error: insertPlayerError } = await supabase
                 .from('game_players')
                 .insert([{ game_id: gameId, user_id: userId, seat_index: 0, status: 'joined' }]); // 最初に参加するプレイヤーは seat_index 0
             if (insertPlayerError) throw insertPlayerError;
+            console.log(`[Friend Matchmaking DEBUG] Creator ${userId} joined new game ${gameId}.`); // ★DEBUG
         }
 
         // 最新のプレイヤーリストを取得してクライアントにブロードキャスト
+        console.log(`[Friend Matchmaking DEBUG] Fetching updated players for game: ${gameId}`); // ★DEBUG
         const { data: updatedGamePlayers, error: fetchUpdatedPlayersError } = await supabase
             .from('game_players')
             .select(`
@@ -2476,13 +2489,16 @@ io.on('connection', (socket) => {
 
         // 全員が揃ったか確認
         if (playersForMatchmaking.length === 4) {
+            console.log(`[Friend Matchmaking DEBUG] Game ${gameId} is full. Emitting 'game-found'.`); // ★DEBUG
             io.to(gameId).emit('game-found', { gameId: gameId, players: playersForMatchmaking });
             gameStates[gameId].gamePhase = 'ready'; // ゲーム準備完了状態
             await updateAndBroadcastGameState(gameId, gameStates[gameId]);
         } else {
+            console.log(`[Friend Matchmaking DEBUG] Game ${gameId} is not full (${playersForMatchmaking.length} players). Emitting 'matchmaking-update'.`); // ★DEBUG
             io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking, passcode: passcode });
             await updateAndBroadcastGameState(gameId, gameStates[gameId]);
         }
+        console.log(`[Friend Matchmaking END] Request processed for game: ${gameId}`); // ★DEBUG
         
     } catch (error) {
         console.error('[Friend Matchmaking] An error occurred:', error);
