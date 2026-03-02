@@ -284,6 +284,7 @@ export function createDefaultGameState() {
     isInitialAssetsLoading: true, // 初期アセット（猫アニメ）の読み込み状態
     isCoreAssetsLoading: false,   // コアアセット（ゲーム全体）の読み込み状態
     isAppReady: false,            // 全てのアセット読み込みが完了したか
+    friendMatchmakingError: null, // ★追加: 友人対戦のエラーメッセージ
   };
 }
 
@@ -615,6 +616,15 @@ export const useGameStore = defineStore('game', {
           // サーバーからのエラーメッセージをポップアップで表示
           userStore.setPenalty(error.message, 5000);
           this.isMatchmakingRequested = false; // ゲームエラー時はリクエストフラグをリセット
+        });
+
+        // ★追加: 友人対戦のマッチメイキングエラーをリッスン
+        socket.on('friendMatchmakingError', (errorMessage) => {
+          console.error('Friend matchmaking error:', errorMessage);
+          this.friendMatchmakingError = errorMessage; // エラーメッセージを設定
+          this.isActionPending = false; // アクションロックを解除
+          this.isMatchmakingRequested = false; // リクエストフラグをリセット
+          this.onlineGameId = null; // エラーが発生した場合はゲームIDをリセット
         });
 
         socket.on('error', (error) => {

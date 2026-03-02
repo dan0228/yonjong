@@ -2361,6 +2361,10 @@ io.on('connection', (socket) => {
         }
 
         if (existingGame) {
+            // 「開設」リクエストで既存の部屋が見つかった場合
+            if (actionType === 'create') {
+                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在します'); // ★修正
+            }
             gameId = existingGame.id;
             gameStates[gameId] = Object.assign(createDefaultGameState(), existingGame.game_data);
             gameStates[gameId].status = existingGame.status;

@@ -49,7 +49,8 @@ BEGIN
     FROM public.games g
     WHERE
         g.status = 'waiting'
-        AND g.room_tier = v_room_tier -- 同じ room_tier のゲームを探す
+        AND g.room_tier = v_room_tier
+        AND g.passcode IS NULL -- ★追加: パスコードがNULLのゲームのみを対象
         AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
         AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
     ORDER BY abs(g.avg_rating - p_user_rating) -- ★修正: 平均レートが近い順
@@ -63,7 +64,8 @@ BEGIN
         FROM public.games g
         WHERE
             g.status = 'waiting'
-            AND g.room_tier = ANY(v_adjacent_room_tiers) -- 隣接する room_tier のゲームを探す
+            AND g.room_tier = ANY(v_adjacent_room_tiers)
+            AND g.passcode IS NULL -- ★追加: パスコードがNULLのゲームのみを対象
             AND NOT EXISTS (SELECT 1 FROM public.game_players gp WHERE gp.game_id = g.id AND gp.user_id = p_user_id)
             AND (SELECT count(*) FROM public.game_players gp WHERE gp.game_id = g.id) < 4
         ORDER BY abs(g.avg_rating - p_user_rating) -- ★修正: 平均レートが近い順

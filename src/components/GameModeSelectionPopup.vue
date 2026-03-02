@@ -35,6 +35,12 @@
           </div>
           <!-- 友人対戦フォーム -->
           <div v-if="button.isForm">
+            <div
+              v-if="passcodeError"
+              class="error-message"
+            >
+              {{ passcodeError }}
+            </div>
             <div class="mode-title form-title">
               {{ button.title }}
             </div>
@@ -80,10 +86,12 @@
 </template>
 
 <script setup>
-import { ref, computed, defineProps, defineEmits } from 'vue';
+import { ref, computed, defineProps, defineEmits, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useGameStore } from '@/stores/gameStore'; // gameStore をインポート
 
 const { t } = useI18n();
+const gameStore = useGameStore(); // gameStore のインスタンスを取得
 
 const props = defineProps({
   show: {
@@ -105,6 +113,21 @@ const emit = defineEmits(['close', 'select']);
 // --- パスコード入力ロジック ---
 const passcode = ref(['', '', '', '']);
 const inputRefs = ref([]);
+const passcodeError = ref(''); // パスコードエラーメッセージ
+
+// gameStore.friendMatchmakingError を監視し、passcodeError を更新
+watch(() => gameStore.friendMatchmakingError, (newError) => {
+  if (newError) {
+    passcodeError.value = newError;
+  } else {
+    passcodeError.value = '';
+  }
+});
+
+const isPasscodeValid = computed(() => {
+  const fullPasscode = passcode.value.join('');
+  return fullPasscode.length === 4; // 4桁であることを確認
+});
 
 const handleInput = (index, event) => {
   const value = event.target.value;
@@ -143,12 +166,22 @@ const containerStyle = computed(() => ({
 }));
 
 const closePopup = () => {
+  passcodeError.value = ''; // ポップアップを閉じるときにエラーをクリア
+  gameStore.friendMatchmakingError = null; // ストアのエラーもクリア
   emit('close');
 };
 
 const selectOption = (action) => {
+  // アクション実行前にストアのエラーをクリア
+  gameStore.friendMatchmakingError = null;
+
   const fullPasscode = passcode.value.join('');
   if (action === 'enter_room' || action === 'create_room') {
+    if (!isPasscodeValid.value) {
+      passcodeError.value = t('gameModeSelection.passcodeLengthError'); // エラーメッセージを設定
+      return; // 処理を中断
+    }
+    passcodeError.value = ''; // エラーがない場合はクリア
     emit('select', { action, passcode: fullPasscode });
   } else {
     emit('select', { action });
@@ -357,6 +390,14 @@ const selectOption = (action) => {
   background-image: url('/assets/images/button/board_hand.png');
 }
 
+.error-message {
+  color: #cc0000; /* 赤色 */
+  font-size: 0.7em; /* 少し小さめのフォント */
+  margin-bottom: -15px; /* タイトルとの間に少しスペース */
+  margin-left: 10px;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+  z-index: 10;
+}
 
 @keyframes slap-in {
   0% {

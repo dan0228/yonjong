@@ -599,7 +599,8 @@
     "rankedMatch": "全国対戦",
     "rankedMatchDescription": "猛者とのレート戦",
     "enterRoom": "入室",
-    "createRoom": "開設"
+    "createRoom": "開設",
+    "passcodeLengthError": "コードは数字4桁です"
   },
   "matchmaking": {
     "title": "対戦相手を検索中",

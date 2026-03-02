@@ -599,7 +599,8 @@
     "rankedMatch": "Ranked",
     "rankedMatchDescription": "Climb the ranks",
     "enterRoom": "Enter",
-    "createRoom": "Create"
+    "createRoom": "Create",
+    "passcodeLengthError": "Enter 4-digit code."
   },
   "matchmaking": {
     "title": "Searching for Opponent",
