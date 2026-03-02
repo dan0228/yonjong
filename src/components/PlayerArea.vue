@@ -300,24 +300,24 @@ const canDeclareKakan = computed(() => {
  * ロンが可能かどうかを判定します。
  */
 const canDeclareRon = computed(() => {
-  const result = !actionInProgress.value && gameStore.activeActionPlayerId === props.player.id && playerEligibility.value.canRon;
-  console.log(`[PlayerArea ${props.player.id}] canDeclareRon: ${result}, activeActionPlayerId: ${gameStore.activeActionPlayerId}, myId: ${props.player.id}, canRon: ${playerEligibility.value.canRon}`);
+  const result = !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && playerEligibility.value.canRon;
+  console.log(`[PlayerArea ${props.player.id}] canDeclareRon: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, canRon: ${playerEligibility.value.canRon}`);
   return result;
 });
 /**
  * ポンが可能かどうかを判定します。
  */
 const canDeclarePon = computed(() => {
-  const result = !actionInProgress.value && gameStore.activeActionPlayerId === props.player.id && playerEligibility.value.canPon;
-  console.log(`[PlayerArea ${props.player.id}] canDeclarePon: ${result}, activeActionPlayerId: ${gameStore.activeActionPlayerId}, myId: ${props.player.id}, canPon: ${playerEligibility.value.canPon}`);
+  const result = !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && playerEligibility.value.canPon;
+  console.log(`[PlayerArea ${props.player.id}] canDeclarePon: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, canPon: ${playerEligibility.value.canPon}`);
   return result;
 });
 /**
  * 明槓が可能かどうかを判定します。
  */
 const canDeclareMinkan = computed(() => {
-  const result = !actionInProgress.value && gameStore.activeActionPlayerId === props.player.id && playerEligibility.value.canMinkan;
-  console.log(`[PlayerArea ${props.player.id}] canDeclareMinkan: ${result}, activeActionPlayerId: ${gameStore.activeActionPlayerId}, myId: ${props.player.id}, canMinkan: ${playerEligibility.value.canMinkan}`);
+  const result = !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && playerEligibility.value.canMinkan;
+  console.log(`[PlayerArea ${props.player.id}] canDeclareMinkan: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, canMinkan: ${playerEligibility.value.canMinkan}`);
   return result;
 });
 
@@ -325,8 +325,8 @@ const canDeclareMinkan = computed(() => {
  * スキップボタンを表示するかどうかを判定します。
  */
 const showSkipButton = computed(() => {
-  const result = !actionInProgress.value && gameStore.activeActionPlayerId === props.player.id && (canDeclareRon.value || canDeclarePon.value || canDeclareMinkan.value);
-  console.log(`[PlayerArea ${props.player.id}] showSkipButton: ${result}, activeActionPlayerId: ${gameStore.activeActionPlayerId}, myId: ${props.player.id}, canRon: ${canDeclareRon.value}, canPon: ${canDeclarePon.value}, canMinkan: ${canDeclareMinkan.value}`);
+  const result = !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && gameStore.activeActionPlayers.includes(props.player.id) && (playerEligibility.value.canRon || playerEligibility.value.canPon || playerEligibility.value.canMinkan);
+  console.log(`[PlayerArea ${props.player.id}] showSkipButton: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, activeActionPlayers: ${gameStore.activeActionPlayers}, myId: ${props.player.id}, canRon: ${playerEligibility.value.canRon}, canPon: ${playerEligibility.value.canPon}, canMinkan: ${playerEligibility.value.canMinkan}`);
   return result;
 });
 

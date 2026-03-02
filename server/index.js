@@ -92,7 +92,7 @@ function createDefaultGameState() {
     waitingForPlayerResponses: [],
     playerResponses: {},
     isFuriTen: {},
-    activeActionPlayerId: null,
+    activeActionPlayers: [],
     isDoujunFuriTen: {},
     riichiDiscardOptions: [],
     isDeclaringRiichi: {},
@@ -348,7 +348,7 @@ async function moveToNextPlayer(gameId) {
   }
 
   gameState.waitingForPlayerResponses = [];
-  gameState.activeActionPlayerId = null;
+
 
   // moveToNextPlayerは状態を更新するだけ。ブロードキャストと牌を引く処理は呼び出し元で行う
   // await updateAndBroadcastGameState(gameId, gameState);
@@ -360,19 +360,14 @@ async function setNextActiveResponder(gameId) {
   const gameState = gameStates[gameId];
   if (!gameState) return;
 
-  // まだ応答していない次のプレイヤーを見つける
-  const nextResponderId = gameState.waitingForPlayerResponses.find(
+  // まだ応答していないプレイヤーのIDをすべて取得
+  gameState.activeActionPlayers = gameState.waitingForPlayerResponses.filter(
     (playerId) => !gameState.playerResponses[playerId]
   );
 
-  if (nextResponderId) {
-    // 次の応答者がいる場合、アクティブに設定
-    gameState.activeActionPlayerId = nextResponderId;
-    // サーバー側ではAIの自動応答は行わない（クライアント側で処理されるか、別途AIロジックを実装）
-  } else {
+  if (gameState.activeActionPlayers.length === 0) {
     // 全てのプレイヤーが応答した場合、収集されたアクションを処理する
-    gameState.activeActionPlayerId = null;
-    await processPendingActions(gameId); // processPendingActionsを呼び出す
+    await processPendingActions(gameId);
   }
 
   // setNextActiveResponderは状態を更新するだけ。ブロードキャストは呼び出し元で行う
@@ -475,7 +470,7 @@ async function processPendingActions(gameId) {
   }
   gameState.isChankanChance = false;
   gameState.chankanTile = null;
-  gameState.activeActionPlayerId = null;
+
 }
 
 // リーチ宣言を確定するヘルパー関数
@@ -1337,7 +1332,7 @@ async function _initializeGameCore(gameId) {
     localGameState.isFuriTen[player.id] = false;
     localGameState.isTenpaiDisplay[player.id] = false;
     localGameState.isDeclaringRiichi[player.id] = false;
-    localGameState.activeActionPlayerId = null;
+    localGameState.activeActionPlayers = [];
     localGameState.anyPlayerMeldInFirstRound = false;
     localGameState.pendingKanDoraReveal = false;
     localGameState.animationState = { type: null, playerId: null };

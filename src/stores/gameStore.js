@@ -218,7 +218,7 @@ export function createDefaultGameState() {
     waitingForPlayerResponses: [],
     playerResponses: {},
     isFuriTen: {},
-    activeActionPlayerId: null,
+    activeActionPlayers: [],
     isDoujunFuriTen: {},
     riichiDiscardOptions: [],
     isDeclaringRiichi: {},
@@ -743,8 +743,14 @@ export const useGameStore = defineStore('game', {
       }
       // ---- SE再生ロジック終了 ----
 
-      // playerActionEligibility と isRiichiBgmActive を除外してそれ以外のプロパティを分割
-      const { playerActionEligibility, isRiichiBgmActive, ...restOfState } = newState;
+      // playerActionEligibility, isRiichiBgmActive, activeActionPlayerId を除外してそれ以外のプロパティを分割
+      const { playerActionEligibility, isRiichiBgmActive, activeActionPlayerId, ...restOfState } = newState;
+
+      // activeActionPlayers をオブジェクトごと再代入することで、
+      // ネストされたオブジェクトの変更でもリアクティビティの更新を確実にする
+      if (newState.activeActionPlayers) {
+        this.activeActionPlayers = newState.activeActionPlayers;
+      }
 
       // ★★★ 最終防衛ライン: クライアント側でツモ牌の状態を検証・浄化する ★★★
       if (restOfState.drawnTile) {
@@ -1014,7 +1020,7 @@ export const useGameStore = defineStore('game', {
         this.isFuriTen[player.id] = false;
         this.isTenpaiDisplay[player.id] = false;
         this.isDeclaringRiichi[player.id] = false;
-        this.activeActionPlayerId = null;
+
         this.anyPlayerMeldInFirstRound = false;
         this.pendingKanDoraReveal = false;
         this.animationState = { type: null, playerId: null };
@@ -1770,7 +1776,7 @@ export const useGameStore = defineStore('game', {
         this.drawTile();
       }
       this.waitingForPlayerResponses = [];
-      this.activeActionPlayerId = null;
+
 
       // if (this.isGameOnline) { // サーバー主導なので、クライアントからはブロードキャストしない
       //   this.broadcastGameState();
@@ -2266,7 +2272,7 @@ export const useGameStore = defineStore('game', {
         return; // サーバーからの状態更新を待つ
       }
 
-      if (this.activeActionPlayerId !== playerId) {
+      if (!this.activeActionPlayers.includes(playerId)) {
         console.warn(`Player ${playerId} cannot skip now. Active player is ${this.activeActionPlayerId}.`);
         return;
       }
@@ -2296,7 +2302,7 @@ export const useGameStore = defineStore('game', {
         }
         return; // サーバーからの状態更新を待つ
       }
-      if (this.activeActionPlayerId !== playerId) {
+      if (!this.activeActionPlayers.includes(playerId)) {
          console.warn(`Player ${playerId} cannot declare ${actionType} now. Active player is ${this.activeActionPlayerId}.`);
          return;
       }
@@ -2333,23 +2339,13 @@ export const useGameStore = defineStore('game', {
     },
 
     setNextActiveResponder() {
-      // Find the next player who hasn't responded yet
-      const nextResponderId = this.waitingForPlayerResponses.find(
+      // まだ応答していないプレイヤーのIDをすべて取得
+      this.activeActionPlayers = this.waitingForPlayerResponses.filter(
         (playerId) => !this.playerResponses[playerId]
       );
 
-      if (nextResponderId) {
-        // If there is a next responder, set them as active
-        this.activeActionPlayerId = nextResponderId;
-        
-        // If the next responder is a CPU, automatically handle their response
-        const nextResponder = this.players.find(p => p.id === nextResponderId);
-        if (this.gameMode === 'vsCPU' && nextResponder && nextResponder.id !== 'player1') {
-          this.handleAiResponse();
-        }
-      } else {
-        // If all players have responded, process the collected actions
-        this.activeActionPlayerId = null;
+      if (this.activeActionPlayers.length === 0) {
+        // 全てのプレイヤーが応答した場合、収集されたアクションを処理する
         this.processPendingActions();
       }
 
@@ -2417,7 +2413,7 @@ export const useGameStore = defineStore('game', {
       }
       this.isChankanChance = false;
       this.chankanTile = null;
-      this.activeActionPlayerId = null;
+
     },
 
     declarePon(playerId, targetPlayerId, tileToPon) {
@@ -3099,7 +3095,7 @@ export const useGameStore = defineStore('game', {
         this.isFuriTen = {};
         this.isTenpaiDisplay = {};
         this.isDeclaringRiichi[p.id] = false;
-        this.activeActionPlayerId = null;
+
       });
       this.shouldEndGameAfterRound = false;
       this.animationState = { type: null, playerId: null };
@@ -3456,21 +3452,21 @@ export const useGameStore = defineStore('game', {
     },
 
     handleAiResponse() {
-      const aiPlayerId = this.activeActionPlayerId;
-      if (!aiPlayerId || this.gameMode !== 'vsCPU' || aiPlayerId === 'player1') {
-        return;
-      }
+      // activeActionPlayers に含まれるAIプレイヤーをすべて処理
+      this.activeActionPlayers.forEach(aiPlayerId => {
+        const player = this.players.find(p => p.id === aiPlayerId);
+        if (!player || this.gameMode !== 'vsCPU' || aiPlayerId === 'player1') {
+          return;
+        }
 
-      setTimeout(() => {
-        if (this.activeActionPlayerId === aiPlayerId) {
+        setTimeout(() => {
           const eligibility = this.playerActionEligibility[aiPlayerId];
 
           if (eligibility?.canRon) {
-            // 槍槓の機会であれば100%ロン
             if (this.isChankanChance) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.chankanTile);
               return;
-            } else if (Math.random() < 0.75) { // 通常のロンの機会は確率で
+            } else if (Math.random() < 0.75) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.lastDiscardedTile);
               return;
             }
@@ -3487,8 +3483,8 @@ export const useGameStore = defineStore('game', {
           }
 
           this.playerSkipsCall(aiPlayerId);
-        }
-      }, 0);
+        }, 0); // 即時実行（次のイベントループ）
+      });
     },
   },
   getters: {
