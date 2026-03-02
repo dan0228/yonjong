@@ -285,6 +285,8 @@ export function createDefaultGameState() {
     isCoreAssetsLoading: false,   // コアアセット（ゲーム全体）の読み込み状態
     isAppReady: false,            // 全てのアセット読み込みが完了したか
     friendMatchmakingError: null, // ★追加: 友人対戦のエラーメッセージ
+    friendMatchmakingPasscode: null, // ★追加: 友人対戦パスコードを保存
+    friendMatchmakingActionType: null, // ★追加: 友人対戦アクションタイプを保存 ('join' or 'create')
   };
 }
 
@@ -570,15 +572,27 @@ export const useGameStore = defineStore('game', {
           console.log('[GameStore] Successfully connected to game server with socket ID:', socket.id);
           // 接続成功時にマッチメイキングリクエストが保留されていれば送信
           if (this.isMatchmakingRequested) {
-            const userStore = useUserStore(); // userStoreを再度取得
-            console.log('[GameStore] Emitting "requestMatchmaking" event after connect...');
-            socket.emit('requestMatchmaking', {
-              userId: userStore.profile.id,
-              rating: userStore.profile.rating,
-              username: userStore.profile.username,
-              avatarUrl: userStore.profile.avatar_url,
-            });
-            console.log(`[GameStore] "requestMatchmaking" event sent. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarURL: ${userStore.profile.avatar_url}`);
+            const userStore = useUserStore();
+            if (this.friendMatchmakingActionType && this.friendMatchmakingPasscode) {
+              console.log('[GameStore] Emitting "requestFriendMatchmaking" event after connect (reconnect)...');
+              socket.emit('requestFriendMatchmaking', {
+                userId: userStore.profile.id,
+                passcode: this.friendMatchmakingPasscode,
+                username: userStore.profile.username,
+                avatarUrl: userStore.profile.avatar_url,
+                actionType: this.friendMatchmakingActionType,
+              });
+              console.log(`[GameStore] "requestFriendMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Passcode: ${this.friendMatchmakingPasscode}, ActionType: ${this.friendMatchmakingActionType}`);
+            } else {
+              console.log('[GameStore] Emitting "requestMatchmaking" event after connect (reconnect)...');
+              socket.emit('requestMatchmaking', {
+                userId: userStore.profile.id,
+                rating: userStore.profile.rating,
+                username: userStore.profile.username,
+                avatarUrl: userStore.profile.avatar_url,
+              });
+              console.log(`[GameStore] "requestMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarURL: ${userStore.profile.avatar_url}`);
+            }
           }
         });
 
@@ -1783,13 +1797,17 @@ export const useGameStore = defineStore('game', {
         return;
       }
 
+      // 友人対戦のパスコードとアクションタイプをストアに一時保存
+      this.friendMatchmakingPasscode = passcode;
+      this.friendMatchmakingActionType = actionType;
+
+      // 既存のエラーメッセージをクリア
+      this.friendMatchmakingError = null;
+
       if (!socket || !socket.connected) {
         console.log('[GameStore] Socket not connected for friend matchmaking. Attempting to connect...');
         this.connectToServer();
-        // 接続後にリクエストを再試行するロジックは connectToServer 内に記述
-        // ここでは単にフラグを立てて終了
         this.isMatchmakingRequested = true; // 接続後にリクエストを再送するためのフラグ
-        this.friendMatchmakingActionType = actionType; // ★追加: 接続後のリトライ用にアクションタイプを保存
         this.onlineGameId = null; // 新しいマッチングなので既存のIDをリセット
         return;
       }
@@ -1810,7 +1828,7 @@ export const useGameStore = defineStore('game', {
         passcode: passcode,
         username: userStore.profile.username,
         avatarUrl: userStore.profile.avatar_url,
-        actionType: actionType // サーバー側で利用する可能性も考慮し含める
+        actionType: actionType
       });
     },
 

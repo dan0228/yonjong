@@ -89,9 +89,11 @@
 import { ref, computed, defineProps, defineEmits, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGameStore } from '@/stores/gameStore'; // gameStore をインポート
+import { useRouter } from 'vue-router'; // useRouter をインポート
 
 const { t } = useI18n();
 const gameStore = useGameStore(); // gameStore のインスタンスを取得
+const router = useRouter(); // router のインスタンスを取得
 
 const props = defineProps({
   show: {
@@ -176,14 +178,42 @@ const selectOption = (action) => {
   gameStore.friendMatchmakingError = null;
 
   const fullPasscode = passcode.value.join('');
-  if (action === 'enter_room' || action === 'create_room') {
+
+  if (action === 'ai_match') {
+    gameStore.setGameMode('vsCPU');
+    gameStore.initializeGame(); // AI戦を開始
+    router.push('/game');
+    closePopup();
+  } else if (action === 'online_match') {
+    gameStore.requestMatchmaking();
+    router.push('/matchmaking');
+    closePopup();
+  } else if (action === 'janneko_shrine') {
+    router.push('/jannekoshrine');
+    closePopup();
+  } else if (action === 'leader_board') {
+    router.push('/leaderboard');
+    closePopup();
+  } else if (action === 'enter_room') {
     if (!isPasscodeValid.value) {
-      passcodeError.value = t('gameModeSelection.passcodeLengthError'); // エラーメッセージを設定
-      return; // 処理を中断
+      passcodeError.value = t('gameModeSelection.passcodeLengthError');
+      return;
     }
-    passcodeError.value = ''; // エラーがない場合はクリア
-    emit('select', { action, passcode: fullPasscode });
+    passcodeError.value = '';
+    gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: 'join' });
+    router.push('/matchmaking');
+    closePopup();
+  } else if (action === 'create_room') {
+    if (!isPasscodeValid.value) {
+      passcodeError.value = t('gameModeSelection.passcodeLengthError');
+      return;
+    }
+    passcodeError.value = '';
+    gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: 'create' });
+    router.push('/matchmaking');
+    closePopup();
   } else {
+    // その他のアクションは親コンポーネントに委譲
     emit('select', { action });
   }
 };

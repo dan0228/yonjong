@@ -2334,7 +2334,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl, actionType }) => {
-    console.log(`[Friend Matchmaking START] Request from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`); // ★DEBUG
+    console.log(`[Friend Matchmaking START] Request from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`);
 
     if (!userId || !passcode || !username || !actionType) {
         console.error('[Friend Matchmaking] Invalid request: userId, passcode, username or actionType is missing.');
@@ -2345,163 +2345,100 @@ io.on('connection', (socket) => {
     socket.join(passcode); // パスコードをルーム名として利用
 
     try {
-        let gameId = null;
-        let isNewGame = false;
+        let matchData;
+        let rpcError;
 
-        // 既存のゲームをパスコードで検索
-        console.log(`[Friend Matchmaking DEBUG] Searching for existing game with passcode: ${passcode}`); // ★DEBUG
-        const { data: existingGame, error: fetchGameError } = await supabase
-            .from('games')
-            .select('id, game_data, status, version, passcode') // ★修正: passcodeも取得
-            .eq('passcode', passcode)
-            .single();
-
-        if (fetchGameError && fetchGameError.code !== 'PGRST116') { // PGRST116 は「見つからない」エラー
-            console.error('[Friend Matchmaking] Error fetching existing game by passcode:', fetchGameError);
-            throw fetchGameError;
-        }
-        console.log(`[Friend Matchmaking DEBUG] Existing game found: ${!!existingGame}`); // ★DEBUG
-
-        if (existingGame) {
-            console.log(`[Friend Matchmaking DEBUG] Existing game found. Action Type: ${actionType}`); // ★DEBUG
-            // 「開設」リクエストで既存の部屋が見つかった場合
-            if (actionType === 'create') {
-                console.log('[Friend Matchmaking ERROR] Attempted to create room with existing passcode.'); // ★DEBUG
-                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在します');
+        if (actionType === 'join') {
+            // 既存の友人対戦部屋に参加
+            console.log('[Friend Matchmaking] Calling RPC "find_friend_match_by_passcode"...');
+            ({ data: matchData, error: rpcError } = await supabase.rpc('find_friend_match_by_passcode', {
+                p_user_id: userId,
+                p_user_rating: 1500, // 友人対戦では使用しないが、RPCの引数として必要
+                p_username: username,
+                p_avatar_url: avatarUrl,
+                p_passcode: passcode
+            }));
+            if (rpcError) {
+                console.error('[Friend Matchmaking] RPC call find_friend_match_by_passcode failed:', rpcError);
+                // RPCから返されるエラーメッセージをクライアントに送信
+                return socket.emit('friendMatchmakingError', rpcError.message || '部屋が見つかりません');
             }
-            gameId = existingGame.id;
-            gameStates[gameId] = Object.assign(createDefaultGameState(), existingGame.game_data);
-            gameStates[gameId].status = existingGame.status;
-            gameStates[gameId].version = existingGame.version;
-            gameStates[gameId].isGameOnline = true;
-            gameStates[gameId].gameMode = 'online'; // 友人対戦もオンラインモード
-            gameStates[gameId].ruleMode = 'stock';
-            gameStates[gameId].passcode = existingGame.passcode; // ★追加: 既存のパスコードを設定
-
-            // 既存のゲームにプレイヤーを参加させる
-            const { data: gamePlayers, error: fetchPlayersError } = await supabase
-                .from('game_players')
-                .select('user_id')
-                .eq('game_id', gameId);
-
-            if (fetchPlayersError) throw fetchPlayersError;
-
-            const currentPlayers = gamePlayers.map(gp => gp.user_id);
-
-            if (currentPlayers.length >= 4) {
-                console.log('[Friend Matchmaking ERROR] Room is full.'); // ★DEBUG
-                return socket.emit('gameError', { message: 'この部屋は満員です。' });
+        } else if (actionType === 'create') {
+            // 新しい友人対戦部屋を作成
+            console.log('[Friend Matchmaking] Calling RPC "create_friend_match_with_passcode"...');
+            ({ data: matchData, error: rpcError } = await supabase.rpc('create_friend_match_with_passcode', {
+                p_user_id: userId,
+                p_user_rating: 1500, // 友人対戦では使用しないが、RPCの引数として必要
+                p_username: username,
+                p_avatar_url: avatarUrl,
+                p_passcode: passcode
+            }));
+            if (rpcError) {
+                console.error('[Friend Matchmaking] RPC call create_friend_match_with_passcode failed:', rpcError);
+                // RPCから返されるエラーメッセージをクライアントに送信
+                return socket.emit('friendMatchmakingError', rpcError.message || '部屋の作成に失敗しました');
             }
-            if (currentPlayers.includes(userId)) {
-                // 既に部屋にいる場合は何もしない
-                console.log(`[Friend Matchmaking] User ${userId} already in game ${gameId}. Rejoining.`);
-            } else {
-                // プレイヤーをゲームに追加
-                const { error: insertPlayerError } = await supabase
-                    .from('game_players')
-                    .insert([{ game_id: gameId, user_id: userId, seat_index: currentPlayers.length, status: 'joined' }]); // seat_index を追加
-                if (insertPlayerError) throw insertPlayerError;
-                console.log(`[Friend Matchmaking DEBUG] User ${userId} joined existing game ${gameId}.`); // ★DEBUG
-            }
-        } else { // 既存のゲームが見つからない場合
-            console.log(`[Friend Matchmaking DEBUG] No existing game found. Action Type: ${actionType}`); // ★DEBUG
-            // 「入室」リクエストで部屋が見つからなかった場合
-            if (actionType === 'enter') {
-                console.log('[Friend Matchmaking ERROR] Attempted to enter non-existent room.'); // ★DEBUG
-                return socket.emit('friendMatchmakingError', '同じコードの部屋が存在しません');
-            }
-
-            // 新しいゲームを作成 (actionType === 'create' の場合)
-            isNewGame = true;
-            console.log(`[Friend Matchmaking DEBUG] Creating new game with passcode: ${passcode}`); // ★DEBUG
-            const { data: newGame, error: createGameError } = await supabase
-                .from('games')
-                .insert([{ passcode: passcode, room_tier: 'friend', status: 'waiting', game_data: {} }])
-                .select('id, game_data, status, version, passcode') // ★修正: passcodeも取得
-                .single();
-
-            if (createGameError) throw createGameError;
-
-            gameId = newGame.id;
-            gameStates[gameId] = Object.assign(createDefaultGameState(), newGame.game_data);
-            gameStates[gameId].status = newGame.status;
-            gameStates[gameId].version = newGame.version;
-            gameStates[gameId].isGameOnline = true;
-            gameStates[gameId].gameMode = 'online';
-            gameStates[gameId].ruleMode = 'stock';
-            gameStates[gameId].passcode = newGame.passcode; // ★追加: 新規ゲームのパスコードを設定
-            console.log(`[Friend Matchmaking DEBUG] New game ${gameId} created with passcode: ${newGame.passcode}`); // ★DEBUG
-
-            // 作成者であるプレイヤーをゲームに参加させる
-            const { error: insertPlayerError } = await supabase
-                .from('game_players')
-                .insert([{ game_id: gameId, user_id: userId, seat_index: 0, status: 'joined' }]); // 最初に参加するプレイヤーは seat_index 0
-            if (insertPlayerError) throw insertPlayerError;
-            console.log(`[Friend Matchmaking DEBUG] Creator ${userId} joined new game ${gameId}.`); // ★DEBUG
-        }
-
-        // 最新のプレイヤーリストを取得してクライアントにブロードキャスト
-        console.log(`[Friend Matchmaking DEBUG] Fetching updated players for game: ${gameId}`); // ★DEBUG
-        const { data: updatedGamePlayers, error: fetchUpdatedPlayersError } = await supabase
-            .from('game_players')
-            .select(`
-                user_id,
-                seat_index,
-                users (
-                    id,
-                    username,
-                    avatar_url,
-                    rating,
-                    cat_coins,
-                    total_games_played,
-                    first_place_count,
-                    second_place_count,
-                    third_place_count,
-                    fourth_place_count,
-                    class
-                )
-            `)
-            .eq('game_id', gameId)
-            .order('seat_index', { ascending: true });
-
-        if (fetchUpdatedPlayersError) throw fetchUpdatedPlayersError;
-
-        const playersForMatchmaking = updatedGamePlayers.map(gp => ({
-            id: gp.users.id,
-            name: gp.users.username,
-            username: gp.users.username,
-            avatar_url: gp.users.avatar_url,
-            rating: gp.users.rating,
-            cat_coins: gp.users.cat_coins,
-            total_games_played: gp.users.total_games_played,
-            first_place_count: gp.users.first_place_count,
-            second_place_count: gp.users.second_place_count,
-            third_place_count: gp.users.third_place_count,
-            fourth_place_count: gp.users.fourth_place_count,
-            user_rank_class: gp.users.class,
-            score: 50000,
-            isAi: false,
-            seat_index: gp.seat_index
-        }));
-        
-        gameStates[gameId].players = playersForMatchmaking; // メモリ上のゲーム状態も更新
-        gameStates[gameId].localPlayerId = userId; // ローカルプレイヤーIDも更新
-
-        // 全員が揃ったか確認
-        if (playersForMatchmaking.length === 4) {
-            console.log(`[Friend Matchmaking DEBUG] Game ${gameId} is full. Emitting 'game-found'.`); // ★DEBUG
-            io.to(gameId).emit('game-found', { gameId: gameId, players: playersForMatchmaking });
-            gameStates[gameId].gamePhase = 'ready'; // ゲーム準備完了状態
-            await updateAndBroadcastGameState(gameId, gameStates[gameId]);
         } else {
-            console.log(`[Friend Matchmaking DEBUG] Game ${gameId} is not full (${playersForMatchmaking.length} players). Emitting 'matchmaking-update'.`); // ★DEBUG
-            io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking, passcode: passcode });
-            await updateAndBroadcastGameState(gameId, gameStates[gameId]);
+            return socket.emit('gameError', { message: '無効なアクションタイプです。' });
         }
-        console.log(`[Friend Matchmaking END] Request processed for game: ${gameId}`); // ★DEBUG
-        
+
+        console.log('[Friend Matchmaking] RPC call successful. Result:', JSON.stringify(matchData, null, 2));
+
+        if (!matchData || matchData.length === 0) {
+            throw new Error('友人対戦マッチングに失敗しました。RPCからデータが返されませんでした。');
+        }
+
+        const { out_game_id, out_is_full, out_players } = matchData[0];
+        const players = typeof out_players === 'string' ? JSON.parse(out_players) : out_players;
+
+        console.log(`[Friend Matchmaking] Processing match result. Game ID: ${out_game_id}, Is Full: ${out_is_full}`);
+
+        if (!gameStates[out_game_id]) {
+            gameStates[out_game_id] = createDefaultGameState();
+            gameStates[out_game_id].onlineGameId = out_game_id;
+            gameStates[out_game_id].isGameOnline = true;
+            gameStates[out_game_id].localPlayerId = userId;
+            gameStates[out_game_id].gameMode = 'online';
+            gameStates[out_game_id].ruleMode = 'stock';
+            gameStates[out_game_id].gamePhase = 'waitingToStart';
+            gameStates[out_game_id].isGameReady = false;
+            gameStates[out_game_id].hasGameStarted = false;
+            gameStates[out_game_id].playersReadyForNextRound = [];
+            gameStates[out_game_id].version = 1;
+            gameStates[out_game_id].passcode = passcode; // ★追加: パスコードをゲームの状態に保存
+            gameStates[out_game_id].game_data = { players: players };
+        } else {
+            gameStates[out_game_id].players = players;
+            gameStates[out_game_id].game_data.players = players;
+            gameStates[out_game_id].passcode = passcode; // ★追加: パスコードをゲームの状態に保存
+        }
+        gameStates[out_game_id].localPlayerId = userId; // ローカルプレイヤーIDも更新
+
+        if (players && Array.isArray(players)) {
+            for (const player of players) {
+                const playerSocketId = userSocketMap.get(player.id);
+                if (playerSocketId) {
+                    const playerSocket = io.sockets.sockets.get(playerSocketId);
+                    if (playerSocket) {
+                        if (out_is_full) {
+                            playerSocket.emit('game-found', { gameId: out_game_id, players: players });
+                        } else {
+                            playerSocket.emit('matchmaking-update', { gameId: out_game_id, players: players, passcode: passcode });
+                        }
+                    }
+                } else {
+                    console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
+                }
+            }
+        } else {
+            console.error('[Friend Matchmaking] RPC returned invalid players data:', out_players);
+            socket.emit('gameError', { message: '友人対戦マッチング処理中にエラーが発生しました: プレイヤーデータが不正です。' });
+        }
+
+        console.log(`[Friend Matchmaking END] Request processed for game: ${out_game_id}`);
+
     } catch (error) {
-        console.error('[Friend Matchmaking] An error occurred:', error);
+        console.error('[Friend Matchmaking FATAL] An error occurred:', error);
         socket.emit('gameError', { message: `友人対戦マッチング処理中にエラーが発生しました: ${error.message || error}` });
     }
   });
