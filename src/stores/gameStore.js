@@ -1281,9 +1281,9 @@ export const useGameStore = defineStore('game', {
 
     useStockedTile(playerId) {
       if (this.isGameOnline) {
-        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
-        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
-          console.warn(`Player ${this.localPlayerId} cannot use stocked tile now. Not in activeActionPlayers.`);
+        // オンライン対戦の場合、自分のターンかどうかをチェック
+        if (playerId !== this.localPlayerId) {
+          console.warn(`Player ${this.localPlayerId} cannot use stocked tile now. Not your turn.`);
           return;
         }
 
@@ -1334,9 +1334,9 @@ export const useGameStore = defineStore('game', {
 
     drawFromWall(playerId) {
       if (this.isGameOnline) {
-        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
-        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
-          console.warn(`Player ${this.localPlayerId} cannot draw from wall now. Not in activeActionPlayers.`);
+        // オンライン対戦の場合、自分のターンかどうかをチェック
+        if (playerId !== this.localPlayerId) {
+          console.warn(`Player ${this.localPlayerId} cannot draw from wall now. Not your turn.`);
           return;
         }
 
@@ -1658,9 +1658,8 @@ export const useGameStore = defineStore('game', {
 
     executeStock(playerId, tileIdToStock, isFromDrawnTile) {
       if (this.isGameOnline) {
-        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
-        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
-          console.warn(`Player ${this.localPlayerId} cannot execute stock now. Not in activeActionPlayers.`);
+        if (playerId !== this.localPlayerId) {
+          console.warn(`Player ${this.localPlayerId} cannot execute stock now. Not your turn.`);
           return;
         }
 
@@ -2240,13 +2239,12 @@ export const useGameStore = defineStore('game', {
 
     declareRiichi(playerId) {
       if (this.isGameOnline) {
-        // オンライン対戦で、かつ自身がアクティブなアクションプレイヤーリストに含まれていない場合はアクションをブロック
-        if (!this.activeActionPlayers.includes(this.localPlayerId)) {
-          console.warn(`Player ${this.localPlayerId} cannot declare Riichi now. Not in activeActionPlayers.`);
+        // オンライン対戦の場合、自分のターンかどうかをチェック
+        if (playerId !== this.localPlayerId) {
+          console.warn(`Player ${this.localPlayerId} cannot declare Riichi now. Not your turn.`);
           return;
         }
 
-        if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
           this.stopTurnCountdown(); // ★追加: リーチ宣言時に既存のカウントダウンを停止
@@ -2835,8 +2833,15 @@ export const useGameStore = defineStore('game', {
                   }
                   return;
                 } else if (!isTsumo && this.isGameOnline) {
-                  // ロンの場合は既存のロジックを使用 (オンラインの場合)
-                  this.playerDeclaresCall(agariPlayerId, 'ron', agariTile);
+                  // ロンの場合はサーバーに直接イベントを送信
+                  if (socket && socket.connected) {
+                    this.isActionPending = true; // ★アクションロック
+                    socket.emit('playerDeclaresCall', { gameId: this.onlineGameId, playerId: agariPlayerId, actionType: 'ron', tile: agariTile });
+                  }
+                  // UIの反応性を高めるためのローカル処理（任意、サーバーからの最終更新で上書きされる）
+                  const audioStore = useAudioStore();
+                  this.animationState = { type: 'ron', playerId: agariPlayerId };
+                  audioStore.playSound('Single_Accent17-2(Dry).mp3');
                   return;
                 }
       const audioStore = useAudioStore();
