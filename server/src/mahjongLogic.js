@@ -1952,7 +1952,7 @@ export function initializeServerGame(playerIds, dealerIndex) {
     hand: hands[index],
     discardPile: [],
     melds: [],
-    score: 25000, // 初期スコア
+    score: 50000, // 初期スコア
     isRiichi: false,
     isParent: index === dealerIndex,
     seatWind: '', // 後で割り当て

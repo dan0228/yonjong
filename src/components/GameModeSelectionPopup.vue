@@ -177,7 +177,6 @@ const containerStyle = computed(() => ({
 }));
 
 const closePopup = () => {
-  passcodeError.value = ''; // ポップアップを閉じるときにエラーをクリア
   gameStore.friendMatchmakingError = null; // ストアのエラーもクリア
   emit('close');
 };

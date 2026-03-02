@@ -638,7 +638,6 @@ export const useGameStore = defineStore('game', {
 
         // ★追加: 友人対戦のマッチメイキングエラーをリッスン
         socket.on('friendMatchmakingError', (errorPayload) => {
-          console.error('[GameStore] Friend matchmaking error:', errorPayload);
           const userStore = useUserStore(); // setPenaltyのためにuserStoreをここで取得
 
           if (typeof errorPayload === 'object' && errorPayload.key) {
