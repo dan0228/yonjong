@@ -603,7 +603,7 @@
     "passcodeLengthError": "Enter 4-digit code."
   },
   "friendMatchmaking": {
-    "notFoundOrFull": "Room with passcode {passcode} not found or is full.",
+    "notFoundOrFull": "No room or full.",
     "genericError": "An error occurred during friend matchmaking."
   },
   "matchmaking": {

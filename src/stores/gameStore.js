@@ -6,10 +6,13 @@ import { preloadImages } from '@/utils/imageLoader';
 import { defineStore } from 'pinia';
 import * as mahjongLogic from '@/services/mahjongLogic';
 import { io } from 'socket.io-client'; // Socket.ioクライアントをインポート
+import i18n from '@/i18n';
 
 // ゲームサーバーのURLを環境変数から取得
 const GAME_SERVER_URL = import.meta.env.VITE_APP_GAME_SERVER_URL;
 let socket = null; // Socket.ioクライアントインスタンス
+
+const { t } = i18n.global; // i18nのグローバルt関数を取得
 
 // ★追加: デバッグログ
 console.log(`[GameStore Debug] VITE_APP_GAME_SERVER_URL: ${GAME_SERVER_URL}`);
@@ -570,8 +573,8 @@ export const useGameStore = defineStore('game', {
 
         socket.on('connect', () => {
           console.log('[GameStore] Successfully connected to game server with socket ID:', socket.id);
-          // 接続成功時にマッチメイキングリクエストが保留されていれば送信
-          if (this.isMatchmakingRequested) {
+          // 接続成功時にマッチメイキングリクエストが保留されており、かつアクションが実行中でなければ送信
+          if (this.isMatchmakingRequested && !this.isActionPending) {
             const userStore = useUserStore();
             // 友人対戦リクエストが保留中の場合
             if (this.friendMatchmakingActionType && this.friendMatchmakingPasscode) {
@@ -636,19 +639,21 @@ export const useGameStore = defineStore('game', {
         // ★追加: 友人対戦のマッチメイキングエラーをリッスン
         socket.on('friendMatchmakingError', (errorPayload) => {
           console.error('[GameStore] Friend matchmaking error:', errorPayload);
+          const userStore = useUserStore(); // setPenaltyのためにuserStoreをここで取得
+
           if (typeof errorPayload === 'object' && errorPayload.key) {
             // i18nキーとパラメータがある場合
             const { key, params } = errorPayload;
-            this.friendMatchmakingError = i18n.global.t(key, params);
+            this.friendMatchmakingError = t(key, params);
+            // friendMatchmakingError は GameModeSelectionPopup で表示されるため、
+            // ここでは setPenalty を呼び出さない
           } else if (typeof errorPayload === 'string') {
             // 従来の文字列エラーメッセージの場合
             this.friendMatchmakingError = errorPayload;
-            const userStore = useUserStore();
             userStore.setPenalty(errorPayload, 5000); // 汎用エラーとしてペナルティポップアップを表示
           } else {
             // 予期せぬ形式のエラーの場合
-            this.friendMatchmakingError = i18n.global.t('friendMatchmaking.genericError');
-            const userStore = useUserStore();
+            this.friendMatchmakingError = t('friendMatchmaking.genericError');
             userStore.setPenalty(this.friendMatchmakingError, 5000);
           }
           this.isActionPending = false; // アクションロックを解除
@@ -1812,7 +1817,7 @@ export const useGameStore = defineStore('game', {
         await userStore.loadUserProfile();
         if (!userStore.profile?.id) {
           console.error('[GameStore] Friend matchmaking request failed: User profile could not be loaded or is incomplete after attempt.');
-          this.friendMatchmakingError = 'ユーザー情報の読み込みに失敗しました。再試行してください。';
+          this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' };
           return Promise.reject(this.friendMatchmakingError);
         }
         console.log('[GameStore] User profile loaded successfully.');
@@ -1825,7 +1830,7 @@ export const useGameStore = defineStore('game', {
       // 既存のエラーメッセージをクリア
       this.friendMatchmakingError = null;
 
-      // 既にリクエストが進行中の場合はスキップ
+      // 既にアクションが保留中の場合はスキップ
       if (this.isActionPending) {
         console.log('[GameStore] Friend matchmaking request already in progress. Skipping.');
         return Promise.resolve();
@@ -1881,13 +1886,13 @@ export const useGameStore = defineStore('game', {
                 resolve({ gameId, players });
             };
 
-            const onFriendMatchmakingError = (errorMessage) => {
-                this.friendMatchmakingError = errorMessage;
+            const onFriendMatchmakingError = (errorPayload) => {
+                this.friendMatchmakingError = errorPayload;
                 this.isActionPending = false;
                 this.isMatchmakingRequested = false;
                 this.onlineGameId = null;
                 cleanupListeners();
-                reject(errorMessage);
+                reject(errorPayload);
             };
 
             const onGameFound = ({ gameId, players }) => {
@@ -1915,11 +1920,11 @@ export const useGameStore = defineStore('game', {
             });
         }).catch(error => {
             console.error('[GameStore] Error during friend matchmaking setup (after socket connection):', error);
-            this.friendMatchmakingError = '接続エラーが発生しました。再試行してください。';
+            this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' }; // i18nキーのオブジェクトに修正
             this.isActionPending = false;
             this.isMatchmakingRequested = false;
             this.onlineGameId = null;
-            reject(error);
+            reject({ key: 'friendMatchmaking.genericError', originalError: error }); // エラーオブジェクトをそのまま reject
         });
       });
     },

@@ -119,12 +119,18 @@ const inputRefs = ref([]);
 // gameStore.friendMatchmakingError を監視し、表示するエラーメッセージを計算
 const passcodeError = computed(() => {
   if (gameStore.friendMatchmakingError) {
-    // エラーメッセージからパスコードを抽出するための正規表現を調整
-    const match = gameStore.friendMatchmakingError.match(/Room with passcode (\\d+) not found or is full./);    if (match && match[1]) {
-      return t('friendMatchmaking.notFoundOrFull', { passcode: match[1] });
-    } else {
-      // 予期しないエラーメッセージの場合のフォールバック
-      return t('friendMatchmaking.genericError');
+    // gameStore.friendMatchmakingError がオブジェクトの場合
+    if (typeof gameStore.friendMatchmakingError === 'object' && gameStore.friendMatchmakingError.key) {
+      const { key, params } = gameStore.friendMatchmakingError;
+      return t(key, params);
+    } else if (typeof gameStore.friendMatchmakingError === 'string') {
+      // 以前の文字列形式のエラーメッセージの場合（フォールバック）
+      const match = gameStore.friendMatchmakingError.match(/Room with passcode (\\d+) not found or is full./);
+      if (match && match[1]) {
+        return t('friendMatchmaking.notFoundOrFull', { passcode: match[1] });
+      } else {
+        return t('friendMatchmaking.genericError');
+      }
     }
   }
   return '';
@@ -175,11 +181,11 @@ const closePopup = () => {
   gameStore.friendMatchmakingError = null; // ストアのエラーもクリア
   emit('close');
 };
-
 const selectOption = async (action) => {
-  gameStore.friendMatchmakingError = null; // アクション実行前にストアのエラーをクリア
+  const fullPasscode = passcode.value.join(''); // fullPasscode の定義を移動
 
-  const fullPasscode = passcode.value.join('');
+  // アクション実行前にストアのエラーをクリア
+  gameStore.friendMatchmakingError = null; 
 
   if (action === 'ai_match') {
     gameStore.setGameMode('vsCPU');
@@ -198,11 +204,12 @@ const selectOption = async (action) => {
     closePopup();
   } else if (action === 'enter_room' || action === 'create_room') {
     if (!isPasscodeValid.value) {
-      passcodeError.value = t('gameModeSelection.passcodeLengthError');
+      // エラーメッセージは gameStore.friendMatchmakingError を介して表示されるため、
+      // ここで直接 passcodeError を設定する必要はない
+      gameStore.friendMatchmakingError = { key: 'gameModeSelection.passcodeLengthError' };
       return;
     }
-    passcodeError.value = '';
-    
+
     // 友人対戦リクエストを送信
     await gameStore.requestFriendMatchmaking({ passcode: fullPasscode, actionType: action === 'enter_room' ? 'join' : 'create' })
       .catch(error => {

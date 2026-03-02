@@ -603,7 +603,7 @@
     "passcodeLengthError": "コードは数字4桁です"
   },
   "friendMatchmaking": {
-    "notFoundOrFull": "パスコード {passcode} の部屋が見つからないか満室です。",
+    "notFoundOrFull": "部屋がないか満室です",
     "genericError": "友人対戦でエラーが発生しました。"
   },
   "matchmaking": {
