@@ -1850,7 +1850,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   // ★追加: games テーブルの現在のステータスを取得
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
-    .select('status')
+    .select('status, passcode') // passcode もフェッチする
     .eq('id', gameId)
     .single();
 
@@ -1860,6 +1860,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   }
 
   const currentGameStateInDb = gameData.status;
+  const gamePasscode = gameData.passcode; // 取得したパスコードを変数に格納
 
   if (currentGameStateInDb === 'waiting') {
     // games の status が 'waiting' の場合、game_players からプレイヤーを削除
@@ -1952,58 +1953,65 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.log(`Game ${gameId} removed from memory and DB.`);
     } else {
       // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-      // プレイヤーが残っている場合、他のプレイヤーにマッチング状態更新をブロードキャスト
-            game.version = currentVersion + 1; // メモリ上のバージョンも更新
+      game.version = currentVersion + 1; // メモリ上のバージョンも更新
 
-            // DBから最新のプレイヤーリストを取得してブロードキャスト
-            const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
-                .from('game_players')
-                .select(`
-                    user_id,
-                    seat_index,
-                    users (
-                        id,
-                        username,
-                        avatar_url,
-                        rating,
-                        cat_coins,
-                        total_games_played,
-                        first_place_count,
-                        second_place_count,
-                        third_place_count,
-                        fourth_place_count,
-                        class
-                    )
-                `)
-                .eq('game_id', gameId)
-                .order('seat_index', { ascending: true });
+      // DBから最新のプレイヤーリストを取得してブロードキャスト
+      const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
+        .from('game_players')
+        .select(`
+          user_id,
+          seat_index,
+          users (
+            id,
+            username,
+            avatar_url,
+            rating,
+            cat_coins,
+            total_games_played,
+            first_place_count,
+            second_place_count,
+            third_place_count,
+            fourth_place_count,
+            class
+          )
+        `)
+        .eq('game_id', gameId)
+        .order('seat_index', { ascending: true });
 
-            if (fetchPlayersError) {
-                console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
-                return;
-            }
+      if (fetchPlayersError) {
+        console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
+        return;
+      }
 
-            const playersForMatchmaking = updatedGamePlayers.map(gp => ({
-                id: gp.users.id,
-                name: gp.users.username,
-                username: gp.users.username,
-                avatar_url: gp.users.avatar_url,
-                rating: gp.users.rating,
-                cat_coins: gp.users.cat_coins,
-                total_games_played: gp.users.total_games_played,
-                first_place_count: gp.users.first_place_count,
-                second_place_count: gp.users.second_place_count,
-                third_place_count: gp.users.third_place_count,
-                fourth_place_count: gp.users.fourth_place_count,
-                user_rank_class: gp.users.class,
-                score: 50000, // マッチング画面では初期スコアを表示
-                isAi: false,
-                seat_index: gp.seat_index
-            }));
+      const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+        id: gp.users.id,
+        name: gp.users.username,
+        username: gp.users.username,
+        avatar_url: gp.users.avatar_url,
+        rating: gp.users.rating,
+        cat_coins: gp.users.cat_coins,
+        total_games_played: gp.users.total_games_played,
+        first_place_count: gp.users.first_place_count,
+        second_place_count: gp.users.second_place_count,
+        third_place_count: gp.users.third_place_count,
+        fourth_place_count: gp.users.fourth_place_count,
+        user_rank_class: gp.users.class,
+        score: 50000, // マッチング画面では初期スコアを表示
+        isAi: false,
+        seat_index: gp.seat_index
+      }));
 
-            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
-            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
-            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
+      if (gamePasscode) {
+        // 友人対戦の場合
+        console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
+        io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: gamePasscode });
+        console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
+      } else {
+        // 通常のマッチメイキングの場合
+        console.log(`[Server Debug] Emitting 'matchmaking-update' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
+        io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
+        console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
+      }
     }
 
   } else if (currentGameStateInDb === 'in_progress') {
