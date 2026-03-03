@@ -2001,68 +2001,11 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 seat_index: gp.seat_index
             }));
 
-    const { data: gameDetails, error: fetchGameDetailsError } = await supabase
-      .from('games')
-      .select('passcode')
-      .eq('id', gameId)
-      .single();
-
-    if (fetchGameDetailsError) {
-      console.error(`Error fetching game details for game ${gameId}:`, fetchGameDetailsError);
-      return;
+            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
+            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
+            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
     }
 
-    const isFriendMatch = gameDetails && gameDetails.passcode !== null;
-
-    const { error: deletePlayerError } = await supabase
-      .from('game_players')
-      .delete()
-      .eq('game_id', gameId)
-      .eq('user_id', userId);
-
-    if (deletePlayerError) {
-      console.error(`Error deleting player ${userId} from game ${gameId}:`, deletePlayerError);
-      return;
-    }
-    console.log(`Player ${userId} deleted from game ${gameId} (status: waiting).`);
-
-    const { data: remainingPlayers, error: fetchRemainingPlayersError } = await supabase
-      .from('game_players')
-      .select('user_id, seat_index')
-      .eq('game_id', gameId)
-      .order('seat_index', { ascending: true });
-
-    if (fetchRemainingPlayersError) {
-      console.error(`Error fetching remaining players for game ${gameId}:`, fetchRemainingPlayersError);
-      return;
-    }
-
-    if (gameStates[gameId]) {
-      gameStates[gameId].players = gameStates[gameId].players.filter(p => p.id !== userId);
-    }
-
-    const playersForMatchmaking = remainingPlayers.map(gp => ({
-      id: gp.user_id,
-      username: gameStates[gameId]?.players.find(p => p.id === gp.user_id)?.username || 'Unknown Player',
-      avatar_url: gameStates[gameId]?.players.find(p => p.id === gp.user_id)?.avatar_url || '/assets/images/info/hito_icon_1.png',
-      seat_index: gp.seat_index
-    }));
-
-    if (playersForMatchmaking.length === 0) {
-      await supabase.from('games').delete().eq('id', gameId);
-      delete gameStates[gameId];
-      console.log(`Game ${gameId} deleted as no players remain.`);
-    } else {
-      if (isFriendMatch) {
-        console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
-        io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: gameDetails.passcode });
-        console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
-      } else {
-        console.log(`[Server Debug] Emitting 'matchmaking-update' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
-        io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
-        console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
-      }
-    }
   } else if (currentGameStateInDb === 'in_progress') {
     // games の status が 'in_progress' の場合、game_players のステータスを 'disconnected' に更新
     const { error: updatePlayerStatusError } = await supabase
