@@ -450,7 +450,9 @@
    * 「タイトルへ戻る」ボタンの表示条件を決定します。
    */
   const showReturnButton = computed(() => {
-    return (gameStore.gameMode === 'allManual' || gameStore.gameMode === 'vsCPU') &&
+    // AI対戦、またはオンラインの友人対戦の場合にボタンを表示
+    const isFriendMatch = gameStore.isGameOnline && gameStore.friendMatchmakingPasscode;
+    return (gameStore.gameMode === 'allManual' || gameStore.gameMode === 'vsCPU' || isFriendMatch) &&
            !gameStore.showResultPopup &&
            !gameStore.showFinalResultPopup;
   });
