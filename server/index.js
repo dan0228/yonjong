@@ -2001,9 +2001,16 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 seat_index: gp.seat_index
             }));
 
-            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
-            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
-            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
+            const roomName = game.passcode ? game.passcode : gameId;
+            const eventName = game.passcode ? 'matchmaking-update-friend' : 'matchmaking-update';
+
+            console.log(`[Server Debug] Emitting '${eventName}' to room '${roomName}'. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
+            io.to(roomName).emit(eventName, { 
+                gameId: gameId, 
+                players: playersForMatchmaking, 
+                ...(game.passcode && { passcode: game.passcode }) 
+            });
+            console.log(`[Server] Broadcasted '${eventName}' for game ${gameId} to room ${roomName} with updated players.`);
     }
 
   } else if (currentGameStateInDb === 'in_progress') {
