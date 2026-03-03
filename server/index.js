@@ -144,13 +144,53 @@ app.get('/', (req, res) => {
 
 // ゲームの状態をSupabaseに保存するヘルパー関数
 async function saveGameState(gameId, gameState, expectedVersion) { // expectedVersion を追加
+  // DBから現在のゲームステータスを取得
+  const { data: currentDbGame, error: fetchStatusError } = await supabase
+    .from('games')
+    .select('status')
+    .eq('id', gameId)
+    .single();
+
+  if (fetchStatusError) {
+    console.error(`Error fetching current DB status for game ${gameId}:`, fetchStatusError);
+    return false;
+  }
+
+  let newDbStatus = currentDbGame?.status || 'waiting'; // 取得できなかった場合は'waiting'をフォールバック
+
+  // メモリ上のゲームフェーズに基づいて、DBステータスを上書きする必要があるか判断
+  if (gameState.gamePhase === GAME_PHASES.GAME_OVER) {
+    newDbStatus = 'finished';
+  } else if (
+      // ゲームが始まったことを示すフェーズであれば、in_progress にする
+      // ただし、DBのステータスが既に 'finished' や 'cancelled' の場合は変更しない
+      // 'waitingToStart' のままゲームが終了する場合もあるため
+      [
+        GAME_PHASES.PLAYER_TURN,
+        GAME_PHASES.AWAITING_DISCARD,
+        GAME_PHASES.AWAITING_ACTION_RESPONSE,
+        GAME_PHASES.AWAITING_KAKAN_RESPONSE,
+        GAME_PHASES.RIICHI_ANIMATION,
+        GAME_PHASES.AWAITING_RIICHI_DISCARD,
+        GAME_PHASES.ROUND_END,
+        GAME_PHASES.AWAITING_STOCK_TILE_SELECTION,
+        GAME_PHASES.AWAITING_STOCK_SELECTION_TIMER
+      ].includes(gameState.gamePhase)
+  ) {
+    if (newDbStatus === 'waiting' || newDbStatus === 'ready') {
+      newDbStatus = 'in_progress';
+    }
+  }
+  // gameState.gamePhase が WAITING_TO_START のままであれば、
+  // newDbStatus は currentDbGame.status （'waiting' または 'ready'）のまま維持される。
+
   const { data, error, count } = await supabase // count を取得
     .from('games')
     .update({
       game_data: gameState,
       updated_at: new Date(),
       current_turn_user_id: gameState.currentTurnPlayerId,
-      status: gameState.gamePhase === 'gameOver' ? 'finished' : 'in_progress',
+      status: newDbStatus, // 修正されたロジックに基づくステータス
       version: expectedVersion + 1 // version をインクリメント
     })
     .eq('id', gameId)
@@ -163,7 +203,6 @@ async function saveGameState(gameId, gameState, expectedVersion) { // expectedVe
 
   if (count === 0) {
     console.warn(`Optimistic lock failed for game ${gameId}. Expected version ${expectedVersion}, but it was already updated.`);
-    // ここでクライアントにエラーを通知するか、リトライロジックを検討することも可能
     return false; // 更新失敗
   }
   return true; // 更新成功
