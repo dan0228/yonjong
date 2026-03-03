@@ -2148,8 +2148,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
     let disconnectedUserId = null;
-    let gameIdToUpdate = null;
 
+    // Find the disconnected user's ID
     for (const [userId, socketId] of userSocketMap.entries()) {
       if (socketId === socket.id) {
         disconnectedUserId = userId;
@@ -2159,54 +2159,54 @@ io.on('connection', (socket) => {
     }
 
     if (disconnectedUserId) {
-      // メモリ上のアクティブなゲームから探す
-      for (const gameId in gameStates) {
-        if (gameStates[gameId].players.some(p => p.id === disconnectedUserId)) {
-          gameIdToUpdate = gameId;
-          break;
-        }
-      }
-      
-      if (gameIdToUpdate) {
-        await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
-      } else {
-        // メモリになければDBのマッチング中のゲームから探す
-        const { data: gamePlayers, error } = await supabase
+      console.log(`Disconnected user ID: ${disconnectedUserId}. Finding their game...`);
+      try {
+        // Directly query the database to find the user's current game
+        const { data: playerGame, error: findGameError } = await supabase
           .from('game_players')
-          .select('game_id')
+          .select('game_id, status')
           .eq('user_id', disconnectedUserId)
-          .in('status', ['joined']); // 'joined' 状態のプレイヤーを探す
+          .order('joined_at', { ascending: false }) // Get the most recent game
+          .limit(1)
+          .single();
 
-        if (error) {
-          console.error(`Error fetching game_players for disconnected user ${disconnectedUserId}:`, error);
+        if (findGameError || !playerGame) {
+          if (findGameError && findGameError.code !== 'PGRST116') { // Ignore '0 rows' error
+            console.error(`Error finding game for disconnected user ${disconnectedUserId}:`, findGameError);
+          } else {
+            console.log(`Disconnected user ${disconnectedUserId} was not in an active or waiting game.`);
+          }
           return;
         }
 
-        if (gamePlayers && gamePlayers.length > 0) {
-          gameIdToUpdate = gamePlayers[0].game_id;
-          // DBからゲームデータをロードしてメモリに一時的に保存し、handlePlayerLeaveを呼び出す
+        const gameIdToUpdate = playerGame.game_id;
+        console.log(`Found user in game ${gameIdToUpdate} with player status ${playerGame.status}. Proceeding with leave handling.`);
+
+        // Ensure the game state is loaded into memory if it's not already
+        if (!gameStates[gameIdToUpdate]) {
+          console.log(`Game ${gameIdToUpdate} not in memory. Loading from DB...`);
           const { data: gameDataFromDb, error: fetchGameError } = await supabase
             .from('games')
-            // ★修正: game_data だけでなく status と version も取得する
             .select('game_data, status, version')
             .eq('id', gameIdToUpdate)
             .single();
 
           if (fetchGameError || !gameDataFromDb) {
-            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message);
+            console.error(`Could not fetch game data for ${gameIdToUpdate} from DB:`, fetchGameError?.message);
+            // If the game doesn't exist, we can't do much more.
             return;
           }
-          // ★修正: createDefaultGameState() で初期化し、DBのデータで上書きする
+          
           gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDataFromDb.game_data);
-          // DBからロードしたstatusとversionも反映
-          gameStates[gameIdToUpdate].status = gameDataFromDb.status;
           gameStates[gameIdToUpdate].version = gameDataFromDb.version;
-          // ★追加: gameStates[gameIdToUpdate].players を gameDataFromDb.game_data.players で明示的に上書き
-          if (gameDataFromDb.game_data && gameDataFromDb.game_data.players) {
-            gameStates[gameIdToUpdate].players = gameDataFromDb.game_data.players;
-          }
-          await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
+          console.log(`Game ${gameIdToUpdate} loaded into memory.`);
         }
+
+        // Now, call handlePlayerLeave with the correct gameId
+        await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
+
+      } catch (e) {
+        console.error(`An unexpected error occurred during disconnect handling for user ${disconnectedUserId}:`, e);
       }
     }
   });
