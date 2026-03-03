@@ -1834,9 +1834,8 @@ export const useGameStore = defineStore('game', {
     async requestFriendMatchmaking({ passcode, actionType }) {
       const userStore = useUserStore();
       if (!userStore.profile?.id) {
-        console.error('[GameStore] Friend matchmaking request failed: User profile is not loaded.');
-        this.friendMatchmakingError = t('friendMatchmaking.genericError');
-        return Promise.reject(new Error(this.friendMatchmakingError));
+        this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' };
+        return Promise.reject(new Error('User profile not loaded'));
       }
 
       this.friendMatchmakingPasscode = passcode;
@@ -1848,50 +1847,63 @@ export const useGameStore = defineStore('game', {
       this.onlineGameId = null;
 
       return new Promise((resolve, reject) => {
-        if (!socket || !socket.connected) {
-          console.log('[GameStore] Socket not connected, attempting to connect...');
-          this.connectToServer(); // 接続を開始
+        const performRequest = () => {
+          const timeout = setTimeout(() => {
+            // Remove listeners on timeout to prevent memory leaks
+            socket.off('matchmaking-update-friend', onSuccess);
+            socket.off('friendMatchmakingError', onError);
+            this.isActionPending = false;
+            this.isMatchmakingRequested = false;
+            this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' };
+            reject(new Error('Request timed out.'));
+          }, 7000); // タイムアウトを7秒に延長
+
+          const onSuccess = (data) => {
+            clearTimeout(timeout);
+            socket.off('friendMatchmakingError', onError);
+            this.isActionPending = false;
+            resolve(data);
+          };
+
+          const onError = (errorPayload) => {
+            clearTimeout(timeout);
+            socket.off('matchmaking-update-friend', onSuccess);
+            this.isActionPending = false;
+            this.isMatchmakingRequested = false;
+            this.friendMatchmakingError = errorPayload; // サーバーから来たエラーをセット
+            reject(new Error(errorPayload.key || 'Generic Error'));
+          };
+
+          // Use .once() to ensure listeners are for this request only
+          socket.once('matchmaking-update-friend', onSuccess);
+          socket.once('friendMatchmakingError', onError);
+
+          console.log(`[GameStore] Emitting 'requestFriendMatchmaking'. Passcode: ${passcode}, Action: ${actionType}`);
+          socket.emit('requestFriendMatchmaking', {
+            userId: userStore.profile.id,
+            passcode: passcode,
+            username: userStore.profile.username,
+            avatarUrl: userStore.profile.avatar_url,
+            actionType: actionType
+          });
+        };
+
+        if (socket && socket.connected) {
+          performRequest();
+        } else {
+          console.log('[GameStore] Socket not connected. Connecting first...');
+          this.connectToServer();
+          socket.once('connect', () => {
+            console.log('[GameStore] Socket connected. Now performing request.');
+            performRequest();
+          });
+          socket.once('connect_error', (err) => {
+             this.isActionPending = false;
+             this.isMatchmakingRequested = false;
+             this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' };
+             reject(new Error(`Connection failed: ${err.message}`));
+          });
         }
-
-        const timeout = setTimeout(() => {
-          socket.off('matchmaking-update-friend', onSuccess);
-          socket.off('friendMatchmakingError', onError);
-          this.isActionPending = false;
-          this.isMatchmakingRequested = false;
-          const errorMessage = t('friendMatchmaking.genericError');
-          this.friendMatchmakingError = errorMessage;
-          reject(new Error(errorMessage));
-        }, 5000); // 5秒のタイムアウト
-
-        const onSuccess = (data) => {
-          clearTimeout(timeout);
-          socket.off('friendMatchmakingError', onError);
-          this.isActionPending = false;
-          // The global listener will handle the state update.
-          resolve(data);
-        };
-
-        const onError = (errorPayload) => {
-          clearTimeout(timeout);
-          socket.off('matchmaking-update-friend', onSuccess);
-          this.isActionPending = false;
-          this.isMatchmakingRequested = false;
-          // The global listener will set the error message in the state.
-          reject(new Error(errorPayload.key || 'friendMatchmaking.genericError'));
-        };
-        
-        // Use .once() to ensure these listeners are used for this request only
-        socket.once('matchmaking-update-friend', onSuccess);
-        socket.once('friendMatchmakingError', onError);
-
-        console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
-        socket.emit('requestFriendMatchmaking', {
-          userId: userStore.profile.id,
-          passcode: passcode,
-          username: userStore.profile.username,
-          avatarUrl: userStore.profile.avatar_url,
-          actionType: actionType
-        });
       });
     },
 
