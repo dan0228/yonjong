@@ -1923,7 +1923,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         status: newGameStatus,
         updated_at: new Date(),
         // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
-        game_data: { ...game.game_data, players: playersForMatchmaking }, // game.players の最新状態を game_data.players に反映
+        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -2001,9 +2001,9 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 seat_index: gp.seat_index
             }));
 
-            console.log(`[Server Debug] Emitting 'matchmaking-update' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
-            io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
-            console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
+            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
+            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
+            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
     }
 
   } else if (currentGameStateInDb === 'in_progress') {
