@@ -528,12 +528,22 @@ export const useGameStore = defineStore('game', {
     },
     // ★チャットメッセージを送信するアクション
     sendChatMessage(messageId) {
-      if (this.isGameOnline && socket && socket.connected) {
+      console.log(`[GameStore] Attempting to send chat message:
+        isGameOnline: ${this.isGameOnline},
+        socket: ${!!socket},
+        socket.connected: ${socket?.connected},
+        onlineGameId: ${this.onlineGameId},
+        localPlayerId: ${this.localPlayerId}`);
+
+      if (this.isGameOnline && socket && socket.connected && this.onlineGameId && this.localPlayerId) {
         socket.emit('sendChatMessage', {
           gameId: this.onlineGameId,
           playerId: this.localPlayerId,
           messageId: messageId,
         });
+        console.log(`[GameStore] Sent chat message: ${messageId} from ${this.localPlayerId} in game ${this.onlineGameId}`);
+      } else {
+        console.warn(`[GameStore] Failed to send chat message. Conditions not met.`);
       }
     },
     // ★受信したチャットメッセージを表示するアクション
@@ -703,9 +713,7 @@ export const useGameStore = defineStore('game', {
             console.log(`[GameStore] Received 'matchmaking-update-friend' globally. GameID: ${gameId}, Players:`, players);
             this.onlineGameId = gameId;
             this.isGameOnline = true;
-            // localPlayerIdはconnectToServerの呼び出し元（requestFriendMatchmakingまたはrequestMatchmaking）で設定済み
-            // ここではthis.localPlayerIdは変更しない
-            // this.localPlayerId = userStore.profile.id; // ここでは設定しない
+            this.localPlayerId = userStore.profile.id; // localPlayerIdを設定
 
             if (players && Array.isArray(players)) {
                 this.$patch({ matchmakingPlayers: players });
