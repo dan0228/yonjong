@@ -1846,16 +1846,18 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
     }
 
-    // 残りのプレイヤー数を取得
-    const { count: remainingPlayerCount, error: countError } = await supabase
-      .from('game_players')
-      .select('id', { count: 'exact' })
-      .eq('game_id', gameId);
+    // メモリ上のゲーム状態からもプレイヤーを削除
+    game.players = game.players.filter(p => p.id !== userId);
 
-    if (countError) {
-      console.error(`Error counting remaining players for game ${gameId}:`, countError);
-      return;
+    // ★修正: game.game_data.players も明示的に更新する
+    if (game.game_data && game.game_data.players) {
+      game.game_data.players = game.players; // game.players の最新状態を game_data.players に反映
+    } else {
+      console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
     }
+
+    // 残りのプレイヤー数を取得 (DBではなくメモリ上の状態から取得)
+    const remainingPlayerCount = game.players.length; // ★修正: ここでメモリ上のプレイヤー数を使用
 
     let newGameStatus = 'waiting';
     if (remainingPlayerCount === 0) {
