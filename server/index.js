@@ -2454,20 +2454,12 @@ io.on('connection', (socket) => {
         gameStates[out_game_id].localPlayerId = userId; // ローカルプレイヤーIDも更新
 
         if (players && Array.isArray(players)) {
-            for (const player of players) {
-                const playerSocketId = userSocketMap.get(player.id);
-                if (playerSocketId) {
-                    const playerSocket = io.sockets.sockets.get(playerSocketId);
-                    if (playerSocket) {
-                        if (out_is_full) {
-                            playerSocket.emit('game-found', { gameId: out_game_id, players: players });
-                        } else {
-                            playerSocket.emit('matchmaking-update-friend', { gameId: out_game_id, players: players, passcode: passcode });
-                        }
-                    }
-                } else {
-                    console.warn(`Socket ID for player ${player.id} not found in userSocketMap.`);
-                }
+            // 参加している全プレイヤーに通知
+            // Friend Matchmakingでは、ルーム全体にブロードキャストして、全てのクライアントが最新のプレイヤーリストを受け取れるようにする
+            if (out_is_full) {
+                io.to(out_game_id).emit('game-found', { gameId: out_game_id, players: players });
+            } else {
+                io.to(passcode).emit('matchmaking-update-friend', { gameId: out_game_id, players: players, passcode: passcode });
             }
         } else {
             console.error('[Friend Matchmaking] RPC returned invalid players data:', out_players);
