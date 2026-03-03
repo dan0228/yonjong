@@ -1812,14 +1812,15 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
     .select('status')
-    .eq('id', gameId);
+    .eq('id', gameId)
+    .single();
 
-  if (fetchGameErrorForStatus || !gameData || gameData.length === 0) {
-    console.warn(`[handlePlayerLeave] Game ${gameId} not found in DB or error fetching status:`, fetchGameErrorForStatus?.message || 'No data');
+  if (fetchGameErrorForStatus || !gameData) {
+    console.error(`Error fetching game status for game ${gameId}:`, fetchGameErrorForStatus?.message);
     return;
   }
 
-  const currentGameStateInDb = gameData[0].status;
+  const currentGameStateInDb = gameData.status;
 
   if (currentGameStateInDb === 'waiting') {
     // games の status が 'waiting' の場合、game_players からプレイヤーを削除
@@ -1845,8 +1846,16 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
     }
 
-    // 残りのプレイヤー数を取得 (DBではなくメモリ上の状態から取得)
-    const remainingPlayerCount = game.players.length; // ★修正: ここでメモリ上のプレイヤー数を使用
+    // 残りのプレイヤー数を取得
+    const { count: remainingPlayerCount, error: countError } = await supabase
+      .from('game_players')
+      .select('id', { count: 'exact' })
+      .eq('game_id', gameId);
+
+    if (countError) {
+      console.error(`Error counting remaining players for game ${gameId}:`, countError);
+      return;
+    }
 
     let newGameStatus = 'waiting';
     if (remainingPlayerCount === 0) {
@@ -1875,7 +1884,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         status: newGameStatus,
         updated_at: new Date(),
         // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
-        game_data: { ...game.game_data, players: JSON.parse(JSON.stringify(game.players)) }, // game.players の最新状態を game_data.players に反映
+        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -2141,21 +2150,21 @@ io.on('connection', (socket) => {
             .from('games')
             // ★修正: game_data だけでなく status と version も取得する
             .select('game_data, status, version')
-            .eq('id', gameIdToUpdate);
+            .eq('id', gameIdToUpdate)
+            .single();
 
-          if (fetchGameError || !gameDataFromDb || gameDataFromDb.length === 0) {
-            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message || 'No data found');
+          if (fetchGameError || !gameDataFromDb) {
+            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message);
             return;
           }
-          const gameDetails = gameDataFromDb[0];
           // ★修正: createDefaultGameState() で初期化し、DBのデータで上書きする
-          gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDetails.game_data);
+          gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDataFromDb.game_data);
           // DBからロードしたstatusとversionも反映
-          gameStates[gameIdToUpdate].status = gameDetails.status;
-          gameStates[gameIdToUpdate].version = gameDetails.version;
-          // ★追加: gameStates[gameIdToUpdate].players を gameDetails.game_data.players で明示的に上書き
-          if (gameDetails.game_data && gameDetails.game_data.players) {
-            gameStates[gameIdToUpdate].players = gameDetails.game_data.players;
+          gameStates[gameIdToUpdate].status = gameDataFromDb.status;
+          gameStates[gameIdToUpdate].version = gameDataFromDb.version;
+          // ★追加: gameStates[gameIdToUpdate].players を gameDataFromDb.game_data.players で明示的に上書き
+          if (gameDataFromDb.game_data && gameDataFromDb.game_data.players) {
+            gameStates[gameIdToUpdate].players = gameDataFromDb.game_data.players;
           }
           await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
         }
