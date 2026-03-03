@@ -1850,9 +1850,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   // ★追加: games テーブルの現在のステータスを取得
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
-    .select('status')
-    .eq('id', gameId)
-    .single();
+    .select('status, passcode') // passcodeも取得
 
   if (fetchGameErrorForStatus || !gameData) {
     console.error(`Error fetching game status for game ${gameId}:`, fetchGameErrorForStatus?.message);
@@ -1923,7 +1921,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         status: newGameStatus,
         updated_at: new Date(),
         // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
-        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
+        game_data: { ...gameStates[gameId], players: game.players }, // gameStates[gameId] をベースに、players を更新
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -2001,9 +1999,13 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 seat_index: gp.seat_index
             }));
 
-            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
-            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
-            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
+      if (isFriendMatch) {
+          console.log(`[Server] Broadcasting 'matchmaking-update-friend' for game ${gameId} with players:`, playersForMatchmaking);
+          io.to(gameId).emit('matchmaking-update-friend', { gameId, players: playersForMatchmaking, passcode: gameData.passcode });
+      } else { // 通常のオンライン対戦の場合
+          console.log(`[Server] Broadcasting 'matchmaking-update' for game ${gameId} with players:`, playersForMatchmaking);
+          io.to(gameId).emit('matchmaking-update', { gameId, players: playersForMatchmaking });
+      }
     }
 
   } else if (currentGameStateInDb === 'in_progress') {

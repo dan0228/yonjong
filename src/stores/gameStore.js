@@ -712,8 +712,9 @@ export const useGameStore = defineStore('game', {
             // if (socket && socket.connected) {
             //     socket.emit('joinGame', { gameId, userId: this.localPlayerId });
             // }
-            this.isActionPending = false; // アクションロック解除
-            this.isMatchmakingRequested = false; // リクエストフラグ解除
+            // this.isActionPending = false; // アクションロック解除
+            // this.isMatchmakingRequested = false; // リクエストフラグ解除
+            this.friendMatchmakingPasscode = receivedPasscode; // ★追加: 受信したパスコードをストアに保存
         });
       }
     },
