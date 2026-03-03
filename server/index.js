@@ -1845,16 +1845,6 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
     }
 
-    // メモリ上のゲーム状態からもプレイヤーを削除
-    game.players = game.players.filter(p => p.id !== userId);
-
-    // ★修正: game.game_data.players も明示的に更新する
-    if (game.game_data && game.game_data.players) {
-      game.game_data.players = game.players; // game.players の最新状態を game_data.players に反映
-    } else {
-      console.warn(`handlePlayerLeave: game.game_data or game.game_data.players is undefined for game ${gameId}. Cannot update in-memory game_data.players.`);
-    }
-
     // 残りのプレイヤー数を取得 (DBではなくメモリ上の状態から取得)
     const remainingPlayerCount = game.players.length; // ★修正: ここでメモリ上のプレイヤー数を使用
 
@@ -1885,7 +1875,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         status: newGameStatus,
         updated_at: new Date(),
         // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
-        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
+        game_data: { ...game.game_data, players: JSON.parse(JSON.stringify(game.players)) }, // game.players の最新状態を game_data.players に反映
         version: currentVersion + 1
       })
       .eq('id', gameId)
