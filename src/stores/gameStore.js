@@ -694,6 +694,27 @@ export const useGameStore = defineStore('game', {
           console.log('[GameStore] Matchmaking was cancelled by the server.');
           this.isGameReady = false; // ゲーム準備完了状態をリセット
         });
+
+        // ★追加: 友人対戦のマッチメイキング更新イベントをリッスン
+        socket.on('matchmaking-update-friend', ({ gameId, players, passcode: receivedPasscode }) => {
+            console.log(`[GameStore] Received 'matchmaking-update-friend' globally. GameID: ${gameId}, Players:`, players);
+            this.onlineGameId = gameId;
+            this.isGameOnline = true;
+            // localPlayerIdはconnectToServerの呼び出し元（requestFriendMatchmakingまたはrequestMatchmaking）で設定済み
+            // ここではthis.localPlayerIdは変更しない
+            // this.localPlayerId = userStore.profile.id; // ここでは設定しない
+
+            if (players && Array.isArray(players)) {
+                this.$patch({ matchmakingPlayers: players });
+            }
+
+            // GameModeSelectionPopupでパスコードが表示されるため、ここではjoinGameを発行しない
+            // if (socket && socket.connected) {
+            //     socket.emit('joinGame', { gameId, userId: this.localPlayerId });
+            // }
+            this.isActionPending = false; // アクションロック解除
+            this.isMatchmakingRequested = false; // リクエストフラグ解除
+        });
       }
     },
     setOnlineGame({ gameId, localUserId }) { // hostIdは不要
@@ -1860,55 +1881,6 @@ export const useGameStore = defineStore('game', {
         };
 
         ensureSocketConnected().then(() => {
-            const cleanupListeners = () => {
-                if (socket) { // socketがnullでないことを確認
-                    socket.off('matchmaking-update-friend', onMatchmakingUpdateFriend);
-                    socket.off('friendMatchmakingError', onFriendMatchmakingError);
-                    socket.off('game-found', onGameFound);
-                }
-            };
-
-            const onMatchmakingUpdateFriend = ({ gameId, players, passcode: receivedPasscode }) => {
-                console.log(`[GameStore] Received 'matchmaking-update-friend'. GameID: ${gameId}, Players:`, players);
-                this.onlineGameId = gameId;
-                this.isGameOnline = true;
-                this.localPlayerId = userStore.profile.id; // 自分のIDを設定
-
-                if (players && Array.isArray(players)) {
-                    this.$patch({ matchmakingPlayers: players });
-                }
-
-                if (socket && socket.connected) {
-                    socket.emit('joinGame', { gameId, userId: this.localPlayerId });
-                }
-                cleanupListeners();
-                resolve({ gameId, players });
-            };
-
-            const onFriendMatchmakingError = (errorPayload) => {
-                this.friendMatchmakingError = errorPayload;
-                this.isActionPending = false;
-                this.isMatchmakingRequested = false;
-                this.onlineGameId = null;
-                cleanupListeners();
-                reject(errorPayload);
-            };
-
-            const onGameFound = ({ gameId, players }) => {
-                console.log(`[GameStore] Received 'game-found' for friend match. GameID: ${gameId}, Players:`, players);
-                this.matchmakingPlayers.splice(0, this.matchmakingPlayers.length, ...players);
-                this.setOnlineGame({ gameId, localUserId: userStore.profile.id });
-                this.isMatchmakingRequested = false;
-                this.initializeOnlineGame();
-                cleanupListeners();
-                resolve({ gameId, players });
-            };
-
-            // リスナーを一度だけ登録
-            socket.on('matchmaking-update-friend', onMatchmakingUpdateFriend);
-            socket.on('friendMatchmakingError', onFriendMatchmakingError);
-            socket.on('game-found', onGameFound);
-
             console.log(`[GameStore] Emitting 'requestFriendMatchmaking' event. UserID: ${userStore.profile.id}, Passcode: ${passcode}, ActionType: ${actionType}`);
             socket.emit('requestFriendMatchmaking', {
                 userId: userStore.profile.id,
@@ -1917,6 +1889,7 @@ export const useGameStore = defineStore('game', {
                 avatarUrl: userStore.profile.avatar_url,
                 actionType: actionType
             });
+            resolve(); // グローバルリスナーが処理するため、ここでは即座に解決
         }).catch(error => {
             console.error('[GameStore] Error during friend matchmaking setup (after socket connection):', error);
             this.friendMatchmakingError = { key: 'friendMatchmaking.genericError' }; // i18nキーのオブジェクトに修正
