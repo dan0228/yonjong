@@ -604,8 +604,8 @@
   },
   "friendMatchmaking": {
     "notFoundOrFull": "No room or full.",
-    "alreadyExists": "Room already exists.",
-    "genericError": "Friend match failed."
+    "alreadyExists": "Already exists.",
+    "genericError": "Match failed."
   },
   "matchmaking": {
     "title": "Searching for Opponent",

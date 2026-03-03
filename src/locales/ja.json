@@ -603,9 +603,9 @@
     "passcodeLengthError": "コードは数字4桁です"
   },
   "friendMatchmaking": {
-    "notFoundOrFull": "部屋がないか満室です",
-    "alreadyExists": "部屋が既に存在します",
-    "genericError": "友人対戦でエラーが発生"
+    "notFoundOrFull": "部屋がないか満室",
+    "alreadyExists": "部屋が既に存在",
+    "genericError": "対戦でエラーが発生"
   },
   "matchmaking": {
     "title": "対戦相手を検索中",

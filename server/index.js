@@ -2406,8 +2406,9 @@ io.on('connection', (socket) => {
             }));
             if (rpcError) {
                 console.error('[Friend Matchmaking] RPC call find_friend_match_by_passcode failed:', rpcError);
-                // RPCから返されるエラーメッセージをクライアントに送信
-                return socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.notFoundOrFull', params: { passcode } });
+                // RPCから返されるエラーメッセージをクライアントに送信し、処理を終了
+                socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.notFoundOrFull', params: { passcode } });
+                return;
             }
         } else if (actionType === 'create') {
             // 新しい友人対戦部屋を作成

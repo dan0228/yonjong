@@ -257,12 +257,14 @@ const popupProps = computed(() => {
   return null;
 });
 
-const handlePopupSelect = (payload) => {
+const handlePopupSelect = async (payload) => {
   const { action, passcode } = payload;
   const popupType = activePopup.value;
-  activePopup.value = null;
+  // ポップアップを閉じるのは、非同期処理が完了した後か、エラーが発生しない場合に限定する
+  // activePopup.value = null; 
 
   if (popupType === 'ai') {
+    activePopup.value = null; // AI対戦は同期的なので即座に閉じる
     gameStore.setRuleMode(action);
     const gameMode = 'vsCPU';
     gameStore.setGameMode(gameMode);
@@ -271,20 +273,28 @@ const handlePopupSelect = (payload) => {
     gameStore.showDealerDeterminationPopup = true;
     router.push('/game');
   } else if (popupType === 'online') {
-    if (action === 'enter_room') {
-      console.log(`Entering friend match with passcode: ${passcode}`);
-      gameStore.requestFriendMatchmaking({ passcode, actionType: 'join' });
-      router.push('/matchmaking');
-    } else if (action === 'create_room') {
-      console.log(`Creating friend match with passcode: ${passcode}`);
-      gameStore.requestFriendMatchmaking({ passcode, actionType: 'create' });
-      router.push('/matchmaking');
-    } else if (action === 'ranked') {
-      // TODO: 全国対戦のマッチメイキング画面へ遷移
-      console.log('Ranked match selected, navigating to matchmaking...');
-      gameStore.setGameMode('online'); // ゲームモードをオンラインに設定
-      gameStore.requestMatchmaking(); // マッチング要求を送信
-      router.push('/matchmaking');
+    try {
+      if (action === 'enter_room') {
+        console.log(`Entering friend match with passcode: ${passcode}`);
+        await gameStore.requestFriendMatchmaking({ passcode, actionType: 'join' });
+        activePopup.value = null; // 成功したのでポップアップを閉じる
+        router.push('/matchmaking');
+      } else if (action === 'create_room') {
+        console.log(`Creating friend match with passcode: ${passcode}`);
+        await gameStore.requestFriendMatchmaking({ passcode, actionType: 'create' });
+        activePopup.value = null; // 成功したのでポップアップを閉じる
+        router.push('/matchmaking');
+      } else if (action === 'ranked') {
+        activePopup.value = null; // 全国対戦は別のロジックなので即座に閉じる
+        console.log('Ranked match selected, navigating to matchmaking...');
+        gameStore.setGameMode('online');
+        gameStore.requestMatchmaking();
+        router.push('/matchmaking');
+      }
+    } catch (error) {
+      console.error('Friend matchmaking failed:', error.message);
+      // エラーが発生した場合、ポップアップは閉じずにエラーメッセージを表示させる
+      // gameStoreのエラーstateはrequestFriendMatchmaking内で更新されている
     }
   }
 };
