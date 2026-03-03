@@ -1812,15 +1812,14 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
     .select('status')
-    .eq('id', gameId)
-    .single();
+    .eq('id', gameId);
 
-  if (fetchGameErrorForStatus || !gameData) {
-    console.error(`Error fetching game status for game ${gameId}:`, fetchGameErrorForStatus?.message);
+  if (fetchGameErrorForStatus || !gameData || gameData.length === 0) {
+    console.warn(`[handlePlayerLeave] Game ${gameId} not found in DB or error fetching status:`, fetchGameErrorForStatus?.message || 'No data');
     return;
   }
 
-  const currentGameStateInDb = gameData.status;
+  const currentGameStateInDb = gameData[0].status;
 
   if (currentGameStateInDb === 'waiting') {
     // games の status が 'waiting' の場合、game_players からプレイヤーを削除
@@ -2152,21 +2151,21 @@ io.on('connection', (socket) => {
             .from('games')
             // ★修正: game_data だけでなく status と version も取得する
             .select('game_data, status, version')
-            .eq('id', gameIdToUpdate)
-            .single();
+            .eq('id', gameIdToUpdate);
 
-          if (fetchGameError || !gameDataFromDb) {
-            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message);
+          if (fetchGameError || !gameDataFromDb || gameDataFromDb.length === 0) {
+            console.error(`Error fetching game data for game ${gameIdToUpdate} from DB:`, fetchGameError?.message || 'No data found');
             return;
           }
+          const gameDetails = gameDataFromDb[0];
           // ★修正: createDefaultGameState() で初期化し、DBのデータで上書きする
-          gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDataFromDb.game_data);
+          gameStates[gameIdToUpdate] = Object.assign(createDefaultGameState(), gameDetails.game_data);
           // DBからロードしたstatusとversionも反映
-          gameStates[gameIdToUpdate].status = gameDataFromDb.status;
-          gameStates[gameIdToUpdate].version = gameDataFromDb.version;
-          // ★追加: gameStates[gameIdToUpdate].players を gameDataFromDb.game_data.players で明示的に上書き
-          if (gameDataFromDb.game_data && gameDataFromDb.game_data.players) {
-            gameStates[gameIdToUpdate].players = gameDataFromDb.game_data.players;
+          gameStates[gameIdToUpdate].status = gameDetails.status;
+          gameStates[gameIdToUpdate].version = gameDetails.version;
+          // ★追加: gameStates[gameIdToUpdate].players を gameDetails.game_data.players で明示的に上書き
+          if (gameDetails.game_data && gameDetails.game_data.players) {
+            gameStates[gameIdToUpdate].players = gameDetails.game_data.players;
           }
           await handlePlayerLeave(gameIdToUpdate, disconnectedUserId, 'disconnected');
         }
