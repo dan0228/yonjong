@@ -604,8 +604,8 @@
   },
   "friendMatchmaking": {
     "notFoundOrFull": "部屋がないか満室です",
-    "alreadyExists": "このコードの部屋は既に存在します",
-    "genericError": "友人対戦でエラーが発生しました。"
+    "alreadyExists": "部屋が既に存在します",
+    "genericError": "友人対戦でエラーが発生"
   },
   "matchmaking": {
     "title": "対戦相手を検索中",
