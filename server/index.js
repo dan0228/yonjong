@@ -1957,11 +1957,8 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       delete gameStates[gameId];
       console.log(`Game ${gameId} removed from memory and DB (cancelled).`);
     } else {
-      // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
-      game.version = currentVersion + 1; // メモリ上のバージョンも更新
-
-      // DBから最新のプレイヤーリストを取得してブロードキャスト
-      const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
+      // プレイヤーが残っている場合、メモリ上のゲーム状態のplayersもDBから再取得して更新
+      const { data: latestGamePlayers, error: fetchLatestPlayersError } = await supabase
         .from('game_players')
         .select(`
           user_id,
@@ -1983,12 +1980,13 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         .eq('game_id', gameId)
         .order('seat_index', { ascending: true });
 
-      if (fetchPlayersError) {
-        console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
+      if (fetchLatestPlayersError) {
+        console.error(`Error fetching latest game players for game ${gameId}:`, fetchLatestPlayersError);
         return;
       }
 
-      const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+      // メモリ上のゲーム状態のplayersを最新の情報で上書き
+      gameStates[gameId].players = latestGamePlayers.map(gp => ({
         id: gp.users.id,
         name: gp.users.username,
         username: gp.users.username,
@@ -2006,6 +2004,8 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         seat_index: gp.seat_index
       }));
 
+      const playersForMatchmaking = gameStates[gameId].players; // メモリ上の最新のプレイヤーリストを使用
+
       if (gamePasscode) {
         // 友人対戦の場合
         console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
@@ -2018,7 +2018,6 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
       }
     }
-
   } else if (currentGameStateInDb === 'in_progress') {
     // games の status が 'in_progress' の場合、game_players のステータスを 'disconnected' に更新
     const { error: updatePlayerStatusError } = await supabase
