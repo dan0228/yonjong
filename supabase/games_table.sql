@@ -8,6 +8,7 @@ create table public.games (
   current_turn_user_id uuid null,
   version integer not null default 1,
   avg_rating integer not null default 0,
+  passcode text null,
   constraint games_pkey primary key (id),
   constraint status_check check (
     (
@@ -23,3 +24,15 @@ create table public.games (
     )
   )
 ) TABLESPACE pg_default;
+
+create unique INDEX IF not exists unique_active_passcode_on_games on public.games using btree (passcode) TABLESPACE pg_default
+where
+  (
+    status = any (
+      array[
+        'waiting'::text,
+        'ready'::text,
+        'in_progress'::text
+      ]
+    )
+  );
