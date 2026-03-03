@@ -1908,23 +1908,26 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     // games テーブルの status, game_data, updated_at, version をまとめて更新
     const { data: currentGameStateFromDb, error: fetchGameVersionError } = await supabase
       .from('games')
-      .select('version')
+      .select('version, game_data') // game_data も取得
       .eq('id', gameId)
       .single();
 
     if (fetchGameVersionError || !currentGameStateFromDb) {
-      console.error(`Error fetching current game version for game ${gameId}:`, fetchGameVersionError?.message);
+      console.error(`Error fetching current game version and data for game ${gameId}:`, fetchGameVersionError?.message);
       return;
     }
     const currentVersion = currentGameStateFromDb.version;
+    const currentDbGameData = currentGameStateFromDb.game_data;
+
+    // game.players の最新状態を currentDbGameData.players に反映
+    const updatedGameData = { ...currentDbGameData, players: game.players };
 
     const { error: updateGameError, count: updateCount } = await supabase
       .from('games')
       .update({
         status: newGameStatus,
         updated_at: new Date(),
-        // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
-        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
+        game_data: updatedGameData, // 更新された game_data をセット
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -1934,13 +1937,15 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.error(`Error updating game status and data for game ${gameId} after player left:`, updateGameError);
       return;
     }
+
     if (updateCount === 0) {
       console.warn(`Optimistic lock failed for game ${gameId} during player leave. Game state was already updated.`);
       return;
     }
 
-    if (remainingPlayerCount === 0) {
-      // game_players が空になったら games テーブルからも削除
+    // updateGameErrorがなく、かつupdateCountが1の場合のみ以下の処理を実行
+    if (newGameStatus === 'cancelled') {
+      // games テーブルから削除
       const { error: deleteGameError } = await supabase
         .from('games')
         .delete()
@@ -1950,7 +1955,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
       }
       delete gameStates[gameId];
-      console.log(`Game ${gameId} removed from memory and DB.`);
+      console.log(`Game ${gameId} removed from memory and DB (cancelled).`);
     } else {
       // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
       game.version = currentVersion + 1; // メモリ上のバージョンも更新
