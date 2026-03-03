@@ -1850,7 +1850,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   // ★追加: games テーブルの現在のステータスを取得
   const { data: gameData, error: fetchGameErrorForStatus } = await supabase
     .from('games')
-    .select('status, passcode') // passcode もフェッチする
+    .select('status')
     .eq('id', gameId)
     .single();
 
@@ -1860,7 +1860,6 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   }
 
   const currentGameStateInDb = gameData.status;
-  const gamePasscode = gameData.passcode; // 取得したパスコードを変数に格納
 
   if (currentGameStateInDb === 'waiting') {
     // games の status が 'waiting' の場合、game_players からプレイヤーを削除
@@ -1908,26 +1907,23 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     // games テーブルの status, game_data, updated_at, version をまとめて更新
     const { data: currentGameStateFromDb, error: fetchGameVersionError } = await supabase
       .from('games')
-      .select('version, game_data') // game_data も取得
+      .select('version')
       .eq('id', gameId)
       .single();
 
     if (fetchGameVersionError || !currentGameStateFromDb) {
-      console.error(`Error fetching current game version and data for game ${gameId}:`, fetchGameVersionError?.message);
+      console.error(`Error fetching current game version for game ${gameId}:`, fetchGameVersionError?.message);
       return;
     }
     const currentVersion = currentGameStateFromDb.version;
-    const currentDbGameData = currentGameStateFromDb.game_data;
-
-    // game.players の最新状態を currentDbGameData.players に反映
-    const updatedGameData = { ...currentDbGameData, players: game.players };
 
     const { error: updateGameError, count: updateCount } = await supabase
       .from('games')
       .update({
         status: newGameStatus,
         updated_at: new Date(),
-        game_data: updatedGameData, // 更新された game_data をセット
+        // ★修正: game_data 全体を更新するのではなく、game_data 内の players 配列のみを更新する
+        game_data: { ...game.game_data, players: game.players }, // game.players の最新状態を game_data.players に反映
         version: currentVersion + 1
       })
       .eq('id', gameId)
@@ -1937,15 +1933,13 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       console.error(`Error updating game status and data for game ${gameId} after player left:`, updateGameError);
       return;
     }
-
     if (updateCount === 0) {
       console.warn(`Optimistic lock failed for game ${gameId} during player leave. Game state was already updated.`);
       return;
     }
 
-    // updateGameErrorがなく、かつupdateCountが1の場合のみ以下の処理を実行
-    if (newGameStatus === 'cancelled') {
-      // games テーブルから削除
+    if (remainingPlayerCount === 0) {
+      // game_players が空になったら games テーブルからも削除
       const { error: deleteGameError } = await supabase
         .from('games')
         .delete()
@@ -1955,69 +1949,63 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
       }
       delete gameStates[gameId];
-      console.log(`Game ${gameId} removed from memory and DB (cancelled).`);
+      console.log(`Game ${gameId} removed from memory and DB.`);
     } else {
-      // プレイヤーが残っている場合、メモリ上のゲーム状態のplayersもDBから再取得して更新
-      const { data: latestGamePlayers, error: fetchLatestPlayersError } = await supabase
-        .from('game_players')
-        .select(`
-          user_id,
-          seat_index,
-          users (
-            id,
-            username,
-            avatar_url,
-            rating,
-            cat_coins,
-            total_games_played,
-            first_place_count,
-            second_place_count,
-            third_place_count,
-            fourth_place_count,
-            class
-          )
-        `)
-        .eq('game_id', gameId)
-        .order('seat_index', { ascending: true });
+      // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
+      // プレイヤーが残っている場合、他のプレイヤーにマッチング状態更新をブロードキャスト
+            game.version = currentVersion + 1; // メモリ上のバージョンも更新
 
-      if (fetchLatestPlayersError) {
-        console.error(`Error fetching latest game players for game ${gameId}:`, fetchLatestPlayersError);
-        return;
-      }
+            // DBから最新のプレイヤーリストを取得してブロードキャスト
+            const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
+                .from('game_players')
+                .select(`
+                    user_id,
+                    seat_index,
+                    users (
+                        id,
+                        username,
+                        avatar_url,
+                        rating,
+                        cat_coins,
+                        total_games_played,
+                        first_place_count,
+                        second_place_count,
+                        third_place_count,
+                        fourth_place_count,
+                        class
+                    )
+                `)
+                .eq('game_id', gameId)
+                .order('seat_index', { ascending: true });
 
-      // メモリ上のゲーム状態のplayersを最新の情報で上書き
-      gameStates[gameId].players = latestGamePlayers.map(gp => ({
-        id: gp.users.id,
-        name: gp.users.username,
-        username: gp.users.username,
-        avatar_url: gp.users.avatar_url,
-        rating: gp.users.rating,
-        cat_coins: gp.users.cat_coins,
-        total_games_played: gp.users.total_games_played,
-        first_place_count: gp.users.first_place_count,
-        second_place_count: gp.users.second_place_count,
-        third_place_count: gp.users.third_place_count,
-        fourth_place_count: gp.users.fourth_place_count,
-        user_rank_class: gp.users.class,
-        score: 50000, // マッチング画面では初期スコアを表示
-        isAi: false,
-        seat_index: gp.seat_index
-      }));
+            if (fetchPlayersError) {
+                console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
+                return;
+            }
 
-      const playersForMatchmaking = gameStates[gameId].players; // メモリ上の最新のプレイヤーリストを使用
+            const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+                id: gp.users.id,
+                name: gp.users.username,
+                username: gp.users.username,
+                avatar_url: gp.users.avatar_url,
+                rating: gp.users.rating,
+                cat_coins: gp.users.cat_coins,
+                total_games_played: gp.users.total_games_played,
+                first_place_count: gp.users.first_place_count,
+                second_place_count: gp.users.second_place_count,
+                third_place_count: gp.users.third_place_count,
+                fourth_place_count: gp.users.fourth_place_count,
+                user_rank_class: gp.users.class,
+                score: 50000, // マッチング画面では初期スコアを表示
+                isAi: false,
+                seat_index: gp.seat_index
+            }));
 
-      if (gamePasscode) {
-        // 友人対戦の場合
-        console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
-        io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: gamePasscode });
-        console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
-      } else {
-        // 通常のマッチメイキングの場合
-        console.log(`[Server Debug] Emitting 'matchmaking-update' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
-        io.to(gameId).emit('matchmaking-update', { gameId: gameId, players: playersForMatchmaking });
-        console.log(`[Server] Broadcasted 'matchmaking-update' for game ${gameId} with updated players.`);
-      }
+            console.log(`[Server Debug] Emitting 'matchmaking-update-friend' for game ${gameId}. Players:`, JSON.stringify(playersForMatchmaking, null, 2)); // ★追加ログ
+            io.to(gameId).emit('matchmaking-update-friend', { gameId: gameId, players: playersForMatchmaking, passcode: game.passcode });
+            console.log(`[Server] Broadcasted 'matchmaking-update-friend' for game ${gameId} with updated players.`);
     }
+
   } else if (currentGameStateInDb === 'in_progress') {
     // games の status が 'in_progress' の場合、game_players のステータスを 'disconnected' に更新
     const { error: updatePlayerStatusError } = await supabase

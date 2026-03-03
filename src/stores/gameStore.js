@@ -698,23 +698,15 @@ export const useGameStore = defineStore('game', {
         // ★追加: 友人対戦のマッチメイキング更新イベントをリッスン
         socket.on('matchmaking-update-friend', ({ gameId, players, passcode: receivedPasscode }) => {
             console.log(`[GameStore] Received 'matchmaking-update-friend' globally. GameID: ${gameId}, Players:`, players);
-            // ★追加ログ
-            console.log(`[GameStore Debug] Players received via 'matchmaking-update-friend':`, JSON.stringify(players, null, 2));
-            console.log(`[GameStore Debug] Current matchmakingPlayers BEFORE update:`, JSON.stringify(this.matchmakingPlayers, null, 2));
-
             this.onlineGameId = gameId;
             this.isGameOnline = true;
-
-            if (players && Array.isArray(players)) {
-                this.$patch({ matchmakingPlayers: players });
-                console.log(`[GameStore Debug] matchmakingPlayers AFTER update:`, JSON.stringify(this.matchmakingPlayers, null, 2)); // ★追加ログ
-            } else {
-                console.warn(`[GameStore] Received 'matchmaking-update-friend' with invalid players array:`, players);
-            }
-
             // localPlayerIdはconnectToServerの呼び出し元（requestFriendMatchmakingまたはrequestMatchmaking）で設定済み
             // ここではthis.localPlayerIdは変更しない
             // this.localPlayerId = userStore.profile.id; // ここでは設定しない
+
+            if (players && Array.isArray(players)) {
+                this.$patch({ matchmakingPlayers: players });
+            }
 
             // GameModeSelectionPopupでパスコードが表示されるため、ここではjoinGameを発行しない
             // if (socket && socket.connected) {
