@@ -2381,7 +2381,7 @@ io.on('connection', (socket) => {
     }
 
     userSocketMap.set(userId, socket.id);
-    socket.join(passcode); // パスコードをルーム名として利用
+    socket.join(out_game_id); // ゲームIDをルーム名として利用
 
     try {
         let matchData;
@@ -2459,7 +2459,7 @@ io.on('connection', (socket) => {
             if (out_is_full) {
                 io.to(out_game_id).emit('game-found', { gameId: out_game_id, players: players });
             } else {
-                io.to(passcode).emit('matchmaking-update-friend', { gameId: out_game_id, players: players, passcode: passcode });
+                io.to(out_game_id).emit('matchmaking-update-friend', { gameId: out_game_id, players: players, passcode: passcode });
             }
         } else {
             console.error('[Friend Matchmaking] RPC returned invalid players data:', out_players);
