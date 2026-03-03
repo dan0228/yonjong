@@ -3233,7 +3233,14 @@ io.on('connection', (socket) => {
 
   // クライアントがチャットメッセージを送信する
   socket.on('sendChatMessage', ({ gameId, playerId, messageId }) => {
-    io.to(gameId).emit('newChatMessage', { playerId, messageId });
+    const game = gameStates[gameId];
+    // ゲームが進行中でパスコードが存在する場合（友人対戦のマッチング中）、パスコードのルームに送信
+    if (game && game.passcode && (game.status === 'waiting' || game.status === 'ready')) {
+      io.to(game.passcode).emit('newChatMessage', { playerId, messageId });
+    } else {
+      // それ以外の場合はgameIdのルームに送信
+      io.to(gameId).emit('newChatMessage', { playerId, messageId });
+    }
   });
 });
 
