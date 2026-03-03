@@ -312,6 +312,7 @@ const mainButtons = computed(() => [
     alt: t('titleView.menu.onlineMatch'),
     action: () => {
       audioStore.playSound('Hit-Slap01-3(Dry).mp3');
+      gameStore.clearFriendMatchmakingError(); // ★ エラーメッセージをクリア
       activePopup.value = 'online';
     },
     cssClass: 'main-button',

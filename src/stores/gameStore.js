@@ -563,6 +563,9 @@ export const useGameStore = defineStore('game', {
     setAppReady(status) {
       this.isAppReady = status;
     },
+    clearFriendMatchmakingError() {
+      this.friendMatchmakingError = null;
+    },
     // --- Online Match Actions ---
     connectToServer() {
       const userStore = useUserStore(); // userStoreを取得

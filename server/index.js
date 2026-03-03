@@ -2422,6 +2422,9 @@ io.on('connection', (socket) => {
             if (rpcError) {
                 console.error('[Friend Matchmaking] RPC call create_friend_match_with_passcode failed:', rpcError);
                 // RPCから返されるエラーメッセージをクライアントに送信
+                if (rpcError.message.includes('already exists')) {
+                    return socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.alreadyExists', params: { passcode } });
+                }
                 return socket.emit('friendMatchmakingError', { key: 'friendMatchmaking.genericError' });
             }
         } else {
