@@ -1177,7 +1177,8 @@ async function handleGameEnd(gameId) {
     }
 
     // オンライン対戦の場合のみレートを計算
-    if (gameState.gameMode === 'online') {
+    // ただし、友人対戦（passcodeが設定されている）の場合はレート変動を0にする
+    if (gameState.gameMode === 'online' && !gameState.passcode) {
       // 1. 基礎点の計算
       const rankName = getRankName(player.user_rank_class);
       const basePoint = baseRatingChanges[rankName]?.[player.rank] || 0;
@@ -1301,7 +1302,9 @@ async function handleGameEnd(gameId) {
       console.error(`Error fetching game players for archiving:`, fetchDbPlayersError);
     } else if (dbPlayers && dbPlayers.length > 0) {
       const gamePlayersToArchiveWithStats = dbPlayers.map(dbPlayer => {
+        // updatedRankedPlayers 内のオブジェクトのID（通常はplayer.id）が dbPlayer.user_id と一致するか確認
         const playerStats = updatedRankedPlayers.find(p => p.id === dbPlayer.user_id);
+        
         return {
           id: dbPlayer.id, // game_players テーブルの元のIDを保持
           game_id: gameId,
