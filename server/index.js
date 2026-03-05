@@ -2613,7 +2613,7 @@ io.on('connection', (socket) => {
               id: gp.user_id,
               name: profile?.username || 'プレイヤー',
               username: profile?.username || 'プレイヤー',
-              avatar_id: profile?.avatar_id || 1,
+              avatar_id: profile?.avatar_id,
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
               user_rank_class: profile?.class || 1,

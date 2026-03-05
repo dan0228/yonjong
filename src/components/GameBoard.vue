@@ -398,7 +398,7 @@
         return `/assets/images/icon_preset/icon${player.avatar_id}.png`;
       }
       // デフォルトのオンラインプレイヤーアイコン
-      return '/assets/images/icon_preset/icon1.png'; // 仮のデフォルトアイコン
+      return '/assets/images/info/hito_icon_1.png';
     }
 
     // オフライン対戦の場合 (既存ロジック)

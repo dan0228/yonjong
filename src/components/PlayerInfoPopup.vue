@@ -116,7 +116,7 @@ const averageRank = computed(() => {
 });
 
 const playerIconSrc = computed(() => {
-  if (!props.player || !props.player.id) return '/assets/images/icon_preset/icon1.png'; // プレイヤーオブジェクトまたはIDがない場合
+  if (!props.player || !props.player.id) return '/assets/images/info/hito_icon_1.png'; // プレイヤーオブジェクトまたはIDがない場合
   if (props.player.avatar_id) return `/assets/images/icon_preset/icon${props.player.avatar_id}.png`; // avatar_id が設定されていればそれを使用
 
   // AIプレイヤーのアイコン
@@ -126,7 +126,7 @@ const playerIconSrc = computed(() => {
   if (props.player.originalId === 'janneko') return '/assets/images/info/cat_icon_4.png';
 
   // 上記以外（人間プレイヤーでavatar_idがnullの場合など）はデフォルトアイコン
-  return '/assets/images/icon_preset/icon1.png';
+  return '/assets/images/info/hito_icon_1.png';
 });
 const statBoardImageSrc = computed(() => {
   return locale.value === 'en'

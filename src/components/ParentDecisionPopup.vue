@@ -178,7 +178,9 @@ function getPlayerIcon(player) {
   }
   // 2. オフライン時の自分（player1）のアバターフォールバック
   if (player.id === 'player1') {
-    return `/assets/images/icon_preset/icon${userStore.profile?.avatar_id || 1}.png`;
+    return userStore.profile?.avatar_id 
+      ? `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png`
+      : '/assets/images/info/hito_icon_1.png';
   }
   // 3. オフライン時のAIプレイヤーのフォールバック
   if (player.originalId === 'kuro') return '/assets/images/info/cat_icon_3.png';

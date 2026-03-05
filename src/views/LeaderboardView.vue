@@ -210,7 +210,7 @@ async function fetchLeaderboardData(type) {
       id: player.id,
       name: player.username,
       score: type === 'rating' ? player.rating : player.cat_coins,
-      avatar_id: player.avatar_id || 1,
+      avatar_id: player.avatar_id,
       rating: player.rating,
       cat_coins: player.cat_coins,
       total_games_played: player.total_games_played,
