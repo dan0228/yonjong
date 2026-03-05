@@ -1893,6 +1893,15 @@ export const useGameStore = defineStore('game', {
           const onSuccess = (data) => {
             clearTimeout(timeout);
             socket.off('friendMatchmakingError', onError);
+            socket.off('game-found', onGameFound); // ★追加
+            this.isActionPending = false;
+            resolve(data);
+          };
+
+          const onGameFound = (data) => { // ★追加
+            clearTimeout(timeout);
+            socket.off('friendMatchmakingError', onError);
+            socket.off('matchmaking-update-friend', onSuccess);
             this.isActionPending = false;
             resolve(data);
           };
@@ -1900,6 +1909,7 @@ export const useGameStore = defineStore('game', {
           const onError = (errorPayload) => {
             clearTimeout(timeout);
             socket.off('matchmaking-update-friend', onSuccess);
+            socket.off('game-found', onGameFound); // ★追加
             this.isActionPending = false;
             this.isMatchmakingRequested = false;
             this.friendMatchmakingError = errorPayload; // サーバーから来たエラーをセット
@@ -1908,6 +1918,7 @@ export const useGameStore = defineStore('game', {
 
           // Use .once() to ensure listeners are for this request only
           socket.once('matchmaking-update-friend', onSuccess);
+          socket.once('game-found', onGameFound); // ★追加
           socket.once('friendMatchmakingError', onError);
 
           console.log(`[GameStore] Emitting 'requestFriendMatchmaking'. Passcode: ${passcode}, Action: ${actionType}`);

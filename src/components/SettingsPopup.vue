@@ -844,13 +844,14 @@ const handleDeleteAccount = () => {
   border-radius: 10px;
 }
 .avatar-selection-content {
-  background-image: url('/assets/images/back/omikuji_board.png');
+  background-image: url('/assets/images/back/start_back.png');
   background-size: cover;
   background-position: center;
-  padding: 15px;
+  padding: 40px;
   border-radius: 10px;
-  width: 90%;
+  width: 100%;
   max-width: 350px;
+  height: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;

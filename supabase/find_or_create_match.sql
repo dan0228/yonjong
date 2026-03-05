@@ -125,7 +125,7 @@ BEGIN
         SET
             avg_rating = v_new_avg_rating,
             updated_at = now(),
-            status = CASE WHEN (v_player_count + 1) = 4 THEN 'ready' ELSE 'waiting' END,
+            status = CASE WHEN (v_existing_player_count + 1) >= 4 THEN 'ready' ELSE 'waiting' END,
             game_data = jsonb_set(
                 v_game_record.game_data,
                 '{players}',
@@ -136,7 +136,7 @@ BEGIN
 
         SELECT game_data INTO v_current_game_data FROM public.games WHERE id = v_game_record.id;
         v_game_id := v_game_record.id;
-        out_is_full := (v_player_count + 1) = 4;
+        out_is_full := (v_existing_player_count + 1) >= 4;
 
     -- ゲームが見つからなかった場合 (第一段階も第二段階も見つからなかった場合)
     ELSE
