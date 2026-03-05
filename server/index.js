@@ -1264,7 +1264,8 @@ async function handleGameEnd(gameId) {
         created_at: gameDataToArchive.created_at,
         updated_at: new Date().toISOString(),
         current_turn_user_id: gameDataToArchive.current_turn_user_id,
-        version: gameDataToArchive.version
+        version: gameDataToArchive.version,
+        is_friend_match: gameDataToArchive.passcode ? true : false
       };
 
       const { error: insertGameHistoryError } = await supabase
@@ -2129,7 +2130,8 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
             created_at: gameDataToMove.created_at,
             updated_at: new Date().toISOString(),
             current_turn_user_id: gameDataToMove.current_turn_user_id,
-            version: gameDataToMove.version
+            version: gameDataToMove.version,
+            is_friend_match: gameDataToMove.passcode ? true : false
           };
           
           // games_historyに挿入

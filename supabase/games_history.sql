@@ -8,5 +8,6 @@ create table public.games_history (
   updated_at timestamp with time zone not null default now(),
   current_turn_user_id uuid null,
   version integer not null default 1,
+  is_friend_match boolean not null default false,
   constraint games_history_pkey primary key (id)
 ) TABLESPACE pg_default;
