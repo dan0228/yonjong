@@ -244,7 +244,7 @@
       <!-- アバター選択ポップアップ -->
       <div v-if="showAvatarSelection" class="avatar-selection-overlay" @click.self="showAvatarSelection = false">
         <div class="avatar-selection-content">
-          <h3 class="popup-title" style="margin-top: 5px; margin-bottom: 15px; font-size: 1.5em;">{{ $t('avatarSection.selectAvatarTitle') }}</h3>
+          <h3 class="popup-title" style="margin-top: 20px; margin-bottom: 0px; font-size: 1.7em;">{{ $t('avatarSection.selectAvatarTitle') }}</h3>
           <div class="avatar-grid">
             <div
               v-for="n in 24"
@@ -845,13 +845,14 @@ const handleDeleteAccount = () => {
 }
 .avatar-selection-content {
   background-image: url('/assets/images/back/start_back.png');
-  background-size: cover;
+  background-size: contain;
   background-position: center;
+  background-repeat: no-repeat;
   padding: 40px;
   border-radius: 10px;
   width: 100%;
   max-width: 350px;
-  height: 50%;
+  height: 90%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -860,7 +861,7 @@ const handleDeleteAccount = () => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  max-height: 300px;
+  max-height: 800px;
   overflow-y: auto;
   padding: 10px;
   background: rgba(255, 255, 255, 0.5);
