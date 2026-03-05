@@ -172,13 +172,13 @@ const formattedTimestamp = computed(() => {
  */
 function getPlayerIcon(player) {
   if (!player) return null;
-  // 1. プレイヤーオブジェクト自身のavatar_urlを最優先（オンライン対戦用）
-  if (player.avatar_url) {
-    return player.avatar_url;
+  // 1. プレイヤーオブジェクト自身のavatar_idを最優先（オンライン対戦用）
+  if (player.avatar_id) {
+    return `/assets/images/icon_preset/icon${player.avatar_id}.png`;
   }
   // 2. オフライン時の自分（player1）のアバターフォールバック
   if (player.id === 'player1') {
-    return userStore.profile?.avatar_url || '/assets/images/info/hito_icon_1.png';
+    return `/assets/images/icon_preset/icon${userStore.profile?.avatar_id || 1}.png`;
   }
   // 3. オフライン時のAIプレイヤーのフォールバック
   if (player.originalId === 'kuro') return '/assets/images/info/cat_icon_3.png';

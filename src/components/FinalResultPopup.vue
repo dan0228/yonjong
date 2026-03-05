@@ -239,9 +239,13 @@ function getPlayerIcon(playerId) {
   const player = gameStore.players.find(p => p.id === playerId);
   if (!player) return null;
 
-  // プレイヤーが自分自身で、かつアバターURLが設定されていればそれを使用
-  if (player.id === 'player1' && userStore.profile?.avatar_url) {
-    return userStore.profile.avatar_url;
+  // プレイヤーがアバターIDを持っていればそれを使用（オンライン対戦）
+  if (player.avatar_id) {
+    return `/assets/images/icon_preset/icon${player.avatar_id}.png`;
+  }
+  // プレイヤーが自分自身で、かつアバターIDが設定されていればそれを使用
+  if (player.id === 'player1' && userStore.profile?.avatar_id) {
+    return `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png`;
   }
   if (player.id === 'player1') return '/assets/images/info/hito_icon_1.png'; // あなた
   if (player.originalId === 'kuro') return '/assets/images/info/cat_icon_3.png'; // くろ

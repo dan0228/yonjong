@@ -547,20 +547,9 @@
     }
   },
   "avatarSection": {
-    "uploadImageButton": "画像をアップロード",
-    "getXIconButton": "Xからアイコンを取得",
-    "xAccountPlaceholder": "{'@'}Xアカウント名",
-    "xAccountValidation": {
-      "empty": "Xアカウント名を入力してください",
-      "invalidChars": "Xアカウント名は半角英数字と_のみ使用できます",
-      "fetchFailed": "Xアバターの取得に失敗しました。ユーザー名を確認するか、しばらくしてから再度お試しください。",
-      "invalidContent": "Xアバターの取得に失敗しました。提供されたXアカウント名では有効なアバターが見つからないか、サービスに一時的な問題が発生しています。",
-      "networkError": "Xアバターの取得中にネットワークエラーが発生しました。インターネット接続を確認するか、しばらくしてから再度お試しください。"
-    },
-    "rightsNote": "* 登録するアバターは自分が権利を持つ画像に限ります",
-      "xAccountNote": "* Xアカウントから自分のアイコンを簡単に登録できます",
-      "uploadNote": "* アバター画像をタップすると好きな画像を設定できます"
-    },
+    "changeAvatarButton": "アバターを変更する",
+    "selectAvatarTitle": "アバターを選択"
+  },
   "settingsPopup": {
     "title": "設定",
     "saveButton": "保存",

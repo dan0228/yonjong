@@ -105,7 +105,7 @@
                 @click="openPlayerInfoPopup(player)"
               >
                 <img
-                  :src="player.avatar_url"
+                  :src="player.avatar_id ? `/assets/images/icon_preset/icon${player.avatar_id}.png` : '/assets/images/info/hito_icon_1.png'"
                   alt="avatar"
                   class="player-icon"
                 >
@@ -194,7 +194,7 @@ async function fetchLeaderboardData(type) {
   isLoading.value = true;
   error.value = null;
   try {
-    const selectColumns = 'id, username, avatar_url, rating, cat_coins, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, user_rank_class:class';
+    const selectColumns = 'id, username, avatar_id, rating, cat_coins, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, user_rank_class:class';
     let query = supabase.from('users').select(selectColumns);
 
     if (type === 'rating') {
@@ -210,7 +210,7 @@ async function fetchLeaderboardData(type) {
       id: player.id,
       name: player.username,
       score: type === 'rating' ? player.rating : player.cat_coins,
-      avatar_url: player.avatar_url || '/assets/images/info/hito_icon_1.png',
+      avatar_id: player.avatar_id || 1,
       rating: player.rating,
       cat_coins: player.cat_coins,
       total_games_played: player.total_games_played,

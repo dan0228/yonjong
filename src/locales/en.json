@@ -547,20 +547,9 @@
     }
   },
   "avatarSection": {
-    "uploadImageButton": "Upload Image",
-    "getXIconButton": "Get Icon from X",
-    "xAccountPlaceholder": "{'@'}X Account Name",
-    "xAccountValidation": {
-      "empty": "Please enter X account name.",
-      "invalidChars": "X account name can only contain alphanumeric characters and _.",
-      "fetchFailed": "Failed to fetch X avatar. Please check username or try again later.",
-      "invalidContent": "Failed to fetch X avatar. No valid avatar found for the provided X account name or service has temporary issues.",
-      "networkError": "Network error occurred while fetching X avatar. Please check internet connection or try again later."
-    },
-    "rightsNote": "* The avatar you register must be an image you own the rights to.",
-      "xAccountNote": "* You can easily register your icon by entering your X account.",
-      "uploadNote": "* Tap the avatar image to set your favorite image."
-    },
+    "changeAvatarButton": "Change Avatar",
+    "selectAvatarTitle": "Select Avatar"
+  },
   "settingsPopup": {
     "title": "Settings",
     "saveButton": "Save",

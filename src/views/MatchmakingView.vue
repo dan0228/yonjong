@@ -74,7 +74,7 @@
           <!-- プレイヤーがいる場合 -->
           <template v-if="!slot.isWaiting">
             <img 
-              :src="slot.player.avatar_url || '/assets/images/info/hito_icon_1.png'" 
+              :src="slot.player.avatar_id ? `/assets/images/icon_preset/icon${slot.player.avatar_id}.png` : '/assets/images/info/hito_icon_1.png'" 
               alt="Player Avatar" 
               class="player-avatar"
               @click="openPlayerInfoPopup(slot.player)"

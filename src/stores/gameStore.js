@@ -495,6 +495,18 @@ export const useGameStore = defineStore('game', {
         '/assets/images/tiles/z5.png',
         '/assets/images/tiles/z6.png',
         '/assets/images/tiles/z7.png',
+        '/assets/images/icon_preset/icon1.png',
+        '/assets/images/icon_preset/icon2.png',
+        '/assets/images/icon_preset/icon3.png',
+        '/assets/images/icon_preset/icon4.png',
+        '/assets/images/icon_preset/icon5.png',
+        '/assets/images/icon_preset/icon6.png',
+        '/assets/images/icon_preset/icon7.png',
+        '/assets/images/icon_preset/icon8.png',
+        '/assets/images/icon_preset/icon9.png',
+        '/assets/images/icon_preset/icon10.png',
+        '/assets/images/icon_preset/icon11.png',
+        '/assets/images/icon_preset/icon12.png',
       ];
       const audioPaths = [
         '/assets/sounds/Kagura_Suzu01-7.mp3', // おみくじ
@@ -596,7 +608,7 @@ export const useGameStore = defineStore('game', {
                 userId: userStore.profile.id,
                 passcode: this.friendMatchmakingPasscode,
                 username: userStore.profile.username,
-                avatarUrl: userStore.profile.avatar_url,
+                avatarId: userStore.profile.avatar_id,
                 actionType: this.friendMatchmakingActionType,
               });
               console.log(`[GameStore] "requestFriendMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Passcode: ${this.friendMatchmakingPasscode}, ActionType: ${this.friendMatchmakingActionType}`);
@@ -606,9 +618,9 @@ export const useGameStore = defineStore('game', {
                 userId: userStore.profile.id,
                 rating: userStore.profile.rating,
                 username: userStore.profile.username,
-                avatarUrl: userStore.profile.avatar_url,
+                avatarId: userStore.profile.avatar_id,
               });
-              console.log(`[GameStore] "requestMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarURL: ${userStore.profile.avatar_url}`);
+              console.log(`[GameStore] "requestMatchmaking" event sent on reconnect. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarID: ${userStore.profile.avatar_id}`);
             }
           }
         });
@@ -1057,7 +1069,7 @@ export const useGameStore = defineStore('game', {
           humanPlayer.name = userStore.profile.username;
           humanPlayer.cat_coins = userStore.profile.cat_coins;
           humanPlayer.rating = userStore.profile.rating;
-          humanPlayer.avatar_url = userStore.profile.avatar_url;
+          humanPlayer.avatar_id = userStore.profile.avatar_id;
           humanPlayer.total_games_played = userStore.profile.total_games_played;
           humanPlayer.first_place_count = userStore.profile.first_place_count;   // ★追加
           humanPlayer.second_place_count = userStore.profile.second_place_count; // ★追加
@@ -1825,8 +1837,8 @@ export const useGameStore = defineStore('game', {
       // ソケットが既に接続済みであれば直接イベントを送信
       if (socket && socket.connected) {
         console.log('[GameStore] Emitting "requestMatchmaking" event...');
-        socket.emit('requestMatchmaking', { userId: userStore.profile.id, rating: userStore.profile.rating, username: userStore.profile.username, avatarUrl: userStore.profile.avatar_url });
-        console.log(`[GameStore] "requestMatchmaking" event sent. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarURL: ${userStore.profile.avatar_url}`);
+        socket.emit('requestMatchmaking', { userId: userStore.profile.id, rating: userStore.profile.rating, username: userStore.profile.username, avatarId: userStore.profile.avatar_id });
+        console.log(`[GameStore] "requestMatchmaking" event sent. UserID: ${userStore.profile.id}, Rating: ${userStore.profile.rating}, AvatarID: ${userStore.profile.avatar_id}`);
       } else if (!socket) {
         console.error('[GameStore] Matchmaking request failed: Socket.io instance not created.');
         this.isMatchmakingRequested = false; // エラー時はリクエストフラグをリセット
@@ -1891,7 +1903,7 @@ export const useGameStore = defineStore('game', {
             userId: userStore.profile.id,
             passcode: passcode,
             username: userStore.profile.username,
-            avatarUrl: userStore.profile.avatar_url,
+            avatarId: userStore.profile.avatar_id,
             actionType: actionType
           });
         };

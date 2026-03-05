@@ -1447,7 +1447,7 @@ async function _initializeGameCore(gameId) {
   localGameState.dealerDeterminationResult.players = localGameState.players.map(p => ({
     id: p.id,
     name: p.name,
-    avatar_url: p.avatar_url,
+    avatar_id: p.avatar_id,
     seatWind: p.seatWind,
     isDealer: p.isDealer,
     score: 50000,
@@ -1984,7 +1984,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                     users (
                         id,
                         username,
-                        avatar_url,
+                        avatar_id,
                         rating,
                         cat_coins,
                         total_games_played,
@@ -2007,7 +2007,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                 id: gp.users.id,
                 name: gp.users.username,
                 username: gp.users.username,
-                avatar_url: gp.users.avatar_url,
+                avatar_id: gp.users.avatar_id,
                 rating: gp.users.rating,
                 cat_coins: gp.users.cat_coins,
                 total_games_played: gp.users.total_games_played,
@@ -2600,7 +2600,7 @@ io.on('connection', (socket) => {
 
       const { data: profiles, error: profileError } = await supabase
         .from('users')
-        .select('id, username, avatar_url, cat_coins, rating, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, class') // ★修正
+        .select('id, username, avatar_id, cat_coins, rating, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, class') // ★修正
         .in('id', playerIds);
 
       if (profileError || !profiles) {
@@ -2613,7 +2613,7 @@ io.on('connection', (socket) => {
               id: gp.user_id,
               name: profile?.username || 'プレイヤー',
               username: profile?.username || 'プレイヤー',
-              avatar_url: profile?.avatar_url || '/assets/images/info/hito_icon_1.png',
+              avatar_id: profile?.avatar_id || 1,
               cat_coins: profile?.cat_coins || 0,
               rating: profile?.rating || 1500,
               user_rank_class: profile?.class || 1,

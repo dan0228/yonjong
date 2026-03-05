@@ -5,7 +5,7 @@ create table public.users (
   yaku_achievements jsonb not null default '{}'::jsonb,
   revealed_sayings jsonb not null default '{}'::jsonb,
   cat_coins integer not null default 0,
-  avatar_url text null,
+  avatar_id integer null,
   daily_free_omikuji_count integer not null default 3,
   last_omikuji_draw_date date null,
   email text null,

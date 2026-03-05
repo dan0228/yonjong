@@ -125,12 +125,6 @@ export const useUserStore = defineStore('user', () => {
       // ローカルのstateも更新
       Object.assign(profile.value, updates);
 
-      // avatar_urlが更新された場合、画像をプリロードする
-      if (updates.avatar_url && profile.value.avatar_url) {
-        const img = new Image();
-        img.src = profile.value.avatar_url;
-      }
-
     } catch (error) {
       console.error('プロフィール更新エラー:', error.message);
     } finally {
@@ -181,8 +175,7 @@ export const useUserStore = defineStore('user', () => {
       // キャッシュを無効化するためにタイムスタンプを追加
       const publicUrl = `${urlData.publicUrl}?timestamp=${new Date().getTime()}`;
 
-      // usersテーブルのavatar_urlを更新
-      await updateUserProfile({ avatar_url: publicUrl }, { showLoading: false });
+
 
     } catch (error) {
       console.error('アバターのアップロードに失敗しました:', error.message);
@@ -478,7 +471,6 @@ export const useUserStore = defineStore('user', () => {
     loginEmail,
     fetchUserProfile,
     updateUserProfile,
-    uploadAvatar,
     signInWithEmailOtp,
     verifyEmailOtp,
     updateUserEmail, // 新しいアクションを公開

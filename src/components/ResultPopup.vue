@@ -417,9 +417,12 @@ const winnerIconSrc = computed(() => {
   const player = gameStore.players.find(p => p.id === targetPlayerId);
   if (!player) return null;
 
-  // player1 (あなた) の場合はアバターURLがあればそれを使用
-  if (player.id === 'player1' && userStore.profile?.avatar_url) {
-    return userStore.profile.avatar_url;
+  // player1 (あなた) またはオンライン対戦の他プレイヤーのアバター
+  if (player.avatar_id) {
+    return `/assets/images/icon_preset/icon${player.avatar_id}.png`;
+  }
+  if (player.id === 'player1' && userStore.profile?.avatar_id) {
+    return `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png`;
   }
   // それ以外は既存のロジック
   if (player.id === 'player1') return '/assets/images/info/hito_icon_1.png'; // あなた

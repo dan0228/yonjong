@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION public.create_friend_match_with_passcode(
     p_user_id uuid,
     p_user_rating integer,
     p_username text,
-    p_avatar_url text,
+    p_avatar_id integer,
     p_passcode text
 )
 RETURNS TABLE(out_game_id uuid, out_is_full boolean, out_players jsonb)
@@ -16,7 +16,7 @@ BEGIN
     PERFORM pg_advisory_xact_lock(1);
 
     -- 参加するプレイヤーの完全なプロフィールを取得
-    SELECT id, username, avatar_url, rating, cat_coins, total_games_played,
+    SELECT id, username, avatar_id, rating, cat_coins, total_games_played,
            first_place_count, second_place_count, third_place_count, fourth_place_count,
            class as user_class
     INTO v_user_profile
@@ -49,7 +49,7 @@ BEGIN
                     'id', p_user_id,
                     'name', p_username,
                     'username', p_username,
-                    'avatar_url', COALESCE(p_avatar_url, '/assets/images/info/hito_icon_1.png'),
+                    'avatar_id', COALESCE(p_avatar_id, '/assets/images/info/hito_icon_1.png'),
                     'rating', p_user_rating,
                     'cat_coins', v_user_profile.cat_coins,
                     'total_games_played', v_user_profile.total_games_played,
@@ -84,7 +84,7 @@ BEGIN
             'id', u.id,
             'name', u.username,
             'username', u.username,
-            'avatar_url', COALESCE(u.avatar_url, '/assets/images/info/hito_icon_1.png'),
+            'avatar_id', COALESCE(u.avatar_id, '/assets/images/info/hito_icon_1.png'),
             'rating', u.rating,
             'cat_coins', u.cat_coins,
             'total_games_played', u.total_games_played,

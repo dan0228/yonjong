@@ -119,54 +119,23 @@
           <div class="form-group avatar-group">
             <label>{{ $t('usernameRegistration.avatarLabel') }}</label>
             <div class="avatar-upload-container">
-              <label for="avatar-upload-settings">
-                <img
-                  :src="previewUrl || userStore.profile?.avatar_url || '/assets/images/info/hito_icon_1.png'"
-                  alt="Avatar Preview"
-                  class="avatar-preview"
-                >
-              </label>
-              <input
-                id="avatar-upload-settings"
-                ref="fileInput"
-                type="file"
-                accept="image/png, image/jpeg"
-                style="display: none;"
-                @change="onFileChange"
+              <img
+                :src="previewUrl || (userStore.profile?.avatar_id ? `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png` : '/assets/images/info/hito_icon_1.png')"
+                alt="Avatar Preview"
+                class="avatar-preview"
               >
               <div class="x-input-and-buttons">
                 <div class="button-stack">
                   <button
                     type="button"
                     class="custom-button x-avatar-button"
-                    :disabled="isLoadingXAvatar"
-                    @click="onXAvatarClick"
+                    @click="showAvatarSelection = true"
                   >
-                    <LoadingIndicator v-if="isLoadingXAvatar" />
-                    <span v-else>{{ $t('avatarSection.getXIconButton') }}</span>
+                    <span>{{ $t('avatarSection.changeAvatarButton') }}</span>
                   </button>
-                </div>
-                <input
-                  id="x-handle-input-settings"
-                  v-model="xHandleInput"
-                  type="text"
-                  :placeholder="$t('avatarSection.xAccountPlaceholder')"
-                  class="x-handle-input"
-                >
-                <div
-                  v-if="xHandleError"
-                  class="error-message"
-                >
-                  {{ xHandleError }}
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="avatar-notes">
-            <p>{{ $t('avatarSection.uploadNote') }}</p>
-            <p>{{ $t('avatarSection.xAccountNote') }}</p>
-            <p>{{ $t('avatarSection.rightsNote') }}</p>
           </div>
 
           <div class="email-edit-section">
@@ -271,6 +240,26 @@
           </button>
         </div>
       </div>
+
+      <!-- アバター選択ポップアップ -->
+      <div v-if="showAvatarSelection" class="avatar-selection-overlay" @click.self="showAvatarSelection = false">
+        <div class="avatar-selection-content">
+          <h3 class="popup-title" style="margin-top: 5px; margin-bottom: 15px; font-size: 1.5em;">{{ $t('avatarSection.selectAvatarTitle') }}</h3>
+          <div class="avatar-grid">
+            <img
+              v-for="n in 12"
+              :key="n"
+              :src="`/assets/images/icon_preset/icon${n}.png`"
+              class="avatar-option"
+              @click="selectPresetAvatar(n)"
+            >
+          </div>
+          <button type="button" class="custom-button cancel-button" style="margin-top: 15px;" @click="showAvatarSelection = false">
+            {{ $t('settingsPopup.cancelButton') }}
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -280,7 +269,6 @@ import { ref, computed, watch, defineProps, defineEmits } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/userStore';
 import { containsProfanity } from '@/utils/validationUtils';
-import { compressImage } from '@/utils/imageUtils';
 import LoadingIndicator from '@/components/LoadingIndicator.vue';
 import { useAudioStore } from '@/stores/audioStore'; // Import audio store
 
@@ -302,11 +290,9 @@ const isVerifyingOtp = ref(false);
 
 // --- プロフィール編集関連の状態 ---
 const username = ref('');
-const selectedFile = ref(null);
 const previewUrl = ref(null);
-const xHandleInput = ref('');
-const xHandleError = ref('');
-const isLoadingXAvatar = ref(false);
+const selectedAvatarId = ref(1);
+const showAvatarSelection = ref(false);
 
 // --- メールアドレス編集関連の状態 ---
 const emailInput = ref('');
@@ -315,10 +301,6 @@ const isEditingEmail = ref(false);
 const isUpdatingEmail = ref(false);
 const emailUpdateMessage = ref('');
 const pendingEmail = ref(null);
-
-watch(xHandleInput, () => {
-  xHandleError.value = '';
-});
 
 // ポップアップ表示時の処理
 watch(() => props.show, (newValue) => {
@@ -336,10 +318,9 @@ watch(() => props.show, (newValue) => {
 
 const initializeProfileForm = () => {
   username.value = userStore.profile.username || '';
-  previewUrl.value = userStore.profile.avatar_url || null;
-  selectedFile.value = null;
-  xHandleInput.value = '';
-  xHandleError.value = '';
+  previewUrl.value = userStore.profile.avatar_id ? `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png` : null;
+  selectedAvatarId.value = userStore.profile.avatar_id || null;
+  showAvatarSelection.value = false;
   emailInput.value = userStore.profile.email || '';
   isEditingEmail.value = false;
   emailError.value = '';
@@ -429,78 +410,11 @@ const requestEmailUpdate = async () => {
   isUpdatingEmail.value = false;
 };
 
-// --- ファイル選択ハンドラ ---
-const onFileChange = async (e) => {
-  xHandleError.value = '';
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!['image/jpeg', 'image/png'].includes(file.type)) {
-    alert(t('usernameRegistration.errors.imageFormat'));
-    return;
-  }
-  try {
-    const compressedBlob = await compressImage(file, 200, 200);
-    selectedFile.value = new File([compressedBlob], file.name, { type: 'image/png' });
-    previewUrl.value = URL.createObjectURL(selectedFile.value);
-  } catch (error) {
-    console.error('画像の圧縮に失敗しました:', error);
-    selectedFile.value = file;
-    previewUrl.value = URL.createObjectURL(file);
-  }
-};
-
-// --- Xアバター取得ハンドラ ---
-const onXAvatarClick = async () => {
-  isLoadingXAvatar.value = true;
-  xHandleError.value = '';
-  const xHandle = xHandleInput.value;
-  if (!xHandle) {
-    xHandleError.value = t('avatarSection.xAccountValidation.empty');
-    isLoadingXAvatar.value = false;
-    return;
-  }
-
-  let cleanHandle = xHandle.startsWith('@') ? xHandle.substring(1) : xHandle;
-
-  const alphanumericRegex = /^[a-zA-Z0-9_]+$/;
-  if (!alphanumericRegex.test(cleanHandle)) {
-    xHandleError.value = t('avatarSection.xAccountValidation.invalidChars');
-    isLoadingXAvatar.value = false;
-    return;
-  }
-
-  try {
-    const unavatarUrl = `https://unavatar.io/twitter/${cleanHandle}`;
-    const xAvatarUrl = `https://images.weserv.nl/?url=${encodeURIComponent(unavatarUrl)}`;
-    
-    const response = await fetch(xAvatarUrl, { mode: 'cors', credentials: 'omit' });
-
-    if (!response.ok) {
-      console.error(`Failed to fetch X avatar from unavatar.io: ${response.status} ${response.statusText}`);
-      xHandleError.value = t('avatarSection.xAccountValidation.fetchFailed');
-      isLoadingXAvatar.value = false;
-      return;
-    }
-
-    const contentType = response.headers.get('Content-Type');
-    if (!contentType || !contentType.startsWith('image/')) {
-      console.error('Received non-image content from unavatar.io:', contentType);
-      xHandleError.value = t('avatarSection.xAccountValidation.invalidContent');
-      isLoadingXAvatar.value = false;
-      return;
-    }
-
-    const blob = await response.blob();
-
-    selectedFile.value = new File([blob], `x_avatar_${cleanHandle}.png`, { type: blob.type });
-    previewUrl.value = URL.createObjectURL(selectedFile.value);
-
-  } catch (error) {
-    console.error('Xアバターの取得中にエラーが発生しました:', error);
-    xHandleError.value = t('avatarSection.xAccountValidation.networkError');
-  } finally {
-    isLoadingXAvatar.value = false;
-  }
+// --- アバター選択ハンドラ ---
+const selectPresetAvatar = (n) => {
+  selectedAvatarId.value = n;
+  previewUrl.value = `/assets/images/icon_preset/icon${n}.png`;
+  showAvatarSelection.value = false;
 };
 
 // --- バリデーション ---
@@ -524,10 +438,12 @@ const saveProfile = async () => {
   if (!isFormValid.value) return;
 
   try {
-    await userStore.updateUserProfile({ username: username.value });
-    if (selectedFile.value) {
-      await userStore.uploadAvatar(selectedFile.value);
+    const updates = { username: username.value };
+    if (selectedAvatarId.value && selectedAvatarId.value !== userStore.profile?.avatar_id) {
+      updates.avatar_id = selectedAvatarId.value;
     }
+    await userStore.updateUserProfile(updates);
+    
     await userStore.fetchUserProfile();
     emit('close');
   } catch (error) {
@@ -903,6 +819,55 @@ const handleDeleteAccount = () => {
   display: block;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* アバター選択オーバーレイ */
+.avatar-selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1060;
+  border-radius: 10px;
+}
+.avatar-selection-content {
+  background-image: url('/assets/images/back/omikuji_board.png');
+  background-size: cover;
+  background-position: center;
+  padding: 15px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+}
+.avatar-option {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.avatar-option:hover {
+  transform: scale(1.1);
+  border-color: #8B4513;
 }
 </style>
 
