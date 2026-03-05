@@ -81,7 +81,7 @@
               <img
                 :src="finalClassImage"
                 alt="Rank Class"
-                class="rank-class-icon"
+                :class="['rank-class-icon', { 'is-slamming': showClassAnimation }]"
                 crossorigin="anonymous"
               >
               <span :class="{ 'positive-gain': playerRatingChange > 0, 'negative-gain': playerRatingChange < 0 }">
@@ -165,6 +165,7 @@ const props = defineProps({
 // アニメーション用の猫コインとレートの現在値
 const currentAnimatedCatCoins = ref(0);
 const currentAnimatedRating = ref(0);
+const showClassAnimation = ref(false);
 
 // 表示用の値（適度な範囲に制限）
 const displayCatCoins = computed(() => {
@@ -213,6 +214,8 @@ const finalClassImage = computed(() => {
 // ポップアップが表示されたときにアニメーションを開始
 watch(() => props.show, (newValue) => {
   if (newValue && userStore.profile) {
+    showClassAnimation.value = false; // 初期化
+
     // 猫コインのアニメーション開始値と終了値
     const initialCoins = userStore.profile.cat_coins;
     const finalCoins = initialCoins + gameStore.lastCoinGain;
@@ -224,12 +227,15 @@ watch(() => props.show, (newValue) => {
       const initialRating = userStore.profile.rating || 1500;
       const finalRating = initialRating + playerRatingChange.value;
       currentAnimatedRating.value = initialRating;
-      animateValue(currentAnimatedRating, initialRating, finalRating);
+      // レートのアニメーションが終わったらクラスアイコンのアニメーションを開始
+      animateValue(currentAnimatedRating, initialRating, finalRating, () => {
+        showClassAnimation.value = true;
+      });
     }
   }
 }, { immediate: true }); // 初期表示時にも実行
 
-function animateValue(refTarget, startValue, endValue) {
+function animateValue(refTarget, startValue, endValue, onComplete = null) {
   const duration = 1000; // 1秒
   const startTime = performance.now();
 
@@ -243,6 +249,7 @@ function animateValue(refTarget, startValue, endValue) {
       requestAnimationFrame(step);
     } else {
       refTarget.value = endValue; // 最終値を保証
+      if (onComplete) onComplete();
     }
   };
 
@@ -553,6 +560,10 @@ function getPlayerIcon(playerId) {
   object-fit: contain;
   margin-right: 10px;
   margin-top: -10px;
+  opacity: 0; /* 初期状態は非表示 */
+}
+
+.rank-class-icon.is-slamming {
   animation: slam-down 0.5s ease-in-out forwards;
 }
 
