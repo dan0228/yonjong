@@ -1245,12 +1245,20 @@ async function handleGameEnd(gameId) {
   if (gameState.gamePhase === GAME_PHASES.GAME_OVER) {
     console.log(`[Server] Game ${gameId} is over. Moving data to history tables.`);
 
-    // games テーブルのデータを games_history に挿入
+    // 先に両方のテーブルからデータを取得する（games を削除すると cascade で game_players も消えるため）
     const { data: gameDataToArchive, error: fetchGameError } = await supabase
       .from('games')
       .select('*')
       .eq('id', gameId)
       .single();
+
+    const { data: dbPlayers, error: fetchDbPlayersError } = await supabase
+      .from('game_players')
+      .select('*')
+      .eq('game_id', gameId);
+
+    let gameHistorySuccess = false;
+    let playersHistorySuccess = false;
 
     if (fetchGameError) {
       console.error(`Error fetching game ${gameId} for archiving:`, fetchGameError);
@@ -1277,26 +1285,9 @@ async function handleGameEnd(gameId) {
         console.error(`Error inserting game ${gameId} into games_history:`, insertGameHistoryError);
       } else {
         console.log(`Game ${gameId} moved to games_history.`);
-        // games テーブルから削除
-        const { error: deleteGameError } = await supabase
-          .from('games')
-          .delete()
-          .eq('id', gameId);
-
-        if (deleteGameError) {
-          console.error(`Error deleting game ${gameId} from games:`, deleteGameError);
-        } else {
-          console.log(`Game ${gameId} deleted from games.`);
-        }
+        gameHistorySuccess = true;
       }
     }
-
-    // game_players テーブルのデータを game_players_history に挿入
-    // DBから最新のプレイヤー情報を取得して、メモリ上の統計情報とマージする
-    const { data: dbPlayers, error: fetchDbPlayersError } = await supabase
-      .from('game_players')
-      .select('*')
-      .eq('game_id', gameId);
 
     if (fetchDbPlayersError) {
       console.error(`Error fetching game players for archiving:`, fetchDbPlayersError);
@@ -1306,6 +1297,7 @@ async function handleGameEnd(gameId) {
         const playerStats = updatedRankedPlayers.find(p => p.id === dbPlayer.user_id);
         
         return {
+          id: dbPlayer.id, // ★明示的にIDを挿入する（DB側のデフォルト値設定漏れ対策）
           game_id: gameId,
           user_id: dbPlayer.user_id,
           seat_index: dbPlayer.seat_index,
@@ -1329,18 +1321,21 @@ async function handleGameEnd(gameId) {
         console.error(`Error inserting game players for game ${gameId} into game_players_history:`, insertPlayersHistoryError);
       } else {
         console.log(`Game players for game ${gameId} moved to game_players_history.`);
-        // game_players テーブルから削除
-        const { error: deletePlayersError } = await supabase
-          .from('game_players')
-          .delete()
-          .eq('game_id', gameId);
-
-        if (deletePlayersError) {
-          console.error(`Error deleting game players for game ${gameId} from game_players:`, deletePlayersError);
-        } else {
-          console.log(`Game players for game ${gameId} deleted from game_players.`);
-        }
+        playersHistorySuccess = true;
       }
+    }
+
+    // 履歴への保存処理が「両方とも」成功した場合のみ、元のテーブルから一括で削除する
+    // これにより、エラー時にデータが消失するのを防ぐ
+    if (gameHistorySuccess && playersHistorySuccess) {
+      const { error: deletePlayersError } = await supabase.from('game_players').delete().eq('game_id', gameId);
+      if (deletePlayersError) console.error(`Error deleting game players for game ${gameId}:`, deletePlayersError);
+
+      const { error: deleteGameError } = await supabase.from('games').delete().eq('id', gameId);
+      if (deleteGameError) console.error(`Error deleting game ${gameId} from games:`, deleteGameError);
+      else console.log(`Game ${gameId} and its players deleted from ongoing tables.`);
+    } else {
+      console.warn(`[Server] Skipped deletion of game ${gameId} due to history archiving failure.`);
     }
   }
 
@@ -2138,12 +2133,16 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
             is_friend_match: gameDataToMove.passcode ? true : false
           };
           
+          let gameHistorySuccess = false;
+          let playersHistorySuccess = false;
+          
           // games_historyに挿入
           const { error: insertGameHistoryError } = await supabase
             .from('games_history')
             .insert([gameDataHistory]);
             
           if (insertGameHistoryError) throw insertGameHistoryError;
+          gameHistorySuccess = true;
           
           // 現在のプレイヤー情報を取得
           const { data: gamePlayersToMove, error: fetchPlayersError } = await supabase
@@ -2169,11 +2168,16 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
               .insert(playersHistory);
               
             if (insertPlayersHistoryError) throw insertPlayersHistoryError;
+            playersHistorySuccess = true;
+          } else {
+             playersHistorySuccess = true; // プレイヤーがいない場合も成功とみなす
           }
           
-          // 元のテーブルから削除
-          await supabase.from('game_players').delete().eq('game_id', gameId);
-          await supabase.from('games').delete().eq('id', gameId);
+          if (gameHistorySuccess && playersHistorySuccess) {
+            // 元のテーブルから削除
+            await supabase.from('game_players').delete().eq('game_id', gameId);
+            await supabase.from('games').delete().eq('id', gameId);
+          }
           
           // メモリからゲーム状態を削除
           delete gameStates[gameId];
