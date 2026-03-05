@@ -1290,22 +1290,32 @@ async function handleGameEnd(gameId) {
     }
 
     // game_players テーブルのデータを game_players_history に挿入
-    // ★修正: 新しいカラム (final_score, final_rank, rating_change, final_rating) を含めて挿入
-    const gamePlayersToArchiveWithStats = updatedRankedPlayers.map(player => ({
-      id: player.id, // game_players_history の id は gen_random_uuid() なので、ここでは user_id を使う
-      game_id: gameId,
-      user_id: player.id,
-      seat_index: gameState.players.find(p => p.id === player.id)?.seat_index, // 元の seat_index を取得
-      status: 'finished', // 履歴に移動する時点では finished
-      joined_at: gameState.players.find(p => p.id === player.id)?.joined_at, // 元の joined_at を取得
-      updated_at: new Date(),
-      final_score: player.score,
-      final_rank: player.rank,
-      rating_change: player.rating_change,
-      final_rating: player.rating + player.rating_change, // 試合後のレート
-    }));
+    // DBから最新のプレイヤー情報を取得して、メモリ上の統計情報とマージする
+    const { data: dbPlayers, error: fetchDbPlayersError } = await supabase
+      .from('game_players')
+      .select('*')
+      .eq('game_id', gameId);
 
-    if (gamePlayersToArchiveWithStats.length > 0) {
+    if (fetchDbPlayersError) {
+      console.error(`Error fetching game players for archiving:`, fetchDbPlayersError);
+    } else if (dbPlayers && dbPlayers.length > 0) {
+      const gamePlayersToArchiveWithStats = dbPlayers.map(dbPlayer => {
+        const playerStats = updatedRankedPlayers.find(p => p.id === dbPlayer.user_id);
+        return {
+          id: dbPlayer.id, // game_players テーブルの元のIDを保持
+          game_id: gameId,
+          user_id: dbPlayer.user_id,
+          seat_index: dbPlayer.seat_index,
+          status: 'finished',
+          joined_at: dbPlayer.joined_at,
+          updated_at: new Date().toISOString(),
+          final_score: playerStats ? playerStats.score : null,
+          final_rank: playerStats ? playerStats.rank : null,
+          rating_change: playerStats ? playerStats.rating_change : 0,
+          final_rating: playerStats ? (playerStats.rating + playerStats.rating_change) : null,
+        };
+      });
+
       const { error: insertPlayersHistoryError } = await supabase
         .from('game_players_history')
         .insert(gamePlayersToArchiveWithStats);
