@@ -507,6 +507,18 @@ export const useGameStore = defineStore('game', {
         '/assets/images/icon_preset/icon10.png',
         '/assets/images/icon_preset/icon11.png',
         '/assets/images/icon_preset/icon12.png',
+        '/assets/images/icon_preset/icon13.png',
+        '/assets/images/icon_preset/icon14.png',
+        '/assets/images/icon_preset/icon15.png',
+        '/assets/images/icon_preset/icon16.png',
+        '/assets/images/icon_preset/icon17.png',
+        '/assets/images/icon_preset/icon18.png',
+        '/assets/images/icon_preset/icon19.png',
+        '/assets/images/icon_preset/icon20.png',
+        '/assets/images/icon_preset/icon21.png',
+        '/assets/images/icon_preset/icon22.png',
+        '/assets/images/icon_preset/icon23.png',
+        '/assets/images/icon_preset/icon24.png',
       ];
       const audioPaths = [
         '/assets/sounds/Kagura_Suzu01-7.mp3', // おみくじ
