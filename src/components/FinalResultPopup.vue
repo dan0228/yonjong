@@ -89,7 +89,7 @@
               </span>
             </div>
             <div class="rating-total-display">
-              <span class="total-rating-value">Total: {{ displayRating }}</span>
+              <span class="total-rating-value">New: {{ displayRating }}</span>
             </div>
           </div>
         </div>
@@ -304,22 +304,26 @@ function backToTitle() {
  */
 function getPlayerIcon(playerId) {
   const player = gameStore.players.find(p => p.id === playerId);
-  if (!player) return null;
+  if (!player) return '/assets/images/info/hito_icon_1.png';
 
-  // プレイヤーがアバターIDを持っていればそれを使用（オンライン対戦）
+  // 1. プレイヤーがアバターIDを持っていればそれを使用（オンライン対戦の他プレイヤーや自分）
   if (player.avatar_id) {
     return `/assets/images/icon_preset/icon${player.avatar_id}.png`;
   }
-  // プレイヤーが自分自身で、かつアバターIDが設定されていればそれを使用
+  
+  // 2. プレイヤーが自分自身（player1）で、かつストアにアバターIDがあればそれを使用
   if (player.id === 'player1' && userStore.profile?.avatar_id) {
     return `/assets/images/icon_preset/icon${userStore.profile.avatar_id}.png`;
   }
-  if (player.id === 'player1') return '/assets/images/info/hito_icon_1.png'; // あなた
+
+  // 3. AIプレイヤーのアイコン判定
   if (player.originalId === 'kuro') return '/assets/images/info/cat_icon_3.png'; // くろ
   if (player.originalId === 'tama') return '/assets/images/info/cat_icon_2.png'; // たま
   if (player.originalId === 'tora') return '/assets/images/info/cat_icon_1.png'; // とら
   if (player.originalId === 'janneko') return '/assets/images/info/cat_icon_4.png'; // 雀猫様
-  return null;
+
+  // 4. 上記以外（アバター未設定の人間プレイヤーなど）はデフォルトアイコン
+  return '/assets/images/info/hito_icon_1.png';
 }
 
 
@@ -529,8 +533,8 @@ function getPlayerIcon(playerId) {
 .total-cat-coins-value, .total-rating-value {
   font-size: 1.0em; /* 増減値と同じくらいか少し大きく */
   color: #9b0f0f; /* positive-gainと同じ色 */
-  margin-bottom: 10px;
-  margin-top: -20px;
+  margin-bottom: 0px;
+  margin-top: -18px;
 }
 
 .positive-gain, .negative-gain {
@@ -538,15 +542,17 @@ function getPlayerIcon(playerId) {
 }
 
 .cat-coin-icon {
-  width: 50px;
-  height: 50px;
+  width: 70px;
+  height: 70px;
   margin-left: 0px;
+  margin-top: -10px;
 }
 
 .rank-class-icon {
-  height: 40px;
+  height: 70px;
   object-fit: contain;
   margin-right: 10px;
+  margin-top: -10px;
 }
 .actions {
   display: flex;
@@ -581,11 +587,15 @@ function getPlayerIcon(playerId) {
 }
 
 .back-to-title-button {
+  position: absolute;
+  right: 10px;
+  bottom: 15px;;
   background-image: url('/assets/images/button/buckToTitle.png');
-  width: 90px; /* 例: 画像のサイズに合わせて調整 */
-  height: 65px; /* 例: 画像のサイズに合わせて調整 */
-  margin-top: -10px;
+  width: 70px; /* 例: 画像のサイズに合わせて調整 */
+  height: 55px; /* 例: 画像のサイズに合わせて調整 */
+  margin-top: -20px;
   margin-left: 20px;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); /* 影を調整 */;
 }
 
 .timestamp {
