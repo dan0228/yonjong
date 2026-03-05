@@ -2327,8 +2327,8 @@ io.on('connection', (socket) => {
   });
 
   // クライアントがマッチメイキングを要求する
-  socket.on('requestMatchmaking', async ({ userId, rating, username, avatarUrl }) => {
-    console.log(`[1/5] Matchmaking request received from user: ${userId}, rating: ${rating}, socket: ${socket.id}, avatarUrl: ${avatarUrl}`);
+  socket.on('requestMatchmaking', async ({ userId, rating, username, avatarId }) => {
+    console.log(`[1/5] Matchmaking request received from user: ${userId}, rating: ${rating}, socket: ${socket.id}, avatarId: ${avatarId}`);
 
     if (!userId || rating === undefined || !username) {
         console.error('[ERROR] Invalid request: userId, rating or username is missing.');
@@ -2345,7 +2345,7 @@ io.on('connection', (socket) => {
             p_user_id: userId,
             p_user_rating: rating,
             p_username: username,
-            p_avatar_url: avatarUrl
+            p_avatar_id: avatarId
         });
 
         if (rpcError) {
@@ -2418,7 +2418,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarUrl, actionType }) => {
+  socket.on('requestFriendMatchmaking', async ({ userId, passcode, username, avatarId, actionType }) => {
     console.log(`[Friend Matchmaking START] Request from user: ${userId}, passcode: ${passcode}, actionType: ${actionType}`);
 
     if (!userId || !passcode || !username || !actionType) {
@@ -2440,7 +2440,7 @@ io.on('connection', (socket) => {
                 p_user_id: userId,
                 p_user_rating: 1500, // 友人対戦では使用しないが、RPCの引数として必要
                 p_username: username,
-                p_avatar_url: avatarUrl,
+                p_avatar_id: avatarId,
                 p_passcode: passcode
             }));
             if (rpcError) {
@@ -2456,7 +2456,7 @@ io.on('connection', (socket) => {
                 p_user_id: userId,
                 p_user_rating: 1500, // 友人対戦では使用しないが、RPCの引数として必要
                 p_username: username,
-                p_avatar_url: avatarUrl,
+                p_avatar_id: avatarId,
                 p_passcode: passcode
             }));
             if (rpcError) {
