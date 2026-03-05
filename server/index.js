@@ -1939,18 +1939,29 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     }
 
     if (remainingPlayerCount === 0) {
-      // game_players が空になったら games テーブルからも削除
-      const { error: deleteGameError } = await supabase
-        .from('games')
-        .delete()
-        .eq('id', gameId);
+      // ★修正: ゲームが開始済みの場合、履歴テーブルに移動する
+      if (game && game.hasStarted) {
+        console.log(`[Server] Game ${gameId} had started. Archiving disconnected game as last player left.`);
+        const { error: rpcError } = await supabase.rpc('archive_disconnected_game', { game_uuid: gameId });
 
-      if (deleteGameError) {
-        console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
+        if (rpcError) {
+          console.error(`[Server] Error archiving game ${gameId}:`, rpcError);
+        } else {
+          console.log(`[Server] Game ${gameId} successfully archived.`);
+        }
+      } else {
+        // ゲームが開始されていなかった場合は、単純にテーブルから削除
+        const { error: deleteGameError } = await supabase
+          .from('games')
+          .delete()
+          .eq('id', gameId);
+
+        if (deleteGameError) {
+          console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
+        }
       }
       delete gameStates[gameId];
-      console.log(`Game ${gameId} removed from memory and DB.`);
-    } else {
+      console.log(`Game ${gameId} removed from memory and DB.`); else {
       // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
       // プレイヤーが残っている場合、他のプレイヤーにマッチング状態更新をブロードキャスト
             game.version = currentVersion + 1; // メモリ上のバージョンも更新
