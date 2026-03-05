@@ -1939,38 +1939,26 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     }
 
     if (remainingPlayerCount === 0) {
-      // ★修正: ゲームが開始済みの場合、履歴テーブルに移動する
-      if (game && game.hasStarted) {
-        console.log(`[Server] Game ${gameId} had started. Archiving disconnected game as last player left.`);
-        const { error: rpcError } = await supabase.rpc('archive_disconnected_game', { game_uuid: gameId });
+      // game_players が空になったら games テーブルからも削除
+      const { error: deleteGameError } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', gameId);
 
-        if (rpcError) {
-          console.error(`[Server] Error archiving game ${gameId}:`, rpcError);
-        } else {
-          console.log(`[Server] Game ${gameId} successfully archived.`);
-        }
-      } else {
-        // ゲームが開始されていなかった場合は、単純にテーブルから削除
-        const { error: deleteGameError } = await supabase
-          .from('games')
-          .delete()
-          .eq('id', gameId);
-
-        if (deleteGameError) {
-          console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
-        }
+      if (deleteGameError) {
+        console.error(`Error deleting game ${gameId} from games table:`, deleteGameError);
       }
       delete gameStates[gameId];
       console.log(`Game ${gameId} removed from memory and DB.`);
     } else {
       // プレイヤーが残っている場合、他のプレイヤーに状態更新をブロードキャスト
       // プレイヤーが残っている場合、他のプレイヤーにマッチング状態更新をブロードキャスト
-      game.version = currentVersion + 1; // メモリ上のバージョンも更新
+            game.version = currentVersion + 1; // メモリ上のバージョンも更新
 
-      // DBから最新のプレイヤーリストを取得してブロードキャスト
-      const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
-        .from('game_players')
-        .select(`
+            // DBから最新のプレイヤーリストを取得してブロードキャスト
+            const { data: updatedGamePlayers, error: fetchPlayersError } = await supabase
+                .from('game_players')
+                .select(`
                     user_id,
                     seat_index,
                     users (
@@ -1987,42 +1975,42 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
                         class
                     )
                 `)
-        .eq('game_id', gameId)
-        .order('seat_index', { ascending: true });
+                .eq('game_id', gameId)
+                .order('seat_index', { ascending: true });
 
-      if (fetchPlayersError) {
-        console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
-        return;
-      }
+            if (fetchPlayersError) {
+                console.error(`Error fetching updated game players for game ${gameId}:`, fetchPlayersError);
+                return;
+            }
 
-      const playersForMatchmaking = updatedGamePlayers.map(gp => ({
-        id: gp.users.id,
-        name: gp.users.username,
-        username: gp.users.username,
-        avatar_url: gp.users.avatar_url,
-        rating: gp.users.rating,
-        cat_coins: gp.users.cat_coins,
-        total_games_played: gp.users.total_games_played,
-        first_place_count: gp.users.first_place_count,
-        second_place_count: gp.users.second_place_count,
-        third_place_count: gp.users.third_place_count,
-        fourth_place_count: gp.users.fourth_place_count,
-        user_rank_class: gp.users.class,
-        score: 50000, // マッチング画面では初期スコアを表示
-        isAi: false,
-        seat_index: gp.seat_index
-      }));
+            const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+                id: gp.users.id,
+                name: gp.users.username,
+                username: gp.users.username,
+                avatar_url: gp.users.avatar_url,
+                rating: gp.users.rating,
+                cat_coins: gp.users.cat_coins,
+                total_games_played: gp.users.total_games_played,
+                first_place_count: gp.users.first_place_count,
+                second_place_count: gp.users.second_place_count,
+                third_place_count: gp.users.third_place_count,
+                fourth_place_count: gp.users.fourth_place_count,
+                user_rank_class: gp.users.class,
+                score: 50000, // マッチング画面では初期スコアを表示
+                isAi: false,
+                seat_index: gp.seat_index
+            }));
 
-      const roomName = game.passcode ? game.passcode : gameId;
-      const eventName = game.passcode ? 'matchmaking-update-friend' : 'matchmaking-update';
+            const roomName = game.passcode ? game.passcode : gameId;
+            const eventName = game.passcode ? 'matchmaking-update-friend' : 'matchmaking-update';
 
-      console.log(`[Server Debug] Emitting '${eventName}' to room '${roomName}'. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
-      io.to(roomName).emit(eventName, {
-        gameId: gameId,
-        players: playersForMatchmaking,
-        ...(game.passcode && { passcode: game.passcode })
-      });
-      console.log(`[Server] Broadcasted '${eventName}' for game ${gameId} to room ${roomName} with updated players.`);
+            console.log(`[Server Debug] Emitting '${eventName}' to room '${roomName}'. Players:`, JSON.stringify(playersForMatchmaking, null, 2));
+            io.to(roomName).emit(eventName, { 
+                gameId: gameId, 
+                players: playersForMatchmaking, 
+                ...(game.passcode && { passcode: game.passcode }) 
+            });
+            console.log(`[Server] Broadcasted '${eventName}' for game ${gameId} to room ${roomName} with updated players.`);
     }
 
   } else if (currentGameStateInDb === 'in_progress') {
