@@ -1306,7 +1306,6 @@ async function handleGameEnd(gameId) {
         const playerStats = updatedRankedPlayers.find(p => p.id === dbPlayer.user_id);
         
         return {
-          id: dbPlayer.id, // game_players テーブルの元のIDを保持
           game_id: gameId,
           user_id: dbPlayer.user_id,
           seat_index: dbPlayer.seat_index,
@@ -1319,6 +1318,8 @@ async function handleGameEnd(gameId) {
           final_rating: playerStats ? (playerStats.rating + playerStats.rating_change) : null,
         };
       });
+
+      console.log(`[DEBUG] gamePlayersToArchiveWithStats:`, JSON.stringify(gamePlayersToArchiveWithStats, null, 2));
 
       const { error: insertPlayersHistoryError } = await supabase
         .from('game_players_history')
