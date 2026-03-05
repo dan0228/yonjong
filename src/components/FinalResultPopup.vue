@@ -553,6 +553,25 @@ function getPlayerIcon(playerId) {
   object-fit: contain;
   margin-right: 10px;
   margin-top: -10px;
+  animation: slam-down 0.5s ease-in-out forwards;
+}
+
+@keyframes slam-down {
+  0% {
+    transform: scale(3) translateY(-50px) rotate(-10deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1) translateY(0) rotate(5deg);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(1.1) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
 }
 .actions {
   display: flex;
