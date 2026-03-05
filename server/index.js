@@ -2629,8 +2629,18 @@ io.on('connection', (socket) => {
             };
           });
 
-      // seat_index に基づいてプレイヤーをソート
-      gameStates[gameId].players = initialPlayers.sort((a, b) => a.seat_index - b.seat_index);
+      // プレイヤーの席順をランダムにシャッフルする
+      for (let i = initialPlayers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [initialPlayers[i], initialPlayers[j]] = [initialPlayers[j], initialPlayers[i]];
+      }
+      
+      // シャッフル後の順序で seat_index を振り直す
+      initialPlayers.forEach((p, index) => {
+        p.seat_index = index;
+      });
+
+      gameStates[gameId].players = initialPlayers;
 
       if (gameStates[gameId].dealerIndex === null) {
         gameStates[gameId].dealerIndex = Math.floor(Math.random() * initialPlayers.length);

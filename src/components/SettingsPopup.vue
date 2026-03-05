@@ -246,13 +246,21 @@
         <div class="avatar-selection-content">
           <h3 class="popup-title" style="margin-top: 5px; margin-bottom: 15px; font-size: 1.5em;">{{ $t('avatarSection.selectAvatarTitle') }}</h3>
           <div class="avatar-grid">
-            <img
-              v-for="n in 12"
+            <div
+              v-for="n in 24"
               :key="n"
-              :src="`/assets/images/icon_preset/icon${n}.png`"
-              class="avatar-option"
-              @click="selectPresetAvatar(n)"
+              class="avatar-option-container"
+              :class="{ 'is-locked': n > 12 }"
+              @click="n <= 12 ? selectPresetAvatar(n) : null"
             >
+              <img
+                :src="`/assets/images/icon_preset/icon${n}.png`"
+                class="avatar-option"
+              >
+              <div v-if="n > 12" class="lock-overlay">
+                <span class="lock-icon">🔒</span>
+              </div>
+            </div>
           </div>
           <button type="button" class="custom-button cancel-button" style="margin-top: 15px;" @click="showAvatarSelection = false">
             {{ $t('settingsPopup.cancelButton') }}
@@ -861,13 +869,44 @@ const handleDeleteAccount = () => {
   width: 60px;
   height: 60px;
   border-radius: 8px;
-  cursor: pointer;
+  display: block;
   border: 2px solid transparent;
   transition: transform 0.2s, border-color 0.2s;
 }
-.avatar-option:hover {
+.avatar-option-container {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+}
+.avatar-option-container:hover .avatar-option {
   transform: scale(1.1);
   border-color: #8B4513;
+}
+.avatar-option-container.is-locked {
+  cursor: not-allowed;
+}
+.avatar-option-container.is-locked .avatar-option {
+  filter: grayscale(100%) brightness(0.7);
+}
+.avatar-option-container.is-locked:hover .avatar-option {
+  transform: none;
+  border-color: transparent;
+}
+.lock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.lock-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
 }
 </style>
 
