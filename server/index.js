@@ -1255,12 +1255,21 @@ async function handleGameEnd(gameId) {
       console.error(`Error fetching game ${gameId} for archiving:`, fetchGameError);
     } else if (gameDataToArchive) {
       // ステータスを finished に更新して履歴に保存
-      gameDataToArchive.status = 'finished';
-      gameDataToArchive.updated_at = new Date().toISOString();
+      const gameDataHistory = {
+        id: gameDataToArchive.id,
+        room_tier: gameDataToArchive.room_tier,
+        status: 'finished',
+        avg_rating: gameDataToArchive.avg_rating,
+        game_data: gameDataToArchive.game_data,
+        created_at: gameDataToArchive.created_at,
+        updated_at: new Date().toISOString(),
+        current_turn_user_id: gameDataToArchive.current_turn_user_id,
+        version: gameDataToArchive.version
+      };
 
       const { error: insertGameHistoryError } = await supabase
         .from('games_history')
-        .insert([gameDataToArchive]);
+        .insert([gameDataHistory]);
 
       if (insertGameHistoryError) {
         console.error(`Error inserting game ${gameId} into games_history:`, insertGameHistoryError);
@@ -2101,13 +2110,22 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
         if (fetchGameError) throw fetchGameError;
         
         if (gameDataToMove) {
-          gameDataToMove.status = 'disconnected';
-          gameDataToMove.updated_at = new Date().toISOString();
+          const gameDataHistory = {
+            id: gameDataToMove.id,
+            room_tier: gameDataToMove.room_tier,
+            status: 'disconnected',
+            avg_rating: gameDataToMove.avg_rating,
+            game_data: gameDataToMove.game_data,
+            created_at: gameDataToMove.created_at,
+            updated_at: new Date().toISOString(),
+            current_turn_user_id: gameDataToMove.current_turn_user_id,
+            version: gameDataToMove.version
+          };
           
           // games_historyに挿入
           const { error: insertGameHistoryError } = await supabase
             .from('games_history')
-            .insert([gameDataToMove]);
+            .insert([gameDataHistory]);
             
           if (insertGameHistoryError) throw insertGameHistoryError;
           
@@ -2121,9 +2139,18 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
           
           // game_players_historyに挿入
           if (gamePlayersToMove && gamePlayersToMove.length > 0) {
+            const playersHistory = gamePlayersToMove.map(p => ({
+              id: p.id,
+              game_id: p.game_id,
+              user_id: p.user_id,
+              seat_index: p.seat_index,
+              status: p.status,
+              joined_at: p.joined_at,
+              updated_at: p.updated_at
+            }));
             const { error: insertPlayersHistoryError } = await supabase
               .from('game_players_history')
-              .insert(gamePlayersToMove);
+              .insert(playersHistory);
               
             if (insertPlayersHistoryError) throw insertPlayersHistoryError;
           }
