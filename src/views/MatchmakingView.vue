@@ -343,8 +343,10 @@ onMounted(() => {
   updateScaleFactor();
   window.addEventListener('resize', updateScaleFactor);
   generateFireParticleStyles();
-  // マッチング要求を開始
-  gameStore.requestMatchmaking();
+  // ★修正: すでにゲームIDがなければ（＝全国対戦の場合）マッチングを要求
+  if (!gameStore.onlineGameId) {
+    gameStore.requestMatchmaking();
+  }
   // ★修正: 入室時に効果音を再生
   audioStore.playSound('Hyoshigi01-1.mp3');
 });

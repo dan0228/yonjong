@@ -719,10 +719,10 @@ export const useGameStore = defineStore('game', {
                 this.$patch({ matchmakingPlayers: players });
             }
 
-            // GameModeSelectionPopupでパスコードが表示されるため、ここではjoinGameを発行しない
-            // if (socket && socket.connected) {
-            //     socket.emit('joinGame', { gameId, userId: this.localPlayerId });
-            // }
+            // ★修正: 友人対戦でもゲームチャンネルに参加し、チャットなどを受信できるようにする
+            if (socket && socket.connected) {
+                socket.emit('joinGame', { gameId, userId: this.localPlayerId });
+            }
             this.isActionPending = false; // アクションロック解除
             this.isMatchmakingRequested = false; // リクエストフラグ解除
         });
