@@ -50,25 +50,50 @@
           </div>
         </div>
         
-        <div
-          v-if="gameStore.lastCoinGain !== 0"
-          class="coin-gain"
-        >
-          <div class="coin-change-display">
-            <img
-              src="/assets/images/info/cat_coin.png"
-              alt="Cat Coin"
-              class="cat-coin-icon"
-              crossorigin="anonymous"
-            >
-            <span :class="{ 'positive-gain': gameStore.lastCoinGain > 0, 'negative-gain': gameStore.lastCoinGain < 0 }">
-              {{ gameStore.lastCoinGain > 0 ? '+' : '' }}{{ gameStore.lastCoinGain }}
-            </span>
+        <div class="rewards-container">
+          <!-- 猫コインの表示 -->
+          <div
+            v-if="gameStore.lastCoinGain !== 0"
+            class="coin-gain"
+          >
+            <div class="coin-change-display">
+              <img
+                src="/assets/images/info/cat_coin.png"
+                alt="Cat Coin"
+                class="cat-coin-icon"
+                crossorigin="anonymous"
+              >
+              <span :class="{ 'positive-gain': gameStore.lastCoinGain > 0, 'negative-gain': gameStore.lastCoinGain < 0 }">
+                {{ gameStore.lastCoinGain > 0 ? '+' : '' }}{{ gameStore.lastCoinGain }}
+              </span>
+            </div>
+            <div class="coin-total-display">
+              <span class="positive-gain total-cat-coins-value">{{ t('finalResultPopup.totalCatCoins') }} {{ displayCatCoins }}</span>
+            </div>
           </div>
-          <div class="coin-total-display">
-            <span class="positive-gain total-cat-coins-value">{{ t('finalResultPopup.totalCatCoins') }} {{ displayCatCoins }}</span>
+
+          <!-- レートの表示 (オンライン対戦かつ友人対戦でない場合) -->
+          <div
+            v-if="gameStore.isGameOnline && !gameStore.passcode"
+            class="rating-gain"
+          >
+            <div class="rating-change-display">
+              <img
+                :src="finalClassImage"
+                alt="Rank Class"
+                class="rank-class-icon"
+                crossorigin="anonymous"
+              >
+              <span :class="{ 'positive-gain': playerRatingChange > 0, 'negative-gain': playerRatingChange < 0 }">
+                {{ playerRatingChange > 0 ? '+' : '' }}{{ playerRatingChange }}
+              </span>
+            </div>
+            <div class="rating-total-display">
+              <span class="total-rating-value">Total: {{ displayRating }}</span>
+            </div>
           </div>
         </div>
+
         <div class="actions">
           <button
             v-if="!gameStore.isGameOnline"
@@ -105,7 +130,7 @@ import { useZoomLock } from '@/composables/useZoomLock';
  * 新しいゲームの開始、タイトルへの復帰を提供します。
  */
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const emit = defineEmits(['start-new-game', 'back-to-title']);
 const gameStore = useGameStore();
 const userStore = useUserStore(); // userStoreのインスタンスを取得
@@ -137,32 +162,74 @@ const props = defineProps({
   },
 });
 
-
-
-// アニメーション用の猫コインの現在値
+// アニメーション用の猫コインとレートの現在値
 const currentAnimatedCatCoins = ref(0);
+const currentAnimatedRating = ref(0);
 
-// 表示用の猫コイン（0〜999,999の範囲に制限）
+// 表示用の値（適度な範囲に制限）
 const displayCatCoins = computed(() => {
   return Math.max(0, Math.min(currentAnimatedCatCoins.value, 999999));
+});
+const displayRating = computed(() => {
+  return Math.max(0, currentAnimatedRating.value);
+});
+
+// 自分自身のレート変動値を取得
+const playerRatingChange = computed(() => {
+  if (!userStore.profile) return 0;
+  const myResult = props.finalResultDetails.rankedPlayers.find(p => p.id === userStore.profile.id);
+  return myResult ? myResult.rating_change || 0 : 0;
+});
+
+// 最終的なレートに基づくクラスの画像を取得 (トリガーと同じ昇降格ロジックを適用)
+const finalClassImage = computed(() => {
+  if (!userStore.profile) return locale.value === 'en' ? '/assets/images/info/kitten_en.png' : '/assets/images/info/kitten.png';
+
+  const oldClass = userStore.profile.class || 1;
+  const finalRating = displayRating.value;
+  let newClass = oldClass;
+
+  if (oldClass === 1) { // 子猫級
+    if (finalRating >= 2000) newClass = 2; // 野良猫級へ昇格
+  } else if (oldClass === 2) { // 野良猫級
+    if (finalRating >= 5000) {
+      newClass = 3; // ボス猫級へ昇格
+    } else if (finalRating <= 1799) {
+      newClass = 1; // 子猫級へ降格
+    }
+  } else if (oldClass === 3) { // ボス猫級
+    if (finalRating <= 4799) newClass = 2; // 野良猫級へ降格
+  }
+
+  let className = 'kitten';
+  if (newClass === 3) className = 'boss';
+  else if (newClass === 2) className = 'alley';
+  
+  return locale.value === 'en' 
+    ? `/assets/images/info/${className}_en.png` 
+    : `/assets/images/info/${className}.png`;
 });
 
 // ポップアップが表示されたときにアニメーションを開始
 watch(() => props.show, (newValue) => {
   if (newValue && userStore.profile) {
-    // アニメーションの開始値（現在の猫コイン）と終了値（増減後）を計算
+    // 猫コインのアニメーション開始値と終了値
     const initialCoins = userStore.profile.cat_coins;
     const finalCoins = initialCoins + gameStore.lastCoinGain;
-
-    // アニメーションの開始値を設定
     currentAnimatedCatCoins.value = initialCoins;
+    animateValue(currentAnimatedCatCoins, initialCoins, finalCoins);
 
-    // アニメーション開始
-    animateCatCoins(initialCoins, finalCoins);
+    // レートのアニメーション開始値と終了値
+    if (gameStore.isGameOnline && !gameStore.passcode) {
+      const initialRating = userStore.profile.rating || 1500;
+      const finalRating = initialRating + playerRatingChange.value;
+      currentAnimatedRating.value = initialRating;
+      animateValue(currentAnimatedRating, initialRating, finalRating);
+    }
   }
 }, { immediate: true }); // 初期表示時にも実行
 
-function animateCatCoins(startValue, endValue) {
+function animateValue(refTarget, startValue, endValue) {
   const duration = 1000; // 1秒
   const startTime = performance.now();
 
@@ -170,12 +237,12 @@ function animateCatCoins(startValue, endValue) {
     const elapsedTime = currentTime - startTime;
     const progress = Math.min(elapsedTime / duration, 1); // 0から1の範囲に正規化
 
-    currentAnimatedCatCoins.value = Math.floor(startValue + (endValue - startValue) * progress);
+    refTarget.value = Math.floor(startValue + (endValue - startValue) * progress);
 
     if (progress < 1) {
       requestAnimationFrame(step);
     } else {
-      currentAnimatedCatCoins.value = endValue; // 最終値を保証
+      refTarget.value = endValue; // 最終値を保証
     }
   };
 
@@ -422,48 +489,64 @@ function getPlayerIcon(playerId) {
   font-family: 'Yuji Syuku', serif; /* ParentDecisionPopup.vue と同じ */
 }
 
-.coin-gain {
+.rewards-container {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+.coin-gain, .rating-gain {
   font-size: 1.5em;
   font-weight: bold;
-  margin-bottom: 0px;
   display: flex;
   flex-direction: column; /* 縦並びにする */
   align-items: center; /* 中央揃え */
   justify-content: center;
 }
 
-.coin-change-display {
+.coin-change-display, .rating-change-display {
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 5px; /* 増減値と合計値の間に少しスペース */
 }
 
-.coin-total-display {
+.rating-label {
+  font-family: 'Darumadrop One', cursive;
+  margin-right: 8px;
+  color: #4a2c12;
+  font-size: 1.2em;
+}
+
+.coin-total-display, .rating-total-display {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.total-cat-coins-value {
+.total-cat-coins-value, .total-rating-value {
   font-size: 1.0em; /* 増減値と同じくらいか少し大きく */
   color: #9b0f0f; /* positive-gainと同じ色 */
   margin-bottom: 10px;
   margin-top: -20px;
 }
 
-.positive-gain {
+.positive-gain, .negative-gain {
   color: #9b0f0f;
-}
-
-.negative-gain {
-  color: #9b0f0f; /* 赤色 */
 }
 
 .cat-coin-icon {
   width: 50px;
   height: 50px;
   margin-left: 0px;
+}
+
+.rank-class-icon {
+  height: 40px;
+  object-fit: contain;
+  margin-right: 10px;
 }
 .actions {
   display: flex;
