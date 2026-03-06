@@ -1162,12 +1162,25 @@ async function handleGameEnd(gameId) {
   const totalRating = humanPlayers.reduce((sum, player) => sum + player.rating, 0);
   const roomAverageRating = humanPlayers.length > 0 ? totalRating / humanPlayers.length : 1500;
 
-  // 猫コインと統計情報の���新
-  const coinChanges = { 1: 100, 2: 50, 3: -50, 4: -100 };
+  // 猫コインと統計情報の更新 (AI対戦の計算式をサーバー側で適用)
   const updatedRankedPlayers = [];
 
   const updatePromises = rankedPlayers.map(async (player) => {
-    const coinChange = coinChanges[player.rank] || 0;
+    let coinChange = 0;
+    if (player.rank === 1) {
+      coinChange = Math.floor(player.score / 200) + 100;
+    } else if (player.rank === 2) {
+      coinChange = Math.floor(player.score / 300) + 100;
+    } else if (player.rank === 3) {
+      coinChange = -Math.floor((50000 - player.score) / 200);
+    } else if (player.rank === 4) {
+      if (player.score < 0) {
+        coinChange = -400;
+      } else {
+        coinChange = -Math.floor((50000 - player.score) / 200) - 100;
+      }
+    }
+
     let ratingChange = 0;
 
     // AIプレイヤーはDB更新しない
