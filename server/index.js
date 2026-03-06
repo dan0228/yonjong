@@ -2416,6 +2416,7 @@ io.on('connection', (socket) => {
             gameStates[out_game_id].hasGameStarted = false;
             gameStates[out_game_id].playersReadyForNextRound = [];
             gameStates[out_game_id].version = 1; // 新しいゲームなのでバージョンは1
+            gameStates[out_game_id].passcode = null; // ★追加: 友人対戦のパスコードが残らないように明示的にnullにする
             // ★修正: game_data.players もここで初期化
             gameStates[out_game_id].game_data = { players: players };
         } else {
@@ -2423,6 +2424,7 @@ io.on('connection', (socket) => {
             gameStates[out_game_id].players = players;
             // ★追加: game_data.players も更新
             gameStates[out_game_id].game_data.players = players;
+            gameStates[out_game_id].passcode = null; // ★追加: ここでも念のためクリアする
         }
 
         // 参加している全プレイヤーに通知

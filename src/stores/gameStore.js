@@ -1842,6 +1842,7 @@ export const useGameStore = defineStore('game', {
 
       this.isMatchmakingRequested = true; // リクエストフラグを立てる
       this.matchmakingPlayers = []; // ★追加: マッチメイキング開始時にプレイヤーリストをクリア
+      this.passcode = null; // ★追加: 全国対戦のリクエスト時はパスコードを確実にクリアする
 
       console.log('[GameStore] Calling connectToServer()...');
       this.connectToServer(); // サーバーへの接続を開始
