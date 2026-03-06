@@ -161,7 +161,7 @@ import PlayerInfoPopup from '@/components/PlayerInfoPopup.vue';
 const { t, locale } = useI18n();
 const userStore = useUserStore();
 const gameStore = useGameStore();
-const { matchmakingPlayers } = storeToRefs(gameStore); // ★修正: storeToRefsでリアクティブな参照を作成
+// storeToRefsは使用せず、直接 gameStore.matchmakingPlayers を参照する
 const audioStore = useAudioStore();
 const router = useRouter();
 const { viewportHeight } = useViewportHeight();
@@ -226,7 +226,7 @@ const goToTitle = () => {
 // 4つの表示スロットを管理するためのcomputed property
 const displaySlots = computed(() => {
   const slots = [];
-  const players = matchmakingPlayers.value || [];
+  const players = gameStore.matchmakingPlayers || [];
   const totalSlots = 4;
 
   for (let i = 0; i < totalSlots; i++) {
