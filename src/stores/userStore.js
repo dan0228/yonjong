@@ -34,7 +34,7 @@ function mapSupabaseErrorMessage(errorMessage, t) {
     return t('supabaseErrors.userNotFound');
   } else if (errorMessage.includes('Invalid login credentials')) {
     return t('supabaseErrors.invalidLoginCredentials');
-  } else if (errorMessage.includes('A user with this email address is already registered')) {
+  } else if (errorMessage.includes('A user with this email address has already been registered') || errorMessage.includes('A user with this email address is already registered')) {
     return t('supabaseErrors.userAlreadyRegistered'); // updateUserEmail用
   }
   // その他のエラーメッセージはそのまま返すか、汎用的なメッセージを返す
@@ -398,21 +398,29 @@ export const useUserStore = defineStore('user', () => {
   async function updateUserEmail(newEmail, t) {
     loading.value = true;
     try {
+      // 事前にメールアドレスが既に登録されていないかチェック
+      const { data: emailExists, error: rpcError } = await supabase.rpc('check_email_exists', { email_address: newEmail });
+      
+      if (rpcError) {
+         console.error('RPCエラー (check_email_exists):', rpcError);
+         throw rpcError;
+      }
+      
+      if (emailExists) {
+        // 'A user with this email address has already been registered' 相当のエラーとして処理
+        throw new Error('A user with this email address is already registered');
+      }
+
       // 確認後のリダイレクト先を明示的に指定
       const redirectTo = `${window.location.origin}/#/email-confirmed`;
 
-      // 事前チェックを削除し、Supabaseの組み込みエラー処理に一本化
       const { data, error } = await supabase.auth.updateUser(
         { email: newEmail },
         { emailRedirectTo: redirectTo } // オプションを追加
       );
-      if (error) throw error; // 重複メールなどのエラーはここでキャッチされる
+      if (error) throw error; // その他のエラー
 
       console.log('メールアドレス更新リクエスト成功:', data);
-      // メールアドレス変更の場合、確認メールが送信されるため、
-      // ユーザーはメール内のリンクをクリックして変更を確定する必要がある。
-      // そのため、ここではprofile.value.emailは直接更新しない。
-      // ユーザーが確認後、fetchUserProfileで最新の状態を取得する。
       return { success: true };
     } catch (error) {
       console.error('メールアドレス更新エラー:', error.message);
