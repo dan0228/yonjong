@@ -297,22 +297,14 @@ export const useUserStore = defineStore('user', () => {
 
   /**
    * ユーザーアカウントに関連する全てのデータを削除します。
-   * (アバター削除もバックエンドのRPC関数内で処理されます)
    */
   async function deleteUserData() {
     try {
       loading.value = true;
-      // RPC関数は成功時はアバターURL、ストレージ削除失敗時はエラーメッセージを返す
-      const { data: rpc_response, error: rpcError } = await supabase.rpc('delete_user_data');
+      const { error: rpcError } = await supabase.rpc('delete_user_data');
 
       if (rpcError) {
         throw rpcError;
-      }
-
-      // RPCからストレージ削除エラーが返されたかチェック
-      if (rpc_response && typeof rpc_response === 'string' && rpc_response.startsWith('STORAGE_DELETE_ERROR:')) {
-        // エラーをスローしてcatchブロックで処理させる
-        throw new Error(rpc_response);
       }
 
       // ここまで来たら、バックエンド処理は全て成功している
@@ -326,7 +318,6 @@ export const useUserStore = defineStore('user', () => {
 
     } catch (error) {
       console.error('ユーザーデータの削除中にエラーが発生しました:', error.message);
-      // アラートにバックエンドからの具体的なエラーメッセージが表示される
       alert(`アカウントの削除中にエラーが発生しました: ${error.message}`);
     } finally {
       loading.value = false;
