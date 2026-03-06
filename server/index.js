@@ -2063,14 +2063,27 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     // ★追加: 全国対戦（オンラインかつパスコードなし）の進行中の切断には即時ペナルティを適用
     if (game.gameMode === 'online' && !game.passcode) {
       console.log(`[Server] Applying disconnect penalty to player ${userId} for game ${gameId}.`);
-      const { error: rpcError } = await supabase.rpc('update_user_stats_and_coins', {
-        p_user_id: userId,
-        p_rank: 4, // 便宜上4位扱いとするが、カウントはしないようにSQL側で調整または無視する
-        p_coin_change: -1000,
-        p_rating_change: -200
-      });
-      if (rpcError) {
-        console.error(`[Server] Error applying disconnect penalty to player ${userId}:`, rpcError);
+      
+      // 直接ユーザーの現在のスコアを取得して計算する代わりに、RPCを利用するが、
+      // ランク(順位)ではなく具体的な変動値を直接計算してUPDATEするよう専用の処理を行う
+      const { data: userProfile, error: fetchError } = await supabase
+        .from('users')
+        .select('rating, cat_coins')
+        .eq('id', userId)
+        .single();
+        
+      if (userProfile && !fetchError) {
+          const newRating = Math.max(0, userProfile.rating - 200);
+          const newCoins = Math.max(0, userProfile.cat_coins - 1000);
+          
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ rating: newRating, cat_coins: newCoins })
+            .eq('id', userId);
+            
+          if (updateError) {
+              console.error(`[Server] Error applying disconnect penalty to player ${userId}:`, updateError);
+          }
       }
     }
 
