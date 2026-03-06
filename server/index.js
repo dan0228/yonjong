@@ -1844,10 +1844,14 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
   }
 
   // disconnectedPlayers に追加
-  if (!game.disconnectedPlayers.includes(userId)) {
-    game.disconnectedPlayers.push(userId);
-    console.log(`Player ${userId} added to disconnectedPlayers for game ${gameId}`);
+  // 既に切断処理中の場合は、二重適用（ペナルティの重複など）を避けるためここで終了する
+  if (game.disconnectedPlayers.includes(userId)) {
+    console.log(`handlePlayerLeave: Player ${userId} is already being handled for game ${gameId}. Skipping duplicate process.`);
+    return;
   }
+  
+  game.disconnectedPlayers.push(userId);
+  console.log(`Player ${userId} added to disconnectedPlayers for game ${gameId}`);
 
   // 切断されたプレイヤーの応答をスキップとしてマーク
   game.playerResponses[userId] = 'skip';
