@@ -1183,8 +1183,9 @@ async function handleGameEnd(gameId) {
 
     let ratingChange = 0;
 
-    // AIプレイヤーはDB更新しない
-    if (player.isAi) {
+    // AIプレイヤーまたは切断状態のプレイヤーはゲーム終了時のDB更新（追加のレート変動など）を行わない
+    // 切断プレイヤーは切断時に即座にペナルティを受けているため、ここでは0として扱う
+    if (player.isAi || player.status === 'disconnected') {
       updatedRankedPlayers.push({ ...player, coin_change: coinChange, rating_change: 0 });
       return;
     }
@@ -2058,6 +2059,20 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
       return;
     }
     console.log(`Player ${userId} status updated to 'disconnected' in game ${gameId} (status: in_progress).`);
+
+    // ★追加: 全国対戦（オンラインかつパスコードなし）の進行中の切断には即時ペナルティを適用
+    if (game.gameMode === 'online' && !game.passcode) {
+      console.log(`[Server] Applying disconnect penalty to player ${userId} for game ${gameId}.`);
+      const { error: rpcError } = await supabase.rpc('update_user_stats_and_coins', {
+        p_user_id: userId,
+        p_rank: 4, // 便宜上4位扱いとするが、カウントはしないようにSQL側で調整または無視する
+        p_coin_change: -1000,
+        p_rating_change: -200
+      });
+      if (rpcError) {
+        console.error(`[Server] Error applying disconnect penalty to player ${userId}:`, rpcError);
+      }
+    }
 
     // メモリ上のゲーム状態のプレイヤーのステータスも更新
     const playerInGameState = game.players.find(p => p.id === userId);
