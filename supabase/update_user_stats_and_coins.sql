@@ -19,14 +19,14 @@ BEGIN
     FROM public.users
     WHERE id = p_user_id;
 
-    -- 新しいレーティングを計算
-    new_rating := current_rating + p_rating_change;
+    -- 新しいレーティングを計算 (0未満にならないように調整)
+    new_rating := GREATEST(0, current_rating + p_rating_change);
 
     UPDATE public.users
     SET
         total_games_played = total_games_played + 1,
-        -- sum_of_ranks = sum_of_ranks + p_rank, -- ★削除: sum_of_ranks カラムは存在しないため
-        cat_coins = cat_coins + p_coin_change,
+        -- 猫コインを更新 (0未満にならないように調整)
+        cat_coins = GREATEST(0, cat_coins + p_coin_change),
         rating = new_rating,
         -- highest_rating を更新
         highest_rating = GREATEST(current_highest_rating, new_rating),
