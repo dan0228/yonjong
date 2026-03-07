@@ -2259,6 +2259,33 @@ io.on('connection', (socket) => {
 
     if (disconnectedUserId) {
       console.log(`Disconnected user ID: ${disconnectedUserId}. Finding their game...`);
+      
+      // まずはマッチング待機中（waiting/ready）のゲームがないか確認し、あればキャンセル処理を行う
+      try {
+        const { data: waitingGames } = await supabase
+          .from('game_players')
+          .select('game_id')
+          .eq('user_id', disconnectedUserId)
+          .eq('status', 'joined');
+          
+        if (waitingGames && waitingGames.length > 0) {
+           for (const g of waitingGames) {
+              const { data: gameData } = await supabase.from('games').select('status').eq('id', g.game_id).single();
+              if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
+                 await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', disconnectedUserId);
+                 console.log(`Removed disconnected player ${disconnectedUserId} from waiting game ${g.game_id}`);
+                 
+                 const { count } = await supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', g.game_id);
+                 if (count === 0) {
+                    await supabase.from('games').delete().eq('id', g.game_id);
+                 }
+              }
+           }
+        }
+      } catch (err) {
+        console.error('Error handling disconnect for waiting games:', err);
+      }
+
       try {
         // Directly query the database to find the user's current game
         const { data: playerGame, error: findGameError } = await supabase
@@ -2343,6 +2370,49 @@ io.on('connection', (socket) => {
     await handlePlayerLeave(gameId, userId, 'finished');
   });
 
+  // マッチメイキングをキャンセルする
+  socket.on('cancelMatchmaking', async () => {
+    // userId はソケットマップから取得する
+    let userId = null;
+    for (const [id, socketId] of userSocketMap.entries()) {
+      if (socketId === socket.id) {
+        userId = id;
+        break;
+      }
+    }
+
+    if (userId) {
+      console.log(`Player ${userId} cancelled matchmaking.`);
+      // まだゲームが正式に始まっていない（waiting状態の）ゲームからプレイヤーを削除する
+      try {
+        const { data: waitingGames, error: fetchError } = await supabase
+          .from('game_players')
+          .select('game_id')
+          .eq('user_id', userId)
+          .eq('status', 'joined');
+          
+        if (waitingGames && waitingGames.length > 0) {
+           for (const g of waitingGames) {
+              const { data: gameData } = await supabase.from('games').select('status').eq('id', g.game_id).single();
+              // ゲームがまだ進行中でない場合のみ削除を許可する
+              if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
+                 await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', userId);
+                 console.log(`Removed player ${userId} from waiting game ${g.game_id}`);
+                 
+                 // もし部屋に誰もいなくなったら部屋ごと消す
+                 const { count } = await supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', g.game_id);
+                 if (count === 0) {
+                    await supabase.from('games').delete().eq('id', g.game_id);
+                 }
+              }
+           }
+        }
+      } catch (err) {
+        console.error('Error during cancelMatchmaking:', err);
+      }
+      userSocketMap.delete(userId);
+    }
+  });
 
   // クライアントがゲームに参加する
   socket.on('joinGame', async ({ gameId, userId }) => {
