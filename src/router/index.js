@@ -116,7 +116,8 @@ router.afterEach((to) => {
 router.beforeEach((to, from, next) => {
   // プログラムによる遷移ではなく（戻るボタンなど）、
   // 遷移元が存在する（初回ロードではない）場合、遷移をキャンセルして現在のページに留まる
-  if (!isProgrammatic && from.name) {
+  // ただし、EmailConfirmed ルートへの遷移は許可する
+  if (!isProgrammatic && from.name && to.name !== 'EmailConfirmed') {
     next(false);
     return;
   }
