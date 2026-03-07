@@ -132,44 +132,45 @@ router.beforeEach((to, from, next) => {
 
   // ゲーム画面やマッチング画面から予期せず離脱する場合の切断処理とリダイレクト
   if (from.name === 'Game' || from.name === 'Matchmaking') {
-    // マッチング画面からタイトルへ戻る（戻るボタンなど）場合の切断処理
+    // 正常な「タイトルへ戻る」ボタン等による遷移の場合
     if (to.name === 'Title') {
       import('../stores/gameStore').then(({ useGameStore }) => {
         const gameStore = useGameStore();
         gameStore.disconnectOnlineGame();
       });
-      return next(); // タイトルへの遷移は許可するが、切断は行う
+      return next(); // 通常のVueルーターによる遷移を許可（猫は起きない）
     }
 
-    // それ以外の意図しない遷移（例: 外部サイトへの戻る、不明なURL）は遮断してタイトルへ戻す
-    if (to.name !== 'Title' && to.name !== 'Game' && to.name !== 'Matchmaking') {
-      import('../stores/gameStore').then(({ useGameStore }) => {
-        const gameStore = useGameStore();
-        gameStore.disconnectOnlineGame();
-      });
-      return next({ name: 'Title' });
-    }
-  }
-
-  // 既に切断されている状態（タイトル画面等）で、ブラウザの戻る/進むボタン等により
-  // 不正にゲームやマッチング画面に戻ろうとするのを防ぐ
-  if ((to.name === 'Game' || to.name === 'Matchmaking') && from.name !== 'Matchmaking') {
-    // Vue Routerの非同期フック内でPiniaストアに安全にアクセス
+    // ブラウザの戻るボタンや不正なURL直打ちなど、タイトル以外への意図しない遷移の場合
     import('../stores/gameStore').then(({ useGameStore }) => {
-        const gameStore = useGameStore();
-        // マッチングを要求していない、またはゲームが開始されていないのに遷移しようとした場合はブロック
-        if (!gameStore.isMatchmakingRequested && !gameStore.isGameOnline && gameStore.gameMode !== 'vsCPU') {
-           router.replace('/');
-        }
+      const gameStore = useGameStore();
+      gameStore.disconnectOnlineGame();
+      // 完全なリロードを行って初期起動画面（猫を起こす）へ戻す
+      window.location.replace(window.location.origin + '/#/');
+      window.location.reload();
     });
-    // ※ 厳密にブロックするために、ここではあえて next() を進めつつ、
-    // 非同期で状態をチェックして直ちに replace('/') で戻す手法をとります。
-    // (同期的にストアをインポートできないルーター外の問題を回避するため)
+    return;
   }
+// 既に切断されている状態（タイトル画面等）で、ブラウザの戻る/進むボタン等により
+// 不正にゲームやマッチング画面に戻ろうとするのを防ぐ
+if ((to.name === 'Game' || to.name === 'Matchmaking') && from.name !== 'Matchmaking') {
+  // Vue Routerの非同期フック内でPiniaストアに安全にアクセス
+  import('../stores/gameStore').then(({ useGameStore }) => {
+      const gameStore = useGameStore();
+      // マッチングを要求していない、またはゲームが開始されていないのに遷移しようとした場合はブロック
+      if (!gameStore.isMatchmakingRequested && !gameStore.isGameOnline && gameStore.gameMode !== 'vsCPU') {
+         // 不正侵入時は完全にリロードして WakeUpCatScreen を強制
+         window.location.replace(window.location.origin + '/#/');
+         window.location.reload();
+      }
+  });
+}
 
   // 意図しない画面遷移や初期ロード時は、必ずタイトル（猫を起こす画面）にリダイレクトする
   if (from.name === undefined && to.name !== 'Title' && to.name !== 'EmailConfirmed') {
-    return next({ name: 'Title' });
+    window.location.replace(window.location.origin + '/#/');
+    window.location.reload();
+    return;
   }
 
   next();
