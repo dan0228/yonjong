@@ -1585,6 +1585,51 @@ export const useGameStore = defineStore('game', {
 
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+
+          // --- 楽観的UIの実装 ---
+          const player = this.players.find(p => p.id === playerId);
+          if (player) {
+            const audioStore = useAudioStore();
+            if (!isStocking) {
+              audioStore.playSound('dahai.mp3');
+            }
+            let discardedTileActual;
+
+            if (this.gamePhase === GAME_PHASES.AWAITING_RIICHI_DISCARD) {
+              this.riichiDiscardedTileId[playerId] = tileIdToDiscard;
+            }
+
+            if (isFromDrawnTile) {
+              if (this.drawnTile && this.drawnTile.id === tileIdToDiscard) {
+                discardedTileActual = this.drawnTile;
+                this.drawnTile = null;
+              }
+            } else {
+              const tileIndex = player.hand.findIndex(t => t.id === tileIdToDiscard);
+              if (tileIndex !== -1) {
+                discardedTileActual = player.hand.splice(tileIndex, 1)[0];
+                if (this.drawnTile) {
+                  player.hand.push(this.drawnTile);
+                  // ソートはmahjongLogicに依存するか、単純に反映させる
+                  player.hand = mahjongLogic.sortHand(player.hand);
+                }
+                this.drawnTile = null;
+              }
+            }
+
+            if (discardedTileActual) {
+              if (isStocking) {
+                player.stockedTile = { ...discardedTileActual, isPublic: true, isStockedTile: true };
+              } else {
+                player.discards = [...player.discards, discardedTileActual];
+                this.lastDiscardedTile = discardedTileActual;
+              }
+              // 楽観的に自分のアクション選択権をクリアして、ボタンを即座に消す
+              this.playerActionEligibility[playerId] = {};
+            }
+          }
+          // --- ここまで ---
+
           socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard, isFromDrawnTile, isStocking });
         }
         return; // サーバーからの状態更新を待つ
@@ -1764,6 +1809,46 @@ export const useGameStore = defineStore('game', {
 
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+
+          // --- 楽観的UIの追加 ---
+          const player = this.players.find(p => p.id === playerId);
+          if (player) {
+            const audioStore = useAudioStore();
+            audioStore.playSound('Percussive_Accent04-3(High).mp3');
+
+            let tileToStockActual;
+            if (isFromDrawnTile) {
+              if (this.drawnTile && this.drawnTile.id === tileIdToStock) {
+                tileToStockActual = this.drawnTile;
+                this.drawnTile = null;
+              }
+            } else {
+              const tileIndex = player.hand.findIndex(t => t.id === tileIdToStock);
+              if (tileIndex !== -1) {
+                tileToStockActual = player.hand.splice(tileIndex, 1)[0];
+                if (this.drawnTile) {
+                  player.hand.push(this.drawnTile);
+                  player.hand = mahjongLogic.sortHand(player.hand);
+                }
+                this.drawnTile = null;
+              }
+            }
+
+            if (tileToStockActual) {
+              player.stockedTile = { ...tileToStockActual, isPublic: true, isStockedTile: true };
+              this.stockAnimationPlayerId = playerId;
+              // アニメーションを一定時間後に非表示にする
+              setTimeout(() => {
+                if (this.stockAnimationPlayerId === playerId) {
+                  this.stockAnimationPlayerId = null;
+                }
+              }, 550);
+              // アクション権をクリアして、ボタンなどを即座に消す
+              this.playerActionEligibility[playerId] = {};
+            }
+          }
+          // --- ここまで ---
+
           socket.emit('discardTile', { gameId: this.onlineGameId, playerId, tileIdToDiscard: tileIdToStock, isFromDrawnTile, isStocking: true });
         }
         return;
