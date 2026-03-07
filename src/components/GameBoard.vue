@@ -718,7 +718,7 @@
    */
   function handleBackToTitleFromFinalResult() {
     isFadingToFinalResult.value = false; // フェードをリセット
-    router.replace('/'); // pushではなくreplaceで履歴を上書き
+    router.push('/');
     gameStore.resetGameForNewSession();
   }
 
@@ -726,7 +726,7 @@
    * ゲームを中断してタイトル画面に戻る処理。
    */
   function returnToTitle() {
-    router.replace('/'); // pushではなくreplaceで履歴を上書き
+    router.push('/');
     gameStore.resetGameForNewSession();
   }
 

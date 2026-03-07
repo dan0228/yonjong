@@ -293,7 +293,7 @@ const startFinalSequence = () => {
         clearInterval(countdownInterval);
         // ★★★ 修正: 画面遷移の直前に、再度 isGameReady をチェックする
         if (gameStore.isGameReady) {
-          router.replace('/game'); // pushではなくreplaceを使うことで履歴を残さず、戻るボタンでタイトルに戻るようにする
+          router.push('/game');
         } else {
           console.log("ゲーム開始がキャンセルされました。");
         }
