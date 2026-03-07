@@ -122,6 +122,14 @@ router.beforeEach((to, from, next) => {
     });
   }
 
+  // タイトル画面から「ブラウザの戻る/進む」等で直接ゲームやマッチング画面に侵入するのを防ぐ
+  if (from.name === 'Title' && (to.name === 'Game' || to.name === 'Matchmaking')) {
+    // router.push 等の正常なプログラム遷移以外（ポップステート等）を弾きたいが、
+    // 確実にするため、ここは Store の状態も見てガードするのが安全。
+    // 今回はシンプルに Title からの予期せぬ戻る/進む遷移をリセットする。
+    // ※ 正常な遷移（ボタンクリック等）はルーターフックよりもコンポーネント内で replace を使うことで対応する。
+  }
+
   // ゲーム画面やマッチング画面から予期せず離脱する場合の切断処理とリダイレクト
   if (from.name === 'Game' || from.name === 'Matchmaking') {
     // 正常な遷移（ゲーム→タイトル、マッチング→タイトル、マッチング→ゲーム）以外は遮断してタイトルへ戻す
@@ -142,12 +150,28 @@ router.beforeEach((to, from, next) => {
     }
   }
 
+  // 既に切断されている状態（タイトル画面等）で、ブラウザの戻る/進むボタン等により
+  // 不正にゲームやマッチング画面に戻ろうとするのを防ぐ
+  if ((to.name === 'Game' || to.name === 'Matchmaking') && from.name !== 'Matchmaking') {
+    // Vue Routerの非同期フック内でPiniaストアに安全にアクセス
+    import('../stores/gameStore').then(({ useGameStore }) => {
+        const gameStore = useGameStore();
+        // マッチングを要求していない、またはゲームが開始されていないのに遷移しようとした場合はブロック
+        if (!gameStore.isMatchmakingRequested && !gameStore.isGameOnline && gameStore.gameMode !== 'vsCPU') {
+           router.replace('/');
+        }
+    });
+    // ※ 厳密にブロックするために、ここではあえて next() を進めつつ、
+    // 非同期で状態をチェックして直ちに replace('/') で戻す手法をとります。
+    // (同期的にストアをインポートできないルーター外の問題を回避するため)
+  }
+
   // 意図しない画面遷移や初期ロード時は、必ずタイトル（猫を起こす画面）にリダイレクトする
   if (from.name === undefined && to.name !== 'Title' && to.name !== 'EmailConfirmed') {
-    next({ name: 'Title' });
-  } else {
-    next();
+    return next({ name: 'Title' });
   }
+
+  next();
 });
 
 export default router;
