@@ -73,6 +73,20 @@ const router = createRouter({
   routes,
 });
 
+let isProgrammatic = false;
+
+const originalPush = router.push;
+router.push = function (location) {
+  isProgrammatic = true;
+  return originalPush.call(this, location);
+};
+
+const originalReplace = router.replace;
+router.replace = function (location) {
+  isProgrammatic = true;
+  return originalReplace.call(this, location);
+};
+
 // SEO: メタタグを更新するためのデフォルト値
 const DEFAULT_TITLE = 'よんじゃん！';
 
@@ -92,11 +106,6 @@ router.afterEach((to) => {
   }
 });
 
-
-
-
-
-
 /**
  * 各ルート遷移前に実行されるグローバルビフォーフック。
  * BGMの切り替えと、アプリケーションの初回ロード時のリダイレクトを処理します。
@@ -105,6 +114,14 @@ router.afterEach((to) => {
  * @param {NavigationGuardNext} next - ナビゲーションを解決するための関数
  */
 router.beforeEach((to, from, next) => {
+  // プログラムによる遷移ではなく（戻るボタンなど）、
+  // 遷移元が存在する（初回ロードではない）場合、遷移をキャンセルして現在のページに留まる
+  if (!isProgrammatic && from.name) {
+    next(false);
+    return;
+  }
+  isProgrammatic = false;
+
   const audioStore = useAudioStore();
 
   // Stop any previously looping sounds
