@@ -2270,7 +2270,7 @@ io.on('connection', (socket) => {
           
         if (waitingGames && waitingGames.length > 0) {
            for (const g of waitingGames) {
-              const { data: gameData } = await supabase.from('games').select('status').eq('id', g.game_id).single();
+              const { data: gameData } = await supabase.from('games').select('status, passcode').eq('id', g.game_id).single();
               if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
                  await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', disconnectedUserId);
                  console.log(`Removed disconnected player ${disconnectedUserId} from waiting game ${g.game_id}`);
@@ -2278,6 +2278,47 @@ io.on('connection', (socket) => {
                  const { count } = await supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', g.game_id);
                  if (count === 0) {
                     await supabase.from('games').delete().eq('id', g.game_id);
+                 } else {
+                    // 他のプレイヤーが残っている場合、更新されたリストをブロードキャストして画面から消す
+                    const { data: updatedGamePlayers } = await supabase
+                        .from('game_players')
+                        .select(`
+                            user_id,
+                            seat_index,
+                            users (id, username, avatar_id, rating, cat_coins, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, class)
+                        `)
+                        .eq('game_id', g.game_id)
+                        .order('seat_index', { ascending: true });
+
+                    if (updatedGamePlayers) {
+                        const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+                            id: gp.users.id,
+                            name: gp.users.username,
+                            username: gp.users.username,
+                            avatar_id: gp.users.avatar_id,
+                            rating: gp.users.rating,
+                            cat_coins: gp.users.cat_coins,
+                            total_games_played: gp.users.total_games_played,
+                            first_place_count: gp.users.first_place_count,
+                            second_place_count: gp.users.second_place_count,
+                            third_place_count: gp.users.third_place_count,
+                            fourth_place_count: gp.users.fourth_place_count,
+                            user_rank_class: gp.users.class,
+                            score: 50000,
+                            isAi: false,
+                            seat_index: gp.seat_index
+                        }));
+
+                        const roomName = gameData.passcode ? gameData.passcode : g.game_id;
+                        const eventName = gameData.passcode ? 'matchmaking-update-friend' : 'matchmaking-update';
+                        
+                        io.to(roomName).emit(eventName, { 
+                            gameId: g.game_id, 
+                            players: playersForMatchmaking, 
+                            ...(gameData.passcode && { passcode: gameData.passcode }) 
+                        });
+                        console.log(`[Server] Broadcasted '${eventName}' for game ${g.game_id} to room ${roomName} after disconnect.`);
+                    }
                  }
               }
            }
@@ -2393,7 +2434,7 @@ io.on('connection', (socket) => {
           
         if (waitingGames && waitingGames.length > 0) {
            for (const g of waitingGames) {
-              const { data: gameData } = await supabase.from('games').select('status').eq('id', g.game_id).single();
+              const { data: gameData } = await supabase.from('games').select('status, passcode').eq('id', g.game_id).single();
               // ゲームがまだ進行中でない場合のみ削除を許可する
               if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
                  await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', userId);
@@ -2403,6 +2444,47 @@ io.on('connection', (socket) => {
                  const { count } = await supabase.from('game_players').select('*', { count: 'exact', head: true }).eq('game_id', g.game_id);
                  if (count === 0) {
                     await supabase.from('games').delete().eq('id', g.game_id);
+                 } else {
+                    // 他のプレイヤーが残っている場合、更新されたリストをブロードキャストして画面から消す
+                    const { data: updatedGamePlayers } = await supabase
+                        .from('game_players')
+                        .select(`
+                            user_id,
+                            seat_index,
+                            users (id, username, avatar_id, rating, cat_coins, total_games_played, first_place_count, second_place_count, third_place_count, fourth_place_count, class)
+                        `)
+                        .eq('game_id', g.game_id)
+                        .order('seat_index', { ascending: true });
+
+                    if (updatedGamePlayers) {
+                        const playersForMatchmaking = updatedGamePlayers.map(gp => ({
+                            id: gp.users.id,
+                            name: gp.users.username,
+                            username: gp.users.username,
+                            avatar_id: gp.users.avatar_id,
+                            rating: gp.users.rating,
+                            cat_coins: gp.users.cat_coins,
+                            total_games_played: gp.users.total_games_played,
+                            first_place_count: gp.users.first_place_count,
+                            second_place_count: gp.users.second_place_count,
+                            third_place_count: gp.users.third_place_count,
+                            fourth_place_count: gp.users.fourth_place_count,
+                            user_rank_class: gp.users.class,
+                            score: 50000,
+                            isAi: false,
+                            seat_index: gp.seat_index
+                        }));
+
+                        const roomName = gameData.passcode ? gameData.passcode : g.game_id;
+                        const eventName = gameData.passcode ? 'matchmaking-update-friend' : 'matchmaking-update';
+                        
+                        io.to(roomName).emit(eventName, { 
+                            gameId: g.game_id, 
+                            players: playersForMatchmaking, 
+                            ...(gameData.passcode && { passcode: gameData.passcode }) 
+                        });
+                        console.log(`[Server] Broadcasted '${eventName}' for game ${g.game_id} to room ${roomName} after cancelMatchmaking.`);
+                    }
                  }
               }
            }
