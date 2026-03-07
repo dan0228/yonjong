@@ -998,7 +998,8 @@ function _handlePostRinshanDraw(gameId, playerId) {
   if (player.isRiichi || player.isDoubleRiichi) {
     // リーチ中は暗槓のみ可能
     if (gameState.wall.length > 3) {
-      const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, gameState.drawnTile);
+      const gameContext = createGameContextForPlayer(gameState, player, false);
+      const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, gameState.drawnTile, gameContext);
       gameState.playerActionEligibility[playerId].canAnkan = ankanOptions.length > 0 ? ankanOptions : null;
     }
   } else {
@@ -1615,7 +1616,7 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   if (player.isRiichi || player.isDoubleRiichi) {
     // リーチ中はツモ和了と暗槓のみ
     if (gameState.wall.length > 3) {
-      const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, gameState.drawnTile);
+      const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, gameState.drawnTile, gameContext);
       eligibility.canAnkan = ankanOptions.length > 0 ? ankanOptions : null;
     }
   } else {
