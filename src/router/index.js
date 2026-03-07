@@ -122,58 +122,12 @@ router.beforeEach((to, from, next) => {
     });
   }
 
-  // タイトル画面から「ブラウザの戻る/進む」等で直接ゲームやマッチング画面に侵入するのを防ぐ
-  if (from.name === 'Title' && (to.name === 'Game' || to.name === 'Matchmaking')) {
-    // router.push 等の正常なプログラム遷移以外（ポップステート等）を弾きたいが、
-    // 確実にするため、ここは Store の状態も見てガードするのが安全。
-    // 今回はシンプルに Title からの予期せぬ戻る/進む遷移をリセットする。
-    // ※ 正常な遷移（ボタンクリック等）はルーターフックよりもコンポーネント内で replace を使うことで対応する。
-  }
-
-  // ゲーム画面やマッチング画面から予期せず離脱する場合の切断処理とリダイレクト
-  if (from.name === 'Game' || from.name === 'Matchmaking') {
-    // 正常な「タイトルへ戻る」ボタン等による遷移の場合
-    if (to.name === 'Title') {
-      import('../stores/gameStore').then(({ useGameStore }) => {
-        const gameStore = useGameStore();
-        gameStore.disconnectOnlineGame();
-      });
-      return next(); // 通常のVueルーターによる遷移を許可（猫は起きない）
-    }
-
-    // ブラウザの戻るボタンや不正なURL直打ちなど、タイトル以外への意図しない遷移の場合
-    import('../stores/gameStore').then(({ useGameStore }) => {
-      const gameStore = useGameStore();
-      gameStore.disconnectOnlineGame();
-      // 完全なリロードを行って初期起動画面（猫を起こす）へ戻す
-      window.location.replace(window.location.origin + '/#/');
-      window.location.reload();
-    });
-    return;
-  }
-// 既に切断されている状態（タイトル画面等）で、ブラウザの戻る/進むボタン等により
-// 不正にゲームやマッチング画面に戻ろうとするのを防ぐ
-if ((to.name === 'Game' || to.name === 'Matchmaking') && from.name !== 'Matchmaking') {
-  // Vue Routerの非同期フック内でPiniaストアに安全にアクセス
-  import('../stores/gameStore').then(({ useGameStore }) => {
-      const gameStore = useGameStore();
-      // マッチングを要求していない、またはゲームが開始されていないのに遷移しようとした場合はブロック
-      if (!gameStore.isMatchmakingRequested && !gameStore.isGameOnline && gameStore.gameMode !== 'vsCPU') {
-         // 不正侵入時は完全にリロードして WakeUpCatScreen を強制
-         window.location.replace(window.location.origin + '/#/');
-         window.location.reload();
-      }
-  });
-}
-
-  // 意図しない画面遷移や初期ロード時は、必ずタイトル（猫を起こす画面）にリダイレクトする
+  // Handle initial load redirect
   if (from.name === undefined && to.name !== 'Title' && to.name !== 'EmailConfirmed') {
-    window.location.replace(window.location.origin + '/#/');
-    window.location.reload();
-    return;
+    next({ name: 'Title' });
+  } else {
+    next();
   }
-
-  next();
 });
 
 export default router;
