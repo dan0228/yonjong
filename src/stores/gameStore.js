@@ -776,6 +776,9 @@ export const useGameStore = defineStore('game', {
         // サーバーに退出したことを通知
         if (this.onlineGameId && this.localPlayerId) {
           socket.emit('leaveGame', { gameId: this.onlineGameId, userId: this.localPlayerId });
+        } else if (this.isMatchmakingRequested) {
+          // マッチング中に退出した場合、サーバーにマッチングキャンセルを通知する
+          socket.emit('cancelMatchmaking');
         }
         socket.disconnect();
       }
@@ -784,6 +787,7 @@ export const useGameStore = defineStore('game', {
       this.isGameReady = false; // ゲーム準備状態をリセット
       this.isMatchmakingRequested = false; // 切断時はリクエストフラグをリセット
       this.matchmakingPlayers = []; // ★追加: マッチメイキングプレイヤーリストをクリア
+      this.localPlayerId = null; // ★追加: ローカルプレイヤーIDもクリア
       console.log("オンライン対戦サーバーから切断しました。");
     },
 

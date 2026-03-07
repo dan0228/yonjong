@@ -132,21 +132,22 @@ router.beforeEach((to, from, next) => {
 
   // ゲーム画面やマッチング画面から予期せず離脱する場合の切断処理とリダイレクト
   if (from.name === 'Game' || from.name === 'Matchmaking') {
-    // 正常な遷移（ゲーム→タイトル、マッチング→タイトル、マッチング→ゲーム）以外は遮断してタイトルへ戻す
-    if (to.name !== 'Title' && to.name !== 'Game') {
+    // マッチング画面からタイトルへ戻る（戻るボタンなど）場合の切断処理
+    if (to.name === 'Title') {
+      import('../stores/gameStore').then(({ useGameStore }) => {
+        const gameStore = useGameStore();
+        gameStore.disconnectOnlineGame();
+      });
+      return next(); // タイトルへの遷移は許可するが、切断は行う
+    }
+
+    // それ以外の意図しない遷移（例: 外部サイトへの戻る、不明なURL）は遮断してタイトルへ戻す
+    if (to.name !== 'Title' && to.name !== 'Game' && to.name !== 'Matchmaking') {
       import('../stores/gameStore').then(({ useGameStore }) => {
         const gameStore = useGameStore();
         gameStore.disconnectOnlineGame();
       });
       return next({ name: 'Title' });
-    }
-    
-    // マッチングやゲームからタイトルへ戻る（戻るボタン含む）場合は切断処理
-    if (to.name === 'Title') {
-       import('../stores/gameStore').then(({ useGameStore }) => {
-        const gameStore = useGameStore();
-        gameStore.disconnectOnlineGame();
-      });
     }
   }
 
