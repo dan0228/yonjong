@@ -2271,7 +2271,7 @@ io.on('connection', (socket) => {
         if (waitingGames && waitingGames.length > 0) {
            for (const g of waitingGames) {
               const { data: gameData } = await supabase.from('games').select('status, passcode').eq('id', g.game_id).single();
-              if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
+              if (gameData && (gameData.status === 'waiting')) {
                  await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', disconnectedUserId);
                  console.log(`Removed disconnected player ${disconnectedUserId} from waiting game ${g.game_id}`);
                  
@@ -2436,7 +2436,7 @@ io.on('connection', (socket) => {
            for (const g of waitingGames) {
               const { data: gameData } = await supabase.from('games').select('status, passcode').eq('id', g.game_id).single();
               // ゲームがまだ進行中でない場合のみ削除を許可する
-              if (gameData && (gameData.status === 'waiting' || gameData.status === 'ready')) {
+              if (gameData && (gameData.status === 'waiting')) {
                  await supabase.from('game_players').delete().eq('game_id', g.game_id).eq('user_id', userId);
                  console.log(`Removed player ${userId} from waiting game ${g.game_id}`);
                  
