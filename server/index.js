@@ -1583,10 +1583,6 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   gameState.gamePhase = GAME_PHASES.AWAITING_DISCARD;
   gameState.lastActionPlayerId = playerId;
 
-  // ★追加: ツモ牌が手牌に入った状態を一度ブロードキャストし、クライアントがレンダリングする時間を確保
-  await updateAndBroadcastGameState(gameId, gameState);
-  await new Promise(resolve => setTimeout(resolve, 200)); // 200msの視覚的な遅延
-
   if (!isRinshan) {
     if (gameState.playerTurnCount[playerId] !== undefined) {
       gameState.playerTurnCount[playerId]++;
@@ -1647,6 +1643,10 @@ async function _executeDrawTile(gameId, playerId, isRinshan = false) {
   
   gameState.playerActionEligibility[playerId] = eligibility;
   updateFuriTenState(gameId, playerId);
+
+  // ★追加: ツモ牌が手牌に入り、アクション選択肢も計算し終えた状態をブロードキャストし、クライアントがレンダリングする時間を確保
+  await updateAndBroadcastGameState(gameId, gameState);
+  await new Promise(resolve => setTimeout(resolve, 200)); // 200msの視覚的な遅延
 
   // リーチ後、または切断中の自動ツモ切り処理
   if (player.status === 'disconnected' || ((player.isRiichi || player.isDoubleRiichi) && !eligibility.canTsumoAgari && !eligibility.canAnkan)) {

@@ -4,6 +4,7 @@ import { preloadImages } from '@/utils/imageLoader';
 
 // src/stores/gameStore.js
 import { defineStore } from 'pinia';
+import { nextTick } from 'vue';
 import * as mahjongLogic from '@/services/mahjongLogic';
 import { io } from 'socket.io-client'; // Socket.ioクライアントをインポート
 import i18n from '@/i18n';
@@ -796,7 +797,6 @@ export const useGameStore = defineStore('game', {
     },
 
     handleRemoteStateUpdate(newState) {
-      this.isActionPending = false; // ★サーバーから応答があったので、アクションロックを解除
       if (!this.isGameOnline || !newState) return;
 
       // サーバーからの状態で上書きされたくないプロパティを保持
@@ -838,7 +838,17 @@ export const useGameStore = defineStore('game', {
 
       // ストック音
       if (newState.stockAnimationPlayerId && this.stockAnimationPlayerId !== newState.stockAnimationPlayerId) {
-        audioStore.playSound('Percussive_Accent04-3(High).mp3');
+        // ★修正: 自分がストックしたばかりの場合は、サーバーからの通知で再度音を鳴らさない、アニメーションフラグも上書きしない
+        if (newState.stockAnimationPlayerId !== this.localPlayerId) {
+          audioStore.playSound('Percussive_Accent04-3(High).mp3');
+        }
+      }
+
+      // ★修正: 自分がストックしたばかりの場合、サーバーから来る stockAnimationPlayerId は無視する
+      if (newState.stockAnimationPlayerId === this.localPlayerId && this.stockAnimationPlayerId === null) {
+         // ローカルでは既にアニメーションが終了して null になっている可能性があるので、
+         // サーバーから遅れて届いた同じプレイヤーの stockAnimationPlayerId は上書きしない
+         newState.stockAnimationPlayerId = null;
       }
       // ---- SE再生ロジック終了 ----
 
@@ -847,9 +857,7 @@ export const useGameStore = defineStore('game', {
 
       // activeActionPlayers をオブジェクトごと再代入することで、
       // ネストされたオブジェクトの変更でもリアクティビティの更新を確実にする
-      if (newState.activeActionPlayers) {
-        this.activeActionPlayers = newState.activeActionPlayers;
-      }
+      // (下部の $patch 内で一括更新します)
 
       // ★★★ 最終防衛ライン: クライアント側でツモ牌の状態を検証・浄化する ★★★
       if (restOfState.drawnTile) {
@@ -861,17 +869,22 @@ export const useGameStore = defineStore('game', {
         }
       }
 
-      // まず、playerActionEligibility 以外の状態を効率的に更新
-      this.$patch(restOfState);
+      // Vueのリアクティビティによる再描画のタイミングズレを防ぐため、
+      // 状態の更新と isActionPending の解除を1つの $patch でアトミックに処理する
+      this.$patch((state) => {
+        Object.assign(state, restOfState);
 
-      // playerActionEligibility をオブジェクトごと再代入することで、
-      // ネストされたオブジェクトの変更でもリアクティビティの更新を確実にする
-      if (playerActionEligibility) {
-        this.playerActionEligibility = playerActionEligibility;
-      }
+        if (newState.activeActionPlayers) {
+          state.activeActionPlayers = newState.activeActionPlayers;
+        }
 
-      // サーバーからの状態更新が来たので、保留中のアクションがないとみなす
-      this.isActionPending = false;
+        if (playerActionEligibility) {
+          state.playerActionEligibility = playerActionEligibility;
+        }
+
+        // サーバーからの状態更新が来たので、保留中のアクションがないとみなす
+        state.isActionPending = false;
+      });
 
       // 保持しておいたプロパティを再設定
       if (localId) {
