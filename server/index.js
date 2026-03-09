@@ -1843,8 +1843,8 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
 
   const playerIndex = game.players.findIndex(p => p.id === userId);
   if (playerIndex === -1) {
-    console.warn(`handlePlayerLeave: Player ${userId} not found in game ${gameId}.`);
-    return;
+    // プレイヤーがメモリに見つからなくても、DBには存在する可能性があるため、処理を続行する
+    console.warn(`handlePlayerLeave: Player ${userId} not found in memory game state for game ${gameId}. Will proceed with DB operations.`);
   }
 
   // disconnectedPlayers に追加
@@ -1916,7 +1916,7 @@ async function handlePlayerLeave(gameId, userId, statusToSet = 'cancelled') {
     }
     console.log(`Player ${userId} deleted from game_players for game ${gameId} (status: waiting).`);
 
-    // メモリ上のゲーム状態からもプレイヤーを削除
+    // メモリ上のゲーム状態からもプレイヤーを削除（より安全なfilterを使用）
     game.players = game.players.filter(p => p.id !== userId);
 
     // ★修正: game.game_data.players も明示的に更新する

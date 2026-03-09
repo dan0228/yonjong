@@ -5,7 +5,7 @@ import fs from 'fs'; // fs モジュールをインポート
 
 // Viteの設定
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // 使用するプラグインのリスト
   plugins: [
     vue(), // Vue 3のシングルファイルコンポーネントをサポート
@@ -26,4 +26,10 @@ export default defineConfig({
       cert: fs.readFileSync(path.resolve(__dirname, 'localhost+1.pem')),
     },
   },
-});
+  // 本番ビルド時に console.log と console.debug を自動的に削除する設定
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+    // または、特定のものだけ消したい場合は pure を使用
+    // pure: mode === 'production' ? ['console.log', 'console.debug'] : [],
+  },
+}));
