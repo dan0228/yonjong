@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mahjong-vue-app.vercel.app/sitemap.xml
+Sitemap: https://www.yonjong.com/sitemap.xml
