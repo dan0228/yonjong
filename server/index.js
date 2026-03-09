@@ -3084,7 +3084,7 @@ io.on('connection', (socket) => {
 
     // 暗槓の条件をサーバー側で再検証
     const ankanOptions = mahjongLogic.checkCanAnkan(player.hand, gameState.drawnTile, createGameContextForPlayer(gameState, player, false));
-    const isValidAnkan = ankanOptions.some(option => mahjongLogic.getTileKey(option[0]) === mahjongLogic.getTileKey(tileToAnkan));
+    const isValidAnkan = ankanOptions.some(option => mahjongLogic.getTileKey(option) === mahjongLogic.getTileKey(tileToAnkan));
     if (!isValidAnkan) {
       return socket.emit('gameError', { message: '暗槓できる状態ではありません。' });
     }

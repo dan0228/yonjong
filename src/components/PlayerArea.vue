@@ -281,7 +281,7 @@ const canDeclareRiichi = computed(() => {
  */
 const canDeclareAnkan = computed(() => {
   if (actionInProgress.value || !isMyTurnAndCanActBeforeDiscard.value) return false;
-  const ankanInfo = gameStore.canDeclareAnkan[props.player.id];
+  const ankanInfo = playerEligibility.value.canAnkan;
   const result = ankanInfo === true || (Array.isArray(ankanInfo) && ankanInfo.length > 0);
   console.log(`[PlayerArea ${props.player.id}] canDeclareAnkan: ${result}, isMyTurnAndCanActBeforeDiscard: ${isMyTurnAndCanActBeforeDiscard.value}, ankanInfo:`, ankanInfo);
   return result;
@@ -291,7 +291,7 @@ const canDeclareAnkan = computed(() => {
  */
 const canDeclareKakan = computed(() => {
   if (actionInProgress.value || !isMyTurnAndCanActBeforeDiscard.value) return false;
-  const kakanOptions = gameStore.canDeclareKakan[props.player.id];
+  const kakanOptions = playerEligibility.value.canKakan;
   const result = Array.isArray(kakanOptions) && kakanOptions.length > 0;
   console.log(`[PlayerArea ${props.player.id}] canDeclareKakan: ${result}, isMyTurnAndCanActBeforeDiscard: ${isMyTurnAndCanActBeforeDiscard.value}, kakanOptions:`, kakanOptions);
   return result;
@@ -418,7 +418,7 @@ function emitAction(actionType) {
     // GameBoard側で選択UIを呼び出す前のトリガーとして機能すると想定。
     // より具体的には、カンする牌を選択するUIを別途呼び出し、その結果を渡す。
     else if (actionType === 'ankan') {
-        const ankanOptions = gameStore.canDeclareAnkan[props.player.id];
+        const ankanOptions = playerEligibility.value.canAnkan;
         if (Array.isArray(ankanOptions) && ankanOptions.length === 1) {
             // 選択肢が1つしかないので、それを自動的に選択
             tileData = ankanOptions[0];
@@ -427,7 +427,7 @@ function emitAction(actionType) {
             // GameBoardに選択を促すイベントを投げる (tileDataはnullのまま)
         }
     } else if (actionType === 'kakan') {
-        const kakanOptions = gameStore.canDeclareKakan[props.player.id];
+        const kakanOptions = playerEligibility.value.canKakan;
         if (Array.isArray(kakanOptions) && kakanOptions.length === 1) {
             // 選択肢が1つしかないので、それを自動的に選択
             tileData = kakanOptions[0];

@@ -589,6 +589,7 @@ function getPlayerIcon(playerId) {
   justify-content: center; /* 中央寄せに変更 */
   gap: 35px; /* ボタン間の間隔を調整 */
   margin-left: 20px;
+  margin-top: -24px;
 }
 .action-button { /* actions button から action-button にクラス名を変更 */
   background-image: url('/assets/images/button/board_hand.png');

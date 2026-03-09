@@ -1340,9 +1340,11 @@ export const useGameStore = defineStore('game', {
 
             if (this.wall.length > 3) {
               const ankanOptions = mahjongLogic.checkCanAnkan(currentPlayer.hand, this.drawnTile, this.createGameContextForPlayer(currentPlayer, false));
-              this.canDeclareAnkan[currentPlayer.id] = ankanOptions.length > 0 ? ankanOptions : null;
+              this.playerActionEligibility[currentPlayer.id].canAnkan = ankanOptions.length > 0 ? ankanOptions : null;
+              this.canDeclareAnkan[currentPlayer.id] = this.playerActionEligibility[currentPlayer.id].canAnkan;
               const kakanOptions = mahjongLogic.checkCanKakan(currentPlayer.hand, currentPlayer.melds, this.drawnTile, this.createGameContextForPlayer(currentPlayer, false));
-              this.canDeclareKakan[currentPlayer.id] = kakanOptions.length > 0 ? kakanOptions : null;
+              this.playerActionEligibility[currentPlayer.id].canKakan = kakanOptions.length > 0 ? kakanOptions : null;
+              this.canDeclareKakan[currentPlayer.id] = this.playerActionEligibility[currentPlayer.id].canKakan;
             }
             this.updateFuriTenState(currentPlayer.id);
 
@@ -1548,9 +1550,11 @@ export const useGameStore = defineStore('game', {
 
         if (this.wall.length > 3) {
           const ankanOptions = mahjongLogic.checkCanAnkan(currentPlayer.hand, this.drawnTile, this.createGameContextForPlayer(currentPlayer, false));
-          this.canDeclareAnkan[playerId] = ankanOptions.length > 0 ? ankanOptions : null;
+          this.playerActionEligibility[playerId].canAnkan = ankanOptions.length > 0 ? ankanOptions : null;
+          this.canDeclareAnkan[playerId] = this.playerActionEligibility[playerId].canAnkan;
           const kakanOptions = mahjongLogic.checkCanKakan(currentPlayer.hand, currentPlayer.melds, this.drawnTile, this.createGameContextForPlayer(currentPlayer, false));
-          this.canDeclareKakan[playerId] = kakanOptions.length > 0 ? kakanOptions : null;
+          this.playerActionEligibility[playerId].canKakan = kakanOptions.length > 0 ? kakanOptions : null;
+          this.canDeclareKakan[playerId] = this.playerActionEligibility[playerId].canKakan;
         }
         this.updateFuriTenState(playerId);
 
@@ -3811,7 +3815,7 @@ export const useGameStore = defineStore('game', {
             if (this.isChankanChance) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.chankanTile);
               return;
-            } else if (Math.random() < 0.75) {
+            } else if (Math.random() < 0.0) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.lastDiscardedTile);
               return;
             }
