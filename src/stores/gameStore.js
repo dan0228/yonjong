@@ -3817,7 +3817,7 @@ export const useGameStore = defineStore('game', {
             if (this.isChankanChance) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.chankanTile);
               return;
-            } else if (Math.random() < 0.0) {
+            } else if (Math.random() < 0.75) {
               this.playerDeclaresCall(aiPlayerId, 'ron', this.lastDiscardedTile);
               return;
             }

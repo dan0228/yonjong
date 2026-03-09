@@ -301,7 +301,8 @@ const canDeclareKakan = computed(() => {
  * ロンが可能かどうかを判定します。
  */
 const canDeclareRon = computed(() => {
-  const result = !gameStore.isActionPending && !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && playerEligibility.value.canRon;
+  const isAwaitingAction = gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE || gameStore.gamePhase === GAME_PHASES.AWAITING_KAKAN_RESPONSE;
+  const result = !gameStore.isActionPending && !actionInProgress.value && props.isMyHand && isAwaitingAction && playerEligibility.value.canRon;
   console.log(`[PlayerArea ${props.player.id}] canDeclareRon: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, canRon: ${playerEligibility.value.canRon}`);
   return result;
 });
@@ -326,7 +327,8 @@ const canDeclareMinkan = computed(() => {
  * スキップボタンを表示するかどうかを判定します。
  */
 const showSkipButton = computed(() => {
-  const result = !gameStore.isActionPending && !actionInProgress.value && props.isMyHand && gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE && gameStore.activeActionPlayers.includes(props.player.id) && (playerEligibility.value.canRon || playerEligibility.value.canPon || playerEligibility.value.canMinkan);
+  const isAwaitingAction = gameStore.gamePhase === GAME_PHASES.AWAITING_ACTION_RESPONSE || gameStore.gamePhase === GAME_PHASES.AWAITING_KAKAN_RESPONSE;
+  const result = !gameStore.isActionPending && !actionInProgress.value && props.isMyHand && isAwaitingAction && gameStore.activeActionPlayers.includes(props.player.id) && (playerEligibility.value.canRon || playerEligibility.value.canPon || playerEligibility.value.canMinkan);
   console.log(`[PlayerArea ${props.player.id}] showSkipButton: ${result}, gamePhase: ${gameStore.gamePhase}, isMyHand: ${props.isMyHand}, activeActionPlayers: ${gameStore.activeActionPlayers}, myId: ${props.player.id}, canRon: ${playerEligibility.value.canRon}, canPon: ${playerEligibility.value.canPon}, canMinkan: ${playerEligibility.value.canMinkan}`);
   return result;
 });

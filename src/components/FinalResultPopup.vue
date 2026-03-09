@@ -89,7 +89,7 @@
               </span>
             </div>
             <div class="rating-total-display">
-              <span class="total-rating-value">New: {{ displayRating }}</span>
+              <span class="total-rating-value">Rating {{ displayRating }}</span>
             </div>
           </div>
         </div>
@@ -358,13 +358,12 @@ function getPlayerIcon(playerId) {
   margin-left: -7px; /* ResultPopup.vue と同じ */
   font-family: 'Yuji Syuku', serif;
   color: rgb(43, 6, 6);
-  padding: 15px; /* ResultPopup.vue と同じ */
+  padding: 35px 15px; /* ResultPopup.vue と同じ */
   border-radius: 8px; /* ResultPopup.vue と同じ */
-  width: 95%; /* ResultPopup.vue と同じ */
-  max-width: 600px;
+  width: 100%;
   text-align: center;
   box-shadow: 0 4px 15px rgba(0,0,0,0.2); /* ResultPopup.vue と同じ */
-  max-height: 590px; /* ResultPopup.vue と同じ */
+  max-height: 600px; /* ResultPopup.vue と同じ */
   overflow-y: auto; /* ResultPopup.vue と同じ */
   /* スクロールバーのスタイル */
   scrollbar-width: thin; /* ResultPopup.vue と同じ */
@@ -380,8 +379,8 @@ function getPlayerIcon(playerId) {
   transform: scale(0.7);
 }
 .popup-content h2 {
-  margin-top: -10px;
-  margin-bottom: 5px;
+  margin-top: -30px;
+  margin-bottom: 10px;
   color: #333;
   font-size: 1.9em;
 }
@@ -589,7 +588,7 @@ function getPlayerIcon(playerId) {
   justify-content: center; /* 中央寄せに変更 */
   gap: 35px; /* ボタン間の間隔を調整 */
   margin-left: 20px;
-  margin-top: -24px;
+  margin-top: -15px;
 }
 .action-button { /* actions button から action-button にクラス名を変更 */
   background-image: url('/assets/images/button/board_hand.png');
@@ -620,10 +619,10 @@ function getPlayerIcon(playerId) {
 .back-to-title-button {
   position: absolute;
   right: 10px;
-  bottom: 15px;;
+  bottom: 20px;;
   background-image: url('/assets/images/button/buckToTitle.png');
-  width: 70px; /* 例: 画像のサイズに合わせて調整 */
-  height: 55px; /* 例: 画像のサイズに合わせて調整 */
+  width: 60px; /* 例: 画像のサイズに合わせて調整 */
+  height: 45px; /* 例: 画像のサイズに合わせて調整 */
   margin-top: -20px;
   margin-left: 20px;
   filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); /* 影を調整 */;
@@ -632,6 +631,7 @@ function getPlayerIcon(playerId) {
 .timestamp {
   font-size: 0.7em;
   color: #7d6b6b;
-  margin-top: -3px;
+  margin-top: 10px;
+  margin-bottom: -11px;
 }
 </style>
