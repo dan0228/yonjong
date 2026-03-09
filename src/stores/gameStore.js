@@ -2934,6 +2934,7 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+          this.stopTurnCountdown(); // カウントダウンを停止
           socket.emit('declareAnkan', { gameId: this.onlineGameId, playerId, tileToAnkan });
         }
         return; // サーバーからの状態更新を待つ
@@ -3015,6 +3016,7 @@ export const useGameStore = defineStore('game', {
         if (playerId !== this.localPlayerId) return;
         if (socket && socket.connected) {
           this.isActionPending = true; // ★アクションロック
+          this.stopTurnCountdown(); // カウントダウンを停止
           socket.emit('declareKakan', { gameId: this.onlineGameId, playerId, tileToKakan });
         }
         return; // サーバーからの状態更新を待つ

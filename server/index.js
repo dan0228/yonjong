@@ -3224,6 +3224,7 @@ io.on('connection', (socket) => {
       await setNextActiveResponder(gameId);
     } else {
       // 槍槓できるプレイヤーがいない場合、即座に嶺上牌ツモへ
+      gameState.gamePhase = GAME_PHASES.AWAITING_KAKAN_RESPONSE;
       await drawRinshanAfterKakan(gameId, playerId);
     }
 
