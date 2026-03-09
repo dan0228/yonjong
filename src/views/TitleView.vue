@@ -168,7 +168,7 @@
           >{{ $t('titleView.officialX') }}</a>
         </div>
         <div class="version-info">
-          v1.7.11 | 2026.1.26
+          v2.0.0 | 2026.3.10
         </div>
       </footer>
 
