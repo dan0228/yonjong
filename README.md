@@ -52,11 +52,13 @@
   <img src="https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.io">
   <img src="https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express">
   <img src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase">
+  <img src="https://img.shields.io/badge/Resend-000000?style=for-the-badge&logo=resend&logoColor=white" alt="Resend">
 </p>
 
 - **サーバー:** Node.js, Express
 - **リアルタイム通信:** Socket.IO
 - **BaaS (Database & Auth):** Supabase
+- **メール送信:** Resend (Supabase Auth経由)
 
 #### デプロイ & インフラ
 <p>
@@ -116,7 +118,7 @@ graph TD
 - **バックエンド (Node.js):** Render上で稼働する権威サーバー。オンライン対戦のゲームロジック、リアルタイムな状態同期、Supabaseとのデータ連携を担います。
 - **Supabase:**
   - **データベース:** ユーザー情報、ゲーム履歴、ランキングなどを永続化します。
-  - **認証:** メールOTP認証と匿名認証（ゲスト）を提供します。
+  - **認証:** メールOTP認証と匿名認証（ゲスト）を提供します。認証メールの送信には、カスタムSMTPサーバーとして**Resend**を利用しています。
   - **DB関数 (RPC):** マッチング処理 (`find_or_create_match`) やデータ更新 (`update_user_stats_and_coins`) といった複雑なロジックをデータベース層にカプセル化し、サーバーから安全に呼び出せるようにしています。
   - **トリガー:** レート更新時に自動で階級を再計算するなど、データの整合性を保つためのロジックを実行します。
   - **RLS (Row Level Security):** ユーザーが自分のデータにしかアクセスできないように、厳格なセキュリティポリシーを定義しています。
