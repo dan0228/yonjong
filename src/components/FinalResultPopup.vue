@@ -89,7 +89,7 @@
               </span>
             </div>
             <div class="rating-total-display">
-              <span class="total-rating-value">Rating {{ displayRating }}</span>
+              <span class="total-rating-value">{{ t('finalResultPopup.totalRating') }}{{ displayRating }}</span>
             </div>
           </div>
         </div>
