@@ -1549,8 +1549,12 @@ async function prepareNextRound(gameId) {
   const freshGameState = gameStates[gameId];
   const dealerId = freshGameState.players[freshGameState.dealerIndex]?.id;
   if (dealerId) {
-    console.log(`[Server] Next round dealer is ${dealerId}. Executing first draw.`);
-    await _executeDrawTile(gameId, dealerId);
+    if (!freshGameState.showDealerDeterminationPopup) {
+      console.log(`[Server] Next round dealer is ${dealerId}. Executing first draw.`);
+      await _executeDrawTile(gameId, dealerId);
+    } else {
+      console.log(`[Server] Waiting for Dealer Determination Popup to close before first draw.`);
+    }
     await updateAndBroadcastGameState(gameId, freshGameState);
   } else {
     console.error(`[Server] Could not determine dealer for the next round in game ${gameId}.`);
@@ -2728,8 +2732,12 @@ io.on('connection', (socket) => {
       // ★追加: 初期化完了後、親プレイヤーにツモを促す
       const dealerId = gameStates[gameId].players[gameStates[gameId].dealerIndex]?.id;
       if (dealerId) {
-        console.log(`[Server] Dealer is ${dealerId}. Executing first draw.`);
-        await _executeDrawTile(gameId, dealerId);
+        if (!gameStates[gameId].showDealerDeterminationPopup) {
+          console.log(`[Server] Dealer is ${dealerId}. Executing first draw.`);
+          await _executeDrawTile(gameId, dealerId);
+        } else {
+          console.log(`[Server] Waiting for Dealer Determination Popup to close before first draw.`);
+        }
         await updateAndBroadcastGameState(gameId, gameStates[gameId]);
 
 
@@ -2749,6 +2757,11 @@ io.on('connection', (socket) => {
     const gameState = gameStates[gameId];
     if (gameState && gameState.showDealerDeterminationPopup) {
       gameState.showDealerDeterminationPopup = false;
+      const dealerId = gameState.players[gameState.dealerIndex]?.id;
+      if (dealerId) {
+        console.log(`[Server] Dealer determination closed. Executing first draw for dealer ${dealerId}.`);
+        await _executeDrawTile(gameId, dealerId);
+      }
       await updateAndBroadcastGameState(gameId, gameState);
     }
   });
