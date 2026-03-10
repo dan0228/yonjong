@@ -783,7 +783,7 @@ const handleDeleteAccount = () => {
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  margin-top: 10px;
+  margin-top: 100px;
   margin-left: 28px;
   margin-right: 28px;
 }
