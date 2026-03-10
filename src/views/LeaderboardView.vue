@@ -322,7 +322,7 @@ watch(activeRankingType, (newType) => {
 .user-stats {
   position: absolute;
   top: 575px;
-  left: 60px;
+  left: 50px;
   z-index: 10;
 }
 .board-image {
@@ -365,11 +365,13 @@ watch(activeRankingType, (newType) => {
   border: none;
   cursor: pointer;
   padding: 0;
+  margin-top: 10px;
   margin-bottom: 20px;
+  margin-left: 20px;
   z-index: 20;
 }
 .back-button img {
-  width: 90px;
+  width: 70px;
   height: auto;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1));
   transition: all 0.2s ease;
