@@ -68,7 +68,7 @@
               </span>
             </div>
             <div class="coin-total-display">
-              <span class="positive-gain total-cat-coins-value">{{ t('finalResultPopup.totalCatCoins') }} {{ displayCatCoins }}</span>
+              <span class="total-cat-coins-value">{{ t('finalResultPopup.totalCatCoins') }} {{ displayCatCoins }}</span>
             </div>
           </div>
 
@@ -502,13 +502,13 @@ function getPlayerIcon(playerId) {
 .rewards-container {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
   margin-top: 10px;
   margin-bottom: 20px;
 }
 
 .coin-gain, .rating-gain {
-  font-size: 1.5em;
+  font-size: 1.4em;
   font-weight: bold;
   display: flex;
   flex-direction: column; /* 縦並びにする */
@@ -538,13 +538,17 @@ function getPlayerIcon(playerId) {
 
 .total-cat-coins-value, .total-rating-value {
   font-size: 1.0em; /* 増減値と同じくらいか少し大きく */
-  color: #9b0f0f; /* positive-gainと同じ色 */
+  color: #522406;
   margin-bottom: 0px;
   margin-top: -18px;
 }
 
-.positive-gain, .negative-gain {
-  color: #9b0f0f;
+.positive-gain{
+  color: #940808;
+}
+
+.negative-gain {
+  color: #090b74;
 }
 
 .cat-coin-icon {
@@ -552,6 +556,7 @@ function getPlayerIcon(playerId) {
   height: 70px;
   margin-left: 0px;
   margin-top: -10px;
+  margin-bottom: 10px;
 }
 
 .rank-class-icon {
@@ -559,6 +564,7 @@ function getPlayerIcon(playerId) {
   object-fit: contain;
   margin-right: 10px;
   margin-top: -10px;
+  margin-bottom: 10px;
   opacity: 0; /* 初期状態は非表示 */
 }
 
