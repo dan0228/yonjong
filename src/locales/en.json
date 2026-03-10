@@ -149,6 +149,19 @@
       "endCondition": {
         "title": "End Condition",
         "description": "Agari-yame is enabled. The game ends in the last round if the dealer wins or is in tenpai."
+      },
+      "ratingSystem": {
+        "title": "Rating and Class",
+        "description": "Rating changes in Ranked. Class based on rating.",
+        "class1": {
+          "condition": "Initial Class\nPromote at Rating 2000+"
+        },
+        "class2": {
+          "condition": "Promote at Rating 5000+\nDemote at Rating 1799 or below"
+        },
+        "class3": {
+          "condition": "Highest Class\nDemote at Rating 4799 or below"
+        }
       }
     }
   },

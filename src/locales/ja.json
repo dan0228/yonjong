@@ -144,14 +144,27 @@
       },
       "points": {
         "title": "持ち点",
-        "description": "50000点。箱下なし (0点未満になった時点で終局)。"
+        "description": "50,000点持ち。"
       },
       "endCondition": {
         "title": "終局条件",
         "description": "和了止めあり (東4局は親が和了またはテンパイしても終局)。"
+      },
+      "ratingSystem": {
+        "title": "レートと階級",
+        "description": "全国対戦でレートが変動。レートに応じて階級が決定。",
+        "class1": {
+          "condition": "初期階級\nレート 2000以上で昇格"
+        },
+        "class2": {
+          "condition": "レート 5000以上で昇格\nレート 1799以下で降格"
+        },
+        "class3": {
+          "condition": "最高階級\nレート 4799以下で降格"
+        }
       }
-    }
-  },
+      }
+      },
   "yakuListPopup": {
     "title": "役一覧",
     "achievementNote": "※和了済みの役はハイライト",

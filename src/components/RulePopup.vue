@@ -38,6 +38,56 @@
               <h3>{{ $t(`rulePopup.sections.${section}.title`) }}</h3>
               <p>{{ $t(`rulePopup.sections.${section}.description`) }}</p>
             </div>
+            
+            <!-- レートと階級 セクション -->
+            <div class="section rating-system-section">
+              <h3>{{ $t('rulePopup.sections.ratingSystem.title') }}</h3>
+              <p>{{ $t('rulePopup.sections.ratingSystem.description') }}</p>
+              
+              <div class="class-info-list">
+                <div class="class-info-item">
+                  <img
+                    :src="`/assets/images/info/kitten${langSuffix}.png`"
+                    alt="Kitten Class"
+                    class="class-badge"
+                  >
+                  <div class="class-details">
+                    <span
+                      class="class-condition"
+                      style="white-space: pre-wrap;"
+                    >{{ $t('rulePopup.sections.ratingSystem.class1.condition') }}</span>
+                  </div>
+                </div>
+                
+                <div class="class-info-item">
+                  <img
+                    :src="`/assets/images/info/alley${langSuffix}.png`"
+                    alt="Alley Class"
+                    class="class-badge"
+                  >
+                  <div class="class-details">
+                    <span
+                      class="class-condition"
+                      style="white-space: pre-wrap;"
+                    >{{ $t('rulePopup.sections.ratingSystem.class2.condition') }}</span>
+                  </div>
+                </div>
+                
+                <div class="class-info-item">
+                  <img
+                    :src="`/assets/images/info/boss${langSuffix}.png`"
+                    alt="Boss Class"
+                    class="class-badge"
+                  >
+                  <div class="class-details">
+                    <span
+                      class="class-condition"
+                      style="white-space: pre-wrap;"
+                    >{{ $t('rulePopup.sections.ratingSystem.class3.condition') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Stock Rules Content -->
@@ -90,13 +140,17 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useAudioStore } from '@/stores/audioStore';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   show: Boolean
 });
 defineEmits(['close']);
+
+const { locale } = useI18n();
+const langSuffix = computed(() => locale.value === 'en' ? '_en' : '');
 
 const activeTab = ref('basic'); // 'basic' or 'stock'
 
@@ -293,6 +347,42 @@ h2 {
   color: #7a3c2a; /* ホバー時の色 */
 }
 
+/* Rating System Styles */
+.rating-system-section {
+  margin-top: 15px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(138, 109, 59, 0.5);
+}
+.class-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+}
+.class-info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255, 255, 255, 0.4);
+  padding: 2px 0px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.class-badge {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}
+.class-details {
+  display: flex;
+  flex-direction: column;
+}
+.class-condition {
+  font-size: 1.0em;
+  font-weight: bold;
+  color: #4a2c1a;
+  line-height: 1.4;
+}
 
 /* --- 巻物アニメーション --- */
 
