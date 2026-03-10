@@ -6,13 +6,21 @@ ALTER TABLE public.games_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_players_history ENABLE ROW LEVEL SECURITY;
 
 -- 1. users テーブルのポリシー
--- 自分のプロフィールのみ参照可能
-CREATE POLICY "Users can view own profile" ON public.users
-  FOR SELECT USING (auth.uid() = id);
+-- 認証済みのユーザーは、全ユーザーのプロフィールを読み取り可能
+CREATE POLICY "Allow authenticated read access" ON public.users
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- 自分のプロフィールを新規作成可能
+CREATE POLICY "Users can insert own profile" ON public.users
+  FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- 自分のプロフィールのみ更新可能
 CREATE POLICY "Users can update own profile" ON public.users
   FOR UPDATE USING (auth.uid() = id);
+
+-- 自分のプロフィールのみ削除可能
+CREATE POLICY "Users can delete own profile" ON public.users
+  FOR DELETE USING (auth.uid() = id);
 
 -- 2. games / game_players テーブル
 -- ゲームサーバー (Node.js) が service_role キーで操作するため、

@@ -141,7 +141,8 @@ router.beforeEach((to, from, next) => {
   }
 
   // Handle initial load redirect
-  if (from.name === undefined && to.name !== 'Title' && to.name !== 'EmailConfirmed') {
+  const isAuthCallback = to.hash.includes('access_token');
+  if (from.name === undefined && to.name !== 'Title' && to.name !== 'EmailConfirmed' && !isAuthCallback) {
     next({ name: 'Title' });
   } else {
     next();
