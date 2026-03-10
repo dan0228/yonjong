@@ -46,7 +46,7 @@ import LoadingIndicator from '@/components/LoadingIndicator.vue';
 import PenaltyPopup from '@/components/PenaltyPopup.vue';
 
 // --- リアクティブな状態 ---
-const isEmailConfirmedPage = window.location.hash.startsWith('#/email-confirmed');
+const isEmailConfirmedPage = window.location.href.includes('/email-confirmed');
 const isTransitioning = ref(false);
 const showWakeUpScreen = ref(!isEmailConfirmedPage); // メール確認ページでなければ表示
 

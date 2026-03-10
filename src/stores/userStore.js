@@ -435,6 +435,10 @@ export const useUserStore = defineStore('user', () => {
    * 初回アクセス時にゲストとして自動登録します。
    */
   async function registerAsGuest() {
+    if (window.location.href.includes('/email-confirmed')) {
+      console.log('Skipping guest registration on email confirmation page.');
+      return;
+    }
     loading.value = true;
     try {
       const guestUsername = `Guest#${generateGuestId()}`;
