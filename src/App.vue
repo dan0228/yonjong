@@ -86,9 +86,6 @@ onMounted(async () => {
       // ユーザー情報取得も並行して行う
       (async () => {
         await userStore.fetchUserProfile({ showLoading: false });
-        if (!userStore.profile) {
-          await userStore.registerAsGuest();
-        }
       })()
     ]);
   } catch (error) {

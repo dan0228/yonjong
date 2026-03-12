@@ -445,10 +445,6 @@ onMounted(async () => {
   
   await userStore.fetchUserProfile({ showLoading: false });
 
-  if (!userStore.profile) {
-    await userStore.registerAsGuest();
-  }
-
   window.addEventListener('resize', updateScaleFactor);
 });
 

@@ -32,11 +32,13 @@
 import { ref, computed, defineEmits } from 'vue';
 import { useAudioStore } from '@/stores/audioStore';
 import { useGameStore } from '@/stores/gameStore';
+import { useUserStore } from '@/stores/userStore'; // ★追加
 
 const emit = defineEmits(['finished']);
 
 const audioStore = useAudioStore();
 const gameStore = useGameStore();
+const userStore = useUserStore(); // ★追加
 
 const isSleeping = ref(true);
 const wakeupTimestamp = ref(null);
@@ -58,9 +60,14 @@ const onImageLoad = () => {
   isImageLoaded.value = true;
 };
 
-const wakeUp = () => {
+const wakeUp = async () => { // ★asyncに変更
   if (!canWakeUp.value || !isSleeping.value) {
     return;
+  }
+
+  // ★追加: 猫を起こしたタイミングでゲスト登録（プロフィールがない場合のみ）
+  if (!userStore.profile) {
+    await userStore.registerAsGuest();
   }
 
   // Stage 2: Start loading core assets in the background
