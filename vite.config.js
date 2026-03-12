@@ -3,13 +3,14 @@ import vue from '@vitejs/plugin-vue';
 import path from 'path';
 import fs from 'fs'; // fs モジュールをインポート
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Viteの設定
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   // 使用するプラグインのリスト
-  plugins: [
-    vue(), // Vue 3のシングルファイルコンポーネントをサポート
-  ],
+  plugins: [// Vue 3のシングルファイルコンポーネントをサポート
+  vue(), cloudflare()],
   // モジュールの解決方法を設定
   resolve: {
     // エイリアスの設定
