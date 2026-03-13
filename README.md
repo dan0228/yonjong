@@ -62,13 +62,13 @@
 
 #### デプロイ & インフラ
 <p>
-  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel">
+  <img src="https://img.shields.io/badge/Cloudflare_Pages-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Pages">
   <img src="https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white" alt="Render">
 </p>
 
-- **フロントエンド:** Vercel
+- **フロントエンド:** Cloudflare Pages
 - **バックエンド:** Render
-- **分析:** Vercel Analytics
+- **分析:** Cloudflare Web Analytics
 
 ## 🏛️ アーキテクチャ概要
 
@@ -80,7 +80,7 @@ graph TD
         A[Vue.js (Vite/Pinia)]
     end
 
-    subgraph "Vercel"
+    subgraph "Cloudflare Pages"
         B[静的ホスティング]
     end
 
@@ -114,7 +114,7 @@ graph TD
     linkStyle 6 stroke-width:2px,stroke:orange,fill:none;
 ```
 
-- **フロントエンド (Vue.js):** Vercelから配信される静的ファイル。UIの描画とユーザーインタラクションを担当します。AI対戦は完全にクライアントサイドで完結します。オンライン対戦時には、バックエンドサーバーとWebSocketで接続します。
+- **フロントエンド (Vue.js):** Cloudflare Pagesから配信される静的ファイル。UIの描画とユーザーインタラクションを担当します。AI対戦は完全にクライアントサイドで完結します。オンライン対戦時には、バックエンドサーバーとWebSocketで接続します。
 - **バックエンド (Node.js):** Render上で稼働する権威サーバー。オンライン対戦のゲームロジック、リアルタイムな状態同期、Supabaseとのデータ連携を担います。
 - **Supabase:**
   - **データベース:** ユーザー情報、ゲーム履歴、ランキングなどを永続化します。
