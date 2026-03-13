@@ -806,6 +806,20 @@ export const useGameStore = defineStore('game', {
       const localId = this.localPlayerId;
       const isOnline = this.isGameOnline; // ★★★ isGameOnlineの値を保持
 
+      // ---- 役の記録ロジック追加 ----
+      if (newState.gamePhase === GAME_PHASES.ROUND_END && newState.showResultPopup && !this.showResultPopup) {
+        if (newState.agariResultDetails && newState.agariResultDetails.winnerId === this.localPlayerId && !newState.agariResultDetails.isChombo) {
+          const userStore = useUserStore();
+          if (newState.agariResultDetails.yakuList) {
+            newState.agariResultDetails.yakuList.forEach(yaku => {
+              if (yaku.key) {
+                userStore.updateYakuAchievement(yaku.key);
+              }
+            });
+          }
+        }
+      }
+
       // ---- SE再生ロジック追加 ----
       const audioStore = useAudioStore();
 
