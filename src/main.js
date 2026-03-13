@@ -1,14 +1,13 @@
 /**
  * アプリケーションのエントリーポイントです。
  * Vueインスタンスの作成、Pinia（状態管理）、Vue I18n（国際化）、
- * Vue Router（ルーティング）のセットアップ、およびVercel Analyticsの初期化を行います。
+ * Vue Router（ルーティング）のセットアップを行います。
  * また、ページリロード時にゲームが意図せず継続されるのを防ぐための処理も含まれています。
  */
 
 // --- ライブラリのインポート ---
 import { createApp } from 'vue'; // Vueアプリケーションを作成するためのコア機能
 import { createPinia } from 'pinia'; // 状態管理ライブラリ
-import { inject } from '@vercel/analytics'; // Vercelアナリティクス
 
 // --- 内部モジュールのインポート ---
 import App from './App.vue'; // ルートコンポーネント
@@ -16,9 +15,6 @@ import router from './router'; // ルーター設定
 import i18n from './i18n'; // 国際化(i18n)設定
 import { useGameStore, GAME_PHASES } from './stores/gameStore'; // ゲーム状態ストア
 import './styles/main.css'; // グローバルCSS
-
-// Vercelアナリティクスを有効化
-inject();
 
 // --- Vueアプリケーションのインスタンス化とプラグインの適用 ---
 const app = createApp(App);
