@@ -915,6 +915,14 @@ export const useGameStore = defineStore('game', {
         if (myResult) {
           this.lastCoinGain = myResult.coin_change || 0;
         }
+
+        // オンライン対戦の場合、ゲーム終了時に達成した役を保存する
+        if (this.isGameOnline) {
+          const userStore = useUserStore();
+          if (userStore.profile) {
+            userStore.saveAchievedYaku({ showLoading: false });
+          }
+        }
       }
 
       // 新しいフェーズがストック選択待ちの場合、該当プレイヤーのカウントダウンを開始

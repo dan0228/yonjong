@@ -121,6 +121,7 @@ import { defineProps, defineEmits, computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useGameStore } from '@/stores/gameStore';
 import { useUserStore } from '@/stores/userStore'; // userStoreをインポート
+import { useAudioStore } from '@/stores/audioStore'; // audioStoreをインポート
 import { useZoomLock } from '@/composables/useZoomLock';
 
 
@@ -134,6 +135,7 @@ const { t, locale } = useI18n();
 const emit = defineEmits(['start-new-game', 'back-to-title']);
 const gameStore = useGameStore();
 const userStore = useUserStore(); // userStoreのインスタンスを取得
+const audioStore = useAudioStore(); // ★audioStoreのインスタンスを取得
 
 // ズーム防止機能を有効化
 useZoomLock();
@@ -230,6 +232,7 @@ watch(() => props.show, (newValue) => {
       // レートのアニメーションが終わったらクラスアイコンのアニメーションを開始
       animateValue(currentAnimatedRating, initialRating, finalRating, () => {
         showClassAnimation.value = true;
+        audioStore.playSound('Hit-Slap01-3(Dry).mp3'); // ★バッジが表示される瞬間に音を鳴らす
       });
     }
   }
