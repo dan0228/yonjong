@@ -527,6 +527,11 @@ function _finalizeRiichi(gameId, playerId) {
   }
   gameState.isDeclaringRiichi[playerId] = false;
 
+  // --- 統計カウンターの更新 ---
+  if (player.stats) {
+    player.stats.riichiCount = (player.stats.riichiCount || 0) + 1;
+  }
+
   player.score -= 1000;
   gameState.riichiSticks++;
   gameState.isIppatsuChance[playerId] = true; // リーチ成立直後は一発のチャンス
@@ -651,6 +656,31 @@ async function handleAgari(gameId, agariPlayerId, agariTile, isTsumo, ronTargetP
   if (!winResult.isWin) {
     console.error(`handleAgari called for player ${agariPlayerId} but win condition not met on server.`);
     return;
+  }
+
+  // --- 統計カウンターの更新 ---
+  // 全プレイヤーの局数を加算
+  gameState.players.forEach(p => {
+    if (p.stats) {
+      p.stats.totalRoundsPlayed = (p.stats.totalRoundsPlayed || 0) + 1;
+    }
+  });
+
+  if (!winResult.isChombo) { // チョンボ以外の場合
+    if (player.stats) {
+      player.stats.winCount = (player.stats.winCount || 0) + 1;
+      if (isTsumo) {
+        player.stats.tsumoCount = (player.stats.tsumoCount || 0) + 1;
+      } else {
+        player.stats.ronCount = (player.stats.ronCount || 0) + 1;
+      }
+    }
+    if (!isTsumo && ronTargetPlayerId) {
+      const targetPlayer = gameState.players.find(p => p.id === ronTargetPlayerId);
+      if (targetPlayer && targetPlayer.stats) {
+        targetPlayer.stats.dealInCount = (targetPlayer.stats.dealInCount || 0) + 1;
+      }
+    }
   }
 
   // 点数計算
@@ -861,6 +891,10 @@ async function declarePon(gameId, playerId, targetPlayerId, tileToPon) {
   // 鳴きメンツを追加
   player.melds.push({ type: 'pon', tiles: [tileToPon, tileToPon, tileToPon], from: targetPlayerId, takenTileRelativePosition: takenTileRelativePosition });
   
+  if (player.stats) {
+    player.stats.callCount = (player.stats.callCount || 0) + 1;
+  }
+  
   updateFuriTenState(gameId, playerId);
   
   gameState.currentTurnPlayerId = playerId;
@@ -935,6 +969,10 @@ async function declareMinkan(gameId, playerId, targetPlayerId, tileToKan) {
 
   // 鳴きメンツを追加
   player.melds.push({ type: 'minkan', tiles: [tileToKan, tileToKan, tileToKan, tileToKan], from: targetPlayerId, takenTileRelativePosition: takenTileRelativePosition });
+  
+  if (player.stats) {
+    player.stats.callCount = (player.stats.callCount || 0) + 1;
+  }
   
   gameState.currentTurnPlayerId = playerId;
   gameState.lastDiscardedTile = null;
@@ -1039,6 +1077,11 @@ async function handleRyuukyoku(gameId) {
     };
 
     const tenpaiStates = gameState.players.map(player => {
+      // 局数（ラウンド数）の加算
+      if (player.stats) {
+        player.stats.totalRoundsPlayed = (player.stats.totalRoundsPlayed || 0) + 1;
+      }
+      
       const context = createGameContextForPlayer(gameState, player, false);
       const tenpaiResult = mahjongLogic.checkYonhaiTenpai(player.hand, context);
       gameState.isTenpaiDisplay[player.id] = tenpaiResult.isTenpai;
@@ -1222,6 +1265,14 @@ async function handleGameEnd(gameId) {
         p_rank: player.rank,
         p_coin_change: coinChange,
         p_rating_change: ratingChange, // レート変動値を渡す
+        p_total_rounds_played: player.stats ? player.stats.totalRoundsPlayed : 0,
+        p_win_count: player.stats ? player.stats.winCount : 0,
+        p_deal_in_count: player.stats ? player.stats.dealInCount : 0,
+        p_call_count: player.stats ? player.stats.callCount : 0,
+        p_stock_count: player.stats ? player.stats.stockCount : 0,
+        p_riichi_count: player.stats ? player.stats.riichiCount : 0,
+        p_tsumo_count: player.stats ? player.stats.tsumoCount : 0,
+        p_ron_count: player.stats ? player.stats.ronCount : 0
       });
 
       if (rpcError) {
@@ -2685,6 +2736,17 @@ io.on('connection', (socket) => {
               stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false,
               isAi: false,
               seat_index: gp.seat_index, // seat_index を追加
+              // --- 統計データ用のカウンターを追加 ---
+              stats: {
+                totalRoundsPlayed: 0,
+                winCount: 0,
+                dealInCount: 0,
+                callCount: 0,
+                stockCount: 0,
+                riichiCount: 0,
+                tsumoCount: 0,
+                ronCount: 0
+              }
             };
           });
 
@@ -2937,6 +2999,11 @@ io.on('connection', (socket) => {
         }
 
         player.stockedTile = { ...tileToStock, isPublic: true, isStockedTile: true };
+        
+        if (player.stats) {
+          player.stats.stockCount = (player.stats.stockCount || 0) + 1;
+        }
+
         gameState.stockAnimationPlayerId = playerId;
         
         await moveToNextPlayer(gameId);
@@ -3126,6 +3193,10 @@ io.on('connection', (socket) => {
 
     player.melds.push({ type: 'ankan', tiles: [tileToAnkan, tileToAnkan, tileToAnkan, tileToAnkan], from: playerId, takenTileRelativePosition: null });
     
+    if (player.stats) {
+      player.stats.callCount = (player.stats.callCount || 0) + 1;
+    }
+    
     updateFuriTenState(gameId, playerId);
     gameState.players.forEach(p => gameState.isDoujunFuriTen[p.id] = false);
     gameState.isChankanChance = false; // 暗槓は槍槓できない
@@ -3186,6 +3257,10 @@ io.on('connection', (socket) => {
     
     player.melds[ponMeldIndex].type = 'kakan';
     player.melds[ponMeldIndex].tiles.push(tileToKakan);
+
+    if (player.stats) {
+      player.stats.callCount = (player.stats.callCount || 0) + 1;
+    }
 
     // 手牌またはツモ牌から加槓した牌を削除
     if (gameState.drawnTile && mahjongLogic.getTileKey(gameState.drawnTile) === kakanKey) {
@@ -3321,9 +3396,12 @@ io.on('connection', (socket) => {
     }
 
     player.stockedTile = { ...discardedTileActual, isPublic: true, isStockedTile: true };
-    
-    // ターンを次のプレイヤーへ
-    await moveToNextPlayer(gameId);
+
+    if (player.stats) {
+      player.stats.stockCount = (player.stats.stockCount || 0) + 1;
+    }
+
+    // ターンを次のプレイヤーへ    await moveToNextPlayer(gameId);
     await _executeDrawTile(gameId, gameState.currentTurnPlayerId);
     
     await updateAndBroadcastGameState(gameId, gameState);

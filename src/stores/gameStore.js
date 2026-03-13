@@ -185,7 +185,10 @@ function handleAiDiscardLogic(store, playerId) {
 export function createDefaultGameState() {
   return {
     players: [
-      { id: 'player1', name: localStorage.getItem('mahjongUsername') || 'あなた', hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null, stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false, isAi: false }, // isAi: false を追加
+      { 
+        id: 'player1', name: localStorage.getItem('mahjongUsername') || 'あなた', hand: [], discards: [], melds: [], isDealer: false, score: 50000, seatWind: null, stockedTile: null, isUsingStockedTile: false, isStockedTileSelected: false, isAi: false,
+        stats: { totalRoundsPlayed: 0, winCount: 0, dealInCount: 0, callCount: 0, stockCount: 0, riichiCount: 0, tsumoCount: 0, ronCount: 0 }
+      }, // isAi: false を追加
     ],
     wall: [],
     deadWall: [],
@@ -1072,6 +1075,7 @@ export const useGameStore = defineStore('game', {
             rating: rating,
             user_rank_class: user_rank_class, // ★AIプレイヤーにuser_rank_classを設定
             isAi: true, // AIプレイヤーであることを明示
+            stats: { totalRoundsPlayed: 0, winCount: 0, dealInCount: 0, callCount: 0, stockCount: 0, riichiCount: 0, tsumoCount: 0, ronCount: 0 } // ★追加
           };
         });
 
@@ -1088,6 +1092,7 @@ export const useGameStore = defineStore('game', {
           isUsingStockedTile: false,
           isStockedTileSelected: false,
           isAi: false,
+          stats: { totalRoundsPlayed: 0, winCount: 0, dealInCount: 0, callCount: 0, stockCount: 0, riichiCount: 0, tsumoCount: 0, ronCount: 0 } // ★追加
         };
 
         if (userStore.profile) {

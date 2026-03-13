@@ -2,7 +2,15 @@ CREATE OR REPLACE FUNCTION update_user_stats_and_coins(
     p_user_id uuid,
     p_rank integer,
     p_coin_change integer,
-    p_rating_change integer
+    p_rating_change integer,
+    p_total_rounds_played integer DEFAULT 0,
+    p_win_count integer DEFAULT 0,
+    p_deal_in_count integer DEFAULT 0,
+    p_call_count integer DEFAULT 0,
+    p_stock_count integer DEFAULT 0,
+    p_riichi_count integer DEFAULT 0,
+    p_tsumo_count integer DEFAULT 0,
+    p_ron_count integer DEFAULT 0
 )
 RETURNS void AS $$
 DECLARE
@@ -25,6 +33,14 @@ BEGIN
     UPDATE public.users
     SET
         total_games_played = total_games_played + 1,
+        total_rounds_played = total_rounds_played + COALESCE(p_total_rounds_played, 0),
+        win_count = win_count + COALESCE(p_win_count, 0),
+        deal_in_count = deal_in_count + COALESCE(p_deal_in_count, 0),
+        call_count = call_count + COALESCE(p_call_count, 0),
+        stock_count = stock_count + COALESCE(p_stock_count, 0),
+        riichi_count = riichi_count + COALESCE(p_riichi_count, 0),
+        tsumo_count = tsumo_count + COALESCE(p_tsumo_count, 0),
+        ron_count = ron_count + COALESCE(p_ron_count, 0),
         -- 猫コインを更新 (0未満にならないように調整)
         cat_coins = GREATEST(0, cat_coins + p_coin_change),
         rating = new_rating,
